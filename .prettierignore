@@ -1,0 +1,7 @@
+dist
+coverage
+node_modules
+package-lock.json
+
+# Author-curated reference document — preserve original formatting.
+PHARMACOGRAPHER_HANDOFF.md

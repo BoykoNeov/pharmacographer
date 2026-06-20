@@ -1,0 +1,9 @@
+# Normalize line endings: LF in the repo for all text files, regardless of OS.
+* text=auto eol=lf
+
+# Binary assets (none yet, but future-proof the convention).
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary

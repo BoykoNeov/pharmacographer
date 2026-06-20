@@ -1,0 +1,69 @@
+:root {
+  --bg: #0f1115;
+  --panel: #181b22;
+  --text: #e8eaed;
+  --muted: #9aa0a6;
+  --accent: #5b9dd9;
+  --warn-bg: #3a2a12;
+  --warn-border: #b8860b;
+  --warn-text: #ffe8b3;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1rem 1.5rem 4rem;
+}
+
+.app__header h1 {
+  margin: 0.25rem 0 0;
+  font-size: 1.6rem;
+}
+
+.app__tagline {
+  margin: 0.25rem 0 1rem;
+  color: var(--muted);
+}
+
+/* Persistent disclaimer — intentionally not dismissible (handoff §11). */
+.disclaimer-banner {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--warn-bg);
+  border-bottom: 1px solid var(--warn-border);
+  color: var(--warn-text);
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.disclaimer-banner strong {
+  color: #fff;
+}
+
+.placeholder {
+  margin-top: 2rem;
+  padding: 2rem;
+  background: var(--panel);
+  border-radius: 8px;
+  color: var(--muted);
+}
