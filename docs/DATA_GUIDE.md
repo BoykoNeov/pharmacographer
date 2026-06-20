@@ -37,15 +37,21 @@ phase.
 
 Each parameter is an object carrying provenance. Disposition parameters (Vd, t½,
 CL) are route-independent and live under `disposition`; route-specific parameters
-(F, ka, Tmax) live under `routes`. Abbreviated shape (full example: handoff §8):
+(F, ka, Tmax) live under `routes`. The `model` field is the discriminator that
+lets future model types slot in, and `linear: false` means superposition is
+invalid (such compounds are excluded from v1).
 
-```jsonc
+Real compound files are **strict JSON** — no comments and no trailing commas, so
+`JSON.parse` accepts them. Curator reasoning therefore goes in the `notes` field,
+never inline. Abbreviated shape (full example: handoff §8):
+
+```json
 {
   "id": "acetaminophen",
   "schemaVersion": 1,
   "names": { "inn": "Paracetamol", "usan": "Acetaminophen", "synonyms": ["APAP"] },
-  "model": "one_compartment_first_order", // discriminator — seam for future models
-  "linear": true, // false => superposition invalid (exclude in v1)
+  "model": "one_compartment_first_order",
+  "linear": true,
   "disposition": {
     "halfLife": {
       "value": 2.5,
@@ -53,7 +59,7 @@ CL) are route-independent and live under `disposition`; route-specific parameter
       "unit": "h",
       "derived": false,
       "sourceRef": "fda_label",
-      "conditions": "healthy adults",
+      "conditions": "healthy adults"
     },
     "vd": {
       "value": 0.95,
@@ -61,8 +67,8 @@ CL) are route-independent and live under `disposition`; route-specific parameter
       "unit": "L/kg",
       "derived": false,
       "sourceRef": "fda_label",
-      "conditions": "...",
-    },
+      "conditions": "..."
+    }
   },
   "routes": {
     "oral": {
@@ -72,14 +78,14 @@ CL) are route-independent and live under `disposition`; route-specific parameter
         "unit": "fraction",
         "derived": false,
         "sourceRef": "fda_label",
-        "conditions": "IR tablet, fasted",
+        "conditions": "IR tablet, fasted"
       },
-      "ka": { "value": 3.0, "unit": "1/h", "derived": true, "sourceRef": "derived_from_tmax" },
+      "ka": { "value": 3.0, "unit": "1/h", "derived": true, "sourceRef": "derived_from_tmax" }
     },
     "iv_bolus": {
       "available": true,
-      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" },
-    },
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
   },
   "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
   "sources": {
@@ -87,10 +93,10 @@ CL) are route-independent and live under `disposition`; route-specific parameter
       "type": "FDA label",
       "title": "...",
       "url": "https://...",
-      "accessed": "2026-06-15",
-    },
+      "accessed": "2026-06-15"
+    }
   },
-  "notes": "Curator reasoning: chose geometric-mean t½ from healthy-volunteer studies; ER excluded.",
+  "notes": "Curator reasoning: chose geometric-mean t½ from healthy-volunteer studies; ER excluded."
 }
 ```
 
