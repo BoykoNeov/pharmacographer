@@ -84,5 +84,7 @@ all pass.
 ## Build order
 
 Follow the phases in handoff §13 — engine + tests before UI. Current state:
-Phase 0 (scaffold, units, types, disclaimer) done. Next: Phase 1 (single-dose
-models: iv_bolus, oral incl. `ka≈ke` limit, iv_infusion) with §10 oracle tests.
+Phase 1 done — `engine/models.ts` single-dose models (`iv_bolus`, `oral` incl.
+the `ka≈ke` flip-flop limit, `iv_infusion`) with §10 closed-form oracle tests.
+Next: Phase 2 (`dosing.ts` superposition over `singleDoseConcentration` +
+`pk.ts` closed forms) with the §10 superposition and steady-state tests.

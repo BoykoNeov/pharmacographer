@@ -50,8 +50,10 @@ the analytic limit instead:
 C(t) = (F · D · ke / Vd) · t · e^(−ke·t)
 ```
 
-The engine switches to this branch when `|ka − ke|` is below a small tolerance
-(e.g. `1e−6`), so it never returns `NaN`/`Inf`.
+The engine switches to this branch when `|ka − ke|` is small **relative** to the
+rates — `|ka − ke| ≤ FLIP_FLOP_REL_TOL · max(ka, ke)` with `FLIP_FLOP_REL_TOL =
+1e−6` — so the test behaves the same whether rates are ~0.01/h or ~10/h, and the
+model never returns `NaN`/`Inf`.
 
 ### IV infusion (rate `R0` for duration `T`) — zero-order in, first-order out
 
@@ -66,13 +68,14 @@ For a schedule of doses `D_i` at times `t_i` (same route), linear PK lets us sum
 time-shifted single-dose curves, each contributing only after administration:
 
 ```
-C_total(t) = Σ_i  singleDoseCurve(D_i, t − t_i)    for all i with t ≥ t_i
+C_total(t) = Σ_i  singleDoseConcentration(D_i, t − t_i)    for all i with t ≥ t_i
 ```
 
 One mechanism covers single doses, ad-hoc extra doses, and regular schedules.
 **Only valid for linear PK** — gated on the compound's `linear` flag. The
-implementation keeps `singleDoseCurve(route, params, dose, τ)` as the building
-block and defines `concentrationCurve` as superposition over it.
+implementation keeps `singleDoseConcentration(route, params, dose, τ)` (a scalar:
+the concentration one dose contributes at elapsed time `τ`) as the building block
+and defines `concentrationCurve` as superposition over it.
 
 ## Useful closed forms (for the UI and for tests)
 
