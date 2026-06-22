@@ -1,0 +1,45 @@
+{
+  "id": "acetaminophen",
+  "schemaVersion": 1,
+  "names": { "inn": "Paracetamol", "usan": "Acetaminophen", "synonyms": ["APAP"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 2.4,
+      "range": [1.8, 3.0],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "healthy adults; mean (SD 0.6 h) after IV administration"
+    },
+    "vd": {
+      "value": 0.8,
+      "range": [0.6, 1.0],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "adults; volume of distribution at steady state, mean (SD 0.2 L/kg); scaled to absolute litres against the 70 kg reference subject at derivation time"
+    }
+  },
+  "routes": {
+    "iv_bolus": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    },
+    "iv_infusion": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "fda_label": {
+      "type": "FDA label",
+      "title": "Acetaminophen Injection, Solution (Baxter Healthcare Corporation) — FDA Structured Product Label, clinical pharmacology (Table 5)",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=0f67c1bd-915b-4681-88dd-22f5154a80b3",
+      "accessed": "2026-06-22"
+    }
+  },
+  "notes": "Curated from the FDA Structured Product Label for intravenous acetaminophen (Baxter), adult clinical-pharmacology values. Disposition is route-independent, so both IV routes share it. Vd is reported as 0.8 (SD 0.2) L/kg and is scaled to absolute litres against the 70 kg illustrative reference subject during derivation. ke is taken from the elimination half-life (2.4 h), NOT from clearance: the label also reports systemic clearance 0.27 (SD 0.08) L/h/kg, which implies ke = CL/Vd = 0.27/0.8 ≈ 0.338 /h — about 17% higher than ke = ln2/t½ ≈ 0.289 /h. For a one-compartment model the two cannot both be exact; the half-life is used so the plotted terminal slope matches the stated 2.4 h, and the clearance value is recorded here for transparency rather than silently dropped. Plasma protein binding is low (10–25%). PK is dose-proportional across single 500/650/1000 mg doses (label), so linear superposition is valid at therapeutic doses; acetaminophen becomes nonlinear in overdose (saturable glucuronidation/sulfation, shunting to the toxic NAPQI pathway), a regime out of scope for this linear model. IV bolus is an instantaneous-input idealization; clinically the label dose is given as a ~15-minute infusion, so the iv_infusion route is the more realistic shape. Educational illustration only — not for dosing."
+}

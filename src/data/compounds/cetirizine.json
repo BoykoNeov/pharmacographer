@@ -1,0 +1,52 @@
+{
+  "id": "cetirizine",
+  "schemaVersion": 1,
+  "names": { "inn": "Cetirizine", "synonyms": ["Cetirizine hydrochloride"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 8.3,
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "mean elimination half-life across 146 healthy volunteers (label)"
+    },
+    "vd": {
+      "value": 38.1,
+      "unit": "L",
+      "derived": true,
+      "sourceRef": "derived_from_clearance",
+      "conditions": "apparent volume V/F = (CL/F)/ke = (53 mL/min)/(ln2 / 8.3 h) ≈ 38.1 L, using the label's apparent oral clearance CL/F ≈ 53 mL/min; the label reports no volume of distribution. F set to 1 (apparent-volume convention)"
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 1.0,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "definition",
+        "conditions": "set to 1 by the apparent-volume convention; the absolute oral bioavailability is not reported in this label"
+      },
+      "tmax": {
+        "value": 1.0,
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "time to peak ≈ 1 hour (label; rapidly absorbed)"
+      }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "fda_label": {
+      "type": "FDA label",
+      "title": "Cetirizine Hydrochloride Oral Solution (Bajaj Medical, LLC) — FDA Structured Product Label, clinical pharmacology",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=05324e41-ee3f-0e4b-e063-6294a90a102c",
+      "accessed": "2026-06-22"
+    }
+  },
+  "notes": "Curated from the FDA Structured Product Label for cetirizine hydrochloride oral solution (Bajaj Medical). The cited adult pharmacokinetic values — half-life 8.3 h (146 volunteers), Tmax ≈ 1 h, apparent oral clearance CL/F ≈ 53 mL/min, 93% plasma protein binding — are the systemic parameters reported in that label's clinical-pharmacology section and apply across formulations. The label does NOT report a volume of distribution, so the apparent volume V/F is DERIVED as V/F = (CL/F)/ke = (53 mL/min)/(ln2 / 8.3 h) ≈ 38.1 L; it is marked derived and carries the 'derived_from_clearance' provenance sentinel. CL/F is deliberately NOT stored as a structured field: it has no role beyond producing this Vd, and storing it would make the engine recompute ke = CL/Vd — a circular cross-check that would falsely read as an independent confirmation. Instead ke is taken straight from the half-life (ke = ln2/8.3 h), so the plotted terminal slope matches the stated 8.3 h exactly. F is set to 1 under the apparent-volume convention (the absolute bioavailability is not stated in this label), so the plotted curve reflects C = F·D/V = D/(V/F) without double-counting F. PK is linear over oral doses of 5–60 mg (label), so superposition is valid in the therapeutic range. Educational illustration only — not for dosing."
+}

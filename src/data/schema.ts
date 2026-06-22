@@ -18,12 +18,18 @@ import { z } from 'zod';
 /**
  * Recognised `sourceRef` sentinels that do NOT resolve to an entry in a
  * compound's `sources` map (handoff §8):
- *   - `definition`        — true by definition, e.g. IV bioavailability F = 1.
- *   - `derived_from_tmax` — an absorption constant estimated from a reported Tmax.
+ *   - `definition`             — true by definition, e.g. IV bioavailability F = 1.
+ *   - `derived_from_tmax`      — an absorption constant (ka) estimated from a reported Tmax.
+ *   - `derived_from_clearance` — an (apparent) Vd computed from CL/F and the
+ *                                half-life when the source reports no volume.
  * Any other `sourceRef` must be a key in `sources`; the cross-check lives in the
  * compound-level {@link CompoundSchema} refinement.
  */
-export const SOURCE_REF_SENTINELS = ['definition', 'derived_from_tmax'] as const;
+export const SOURCE_REF_SENTINELS = [
+  'definition',
+  'derived_from_tmax',
+  'derived_from_clearance',
+] as const;
 
 // ── Unit vocabularies ──────────────────────────────────────────────────────
 // Per-parameter unit enums. These are the units the data layer accepts and the

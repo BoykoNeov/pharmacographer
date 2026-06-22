@@ -30,8 +30,14 @@ describe('CompoundSchema validation', () => {
     }
   });
 
-  it('accepts the recognised sourceRef sentinels (definition, derived_from_tmax)', () => {
+  it('accepts the recognised sourceRef sentinels (definition, derived_from_tmax, derived_from_clearance)', () => {
     const raw = baseRawCompound();
+    (raw.disposition as Record<string, unknown>).vd = {
+      value: 35,
+      unit: 'L',
+      derived: true,
+      sourceRef: 'derived_from_clearance',
+    };
     (raw.routes as Record<string, Record<string, unknown>>).oral = {
       available: true,
       F: { value: 0.5, unit: 'fraction', derived: false, sourceRef: 'definition' },

@@ -1,0 +1,54 @@
+{
+  "id": "metformin",
+  "schemaVersion": 1,
+  "names": { "inn": "Metformin", "synonyms": ["Metformin hydrochloride"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 6.2,
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "plasma elimination half-life, healthy subjects (label: \"approximately 6.2 hours\"); blood half-life is longer (~17.6 h) due to red-cell partitioning — see notes"
+    },
+    "vd": {
+      "value": 654,
+      "range": [296, 1012],
+      "unit": "L",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "apparent volume V/F = 654 (SD 358) L after a single 850 mg oral dose; F folded in and set to 1 (apparent-volume convention)"
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 1.0,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "definition",
+        "conditions": "set to 1 by the apparent-volume convention (V/F used as the volume); true absolute F is 50–60% at 500 mg and is dose-dependent — see notes"
+      },
+      "tmax": {
+        "value": 2.64,
+        "range": [1.82, 3.46],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "single 850 mg oral dose, fasting; mean (SD 0.82 h)"
+      }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "fda_label": {
+      "type": "FDA label",
+      "title": "Metformin Hydrochloride Tablet (Granules Pharmaceuticals Inc.) — FDA Structured Product Label, clinical pharmacology",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=2387a618-24d8-4813-aa83-9114edb35374",
+      "accessed": "2026-06-22"
+    }
+  },
+  "notes": "Curated from the FDA Structured Product Label for metformin hydrochloride immediate-release tablets (Granules), single-dose clinical-pharmacology values in healthy subjects. The volume is the APPARENT volume of distribution V/F = 654 (SD 358) L after a single 850 mg dose; F is set to 1 under the apparent-volume convention so the plotted curve reflects C = D/(V/F) = F·D/V (true plasma concentration) without double-counting F. The true absolute oral bioavailability is 50–60% for a 500 mg dose and is DOSE-DEPENDENT (it falls at higher doses). Crucially, the label attributes the lack of dose proportionality to \"decreased absorption rather than an alteration in elimination\": elimination is first-order and unsaturated, so superposition of repeated IDENTICAL doses (each with the same F and disposition) remains valid — hence linear: true for fixed-dose multiple dosing, even though scaling the dose is not linear. ke is from the plasma elimination half-life (~6.2 h). The label also reports a much longer blood half-life (~17.6 h) because metformin partitions into red blood cells; this tool plots PLASMA concentration, so 6.2 h is the relevant value. Tmax (2.64 h) is taken at the same 850 mg dose as V/F for internal consistency. Metformin is negligibly protein-bound and is cleared renally largely unchanged. Educational illustration only — not for dosing."
+}
