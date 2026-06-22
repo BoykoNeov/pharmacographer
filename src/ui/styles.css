@@ -67,3 +67,151 @@ body {
   border-radius: 8px;
   color: var(--muted);
 }
+
+/* ── Layout ───────────────────────────────────────────────────────────────── */
+
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1.25rem;
+  align-items: start;
+  margin-top: 1rem;
+}
+
+@media (max-width: 760px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid #242833;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+/* ── Controls ─────────────────────────────────────────────────────────────── */
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.control__label {
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.control__input {
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  background: #0f1115;
+  color: var(--text);
+  border: 1px solid #313845;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.control__input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.control__note {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--warn-text);
+}
+
+/* ── Chart ────────────────────────────────────────────────────────────────── */
+
+.chart__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.chart__toolbar-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+.toggle {
+  display: inline-flex;
+  border: 1px solid #313845;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.toggle__btn {
+  padding: 0.3rem 0.7rem;
+  background: #0f1115;
+  color: var(--muted);
+  border: none;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.toggle__btn + .toggle__btn {
+  border-left: 1px solid #313845;
+}
+
+.toggle__btn--active {
+  background: var(--accent);
+  color: #0b0d11;
+  font-weight: 600;
+}
+
+/* ResponsiveContainer needs an explicitly-sized parent or it renders nothing. */
+.chart__canvas {
+  width: 100%;
+  height: 420px;
+}
+
+.caption {
+  margin: 0.75rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.warnings {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0.6rem 0.8rem;
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
+  border-radius: 6px;
+}
+
+.warnings__item {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--warn-text);
+}
+
+.warnings__item + .warnings__item {
+  margin-top: 0.4rem;
+}
+
+.chart-error {
+  padding: 1.5rem;
+  color: var(--warn-text);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}

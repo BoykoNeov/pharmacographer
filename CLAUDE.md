@@ -84,18 +84,24 @@ all pass.
 ## Build order
 
 Follow the phases in handoff §13 — engine + tests before UI. Current state:
-Phase 2 done — `engine/dosing.ts` (`concentrationCurve` superposition over
-`singleDoseConcentration`, plus the `recurringDoses` schedule builder) and
-`engine/pk.ts` closed forms (`timeToPeak`, `singleDoseAuc`, `clearance`,
-`accumulationRatio`, `cavgSteadyState`, `steadyStateIvBolus`), with the §10
-superposition and steady-state oracle tests. Phase 1 before it:
-`engine/models.ts` single-dose models (`iv_bolus`, `oral` incl. the `ka≈ke`
-flip-flop limit, `iv_infusion`). Next: Phase 3 (data layer) — `data/schema.ts`
-+ Zod validation, `loader.ts`, `derive.ts` (raw compound → `PkParams` + a
-derived-list), and 3–5 seed compounds.
+**Phase 4 done** (minimum UI) — `ui/curve.ts` is the engine↔data glue
+(`routeOptions`/`defaultRoute`, `buildCurve`: `deriveParams` → inject infusion
+duration → single-dose schedule → auto-sized time grid → `concentrationCurve`).
+`ui/App.tsx` owns state and resets the route to the compound's default on every
+compound switch (so an oral-only → iv-only change can't strand a non-derivable
+route). Components: `CompoundPicker`, `RouteDoseControls` (disables routes the
+engine can't plot), `ConcentrationChart` (Recharts; owns the lin/semi-log
+y-toggle; log axis pins the domain to the smallest positive value so `log(0)`
+can't blank the chart). Earlier phases: Phase 3 data layer (`data/schema.ts` Zod
+validation, `loader.ts`, `derive.ts` with the linearity gate, 3 FDA-sourced seed
+compounds); Phases 1–2 engine (`models.ts`, `dosing.ts`, `pk.ts`) with the §10
+oracle tests. Next: **Phase 5 (honesty UI)** — `ProvenancePanel` (sources +
+conditions), `ModelAssumptionsNote`, measured-vs-derived flags, and the
+"inferred, not measured" warning surfaced properly (App already passes the
+`deriveParams` warnings through a light strip; Phase 5 makes it first-class).
 
-**Carry forward into Phase 3/4:** superposition is gated on linearity by
-*documentation only* — the engine is pure and deliberately has no `linear`
-flag. The actual `linear: false → refuse/disable superposition` enforcement is
-not yet in code; it must land in the loader/derive layer (Phase 3) or the UI
-(Phase 4), or it silently never happens.
+**Linearity gate — landed (Phase 3).** Superposition is valid only for linear
+PK. The engine stays pure with no `linear` flag; the gate lives in
+`data/derive.ts`, where `deriveParams` throws for a `linear: false` (or
+non-one-compartment) compound rather than feeding the engine parameters it would
+misuse. The UI catches that throw and shows the message instead of a curve.
