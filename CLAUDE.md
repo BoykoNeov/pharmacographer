@@ -84,7 +84,18 @@ all pass.
 ## Build order
 
 Follow the phases in handoff §13 — engine + tests before UI. Current state:
-Phase 1 done — `engine/models.ts` single-dose models (`iv_bolus`, `oral` incl.
-the `ka≈ke` flip-flop limit, `iv_infusion`) with §10 closed-form oracle tests.
-Next: Phase 2 (`dosing.ts` superposition over `singleDoseConcentration` +
-`pk.ts` closed forms) with the §10 superposition and steady-state tests.
+Phase 2 done — `engine/dosing.ts` (`concentrationCurve` superposition over
+`singleDoseConcentration`, plus the `recurringDoses` schedule builder) and
+`engine/pk.ts` closed forms (`timeToPeak`, `singleDoseAuc`, `clearance`,
+`accumulationRatio`, `cavgSteadyState`, `steadyStateIvBolus`), with the §10
+superposition and steady-state oracle tests. Phase 1 before it:
+`engine/models.ts` single-dose models (`iv_bolus`, `oral` incl. the `ka≈ke`
+flip-flop limit, `iv_infusion`). Next: Phase 3 (data layer) — `data/schema.ts`
++ Zod validation, `loader.ts`, `derive.ts` (raw compound → `PkParams` + a
+derived-list), and 3–5 seed compounds.
+
+**Carry forward into Phase 3/4:** superposition is gated on linearity by
+*documentation only* — the engine is pure and deliberately has no `linear`
+flag. The actual `linear: false → refuse/disable superposition` enforcement is
+not yet in code; it must land in the loader/derive layer (Phase 3) or the UI
+(Phase 4), or it silently never happens.
