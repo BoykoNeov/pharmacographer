@@ -35,6 +35,24 @@ function rangedCompound() {
   return parseCompound(raw);
 }
 
+/** rangedCompound with an available oral route (first-order absorption). */
+function rangedOralCompound() {
+  const raw = baseRawCompound();
+  (raw.disposition as Record<string, unknown>).halfLife = {
+    value: 4,
+    range: [2, 8],
+    unit: 'h',
+    derived: false,
+    sourceRef: 'ref',
+  };
+  (raw.routes as Record<string, unknown>).oral = {
+    available: true,
+    F: { value: 80, unit: 'percent', derived: false, sourceRef: 'ref' },
+    tmax: { value: 1.5, unit: 'h', derived: false, sourceRef: 'ref' },
+  };
+  return parseCompound(raw);
+}
+
 /** A single-dose schedule of `amount` mg. */
 function single(amount: number): DoseSchedule {
   return { amount, count: 1, interval: 6, adHoc: [] };
@@ -168,6 +186,17 @@ describe('buildCurve — variability band', () => {
     const atLow = buildCurve({ compound: ranged, route: 'iv_bolus', schedule: single(350), halfLifeH: 2 });
     const atHigh = buildCurve({ compound: ranged, route: 'iv_bolus', schedule: single(350), halfLifeH: 8 });
     expect(atLow.band).toEqual(atHigh.band);
+  });
+
+  it('envelopes the ORAL curve too (absorption phase included)', () => {
+    const oral = rangedOralCompound();
+    const { points, band } = buildCurve({ compound: oral, route: 'oral', schedule: single(350) });
+    expect(band).toBeDefined();
+    band!.forEach((b, i) => {
+      const c = points[i]!.c;
+      expect(b.cLow).toBeLessThanOrEqual(c + 1e-9);
+      expect(c).toBeLessThanOrEqual(b.cHigh + 1e-9);
+    });
   });
 });
 

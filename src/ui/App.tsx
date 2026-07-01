@@ -53,7 +53,8 @@ export function App() {
   // Schedule shape (interval τ, dose count, ad-hoc extras). Unlike `route`, a
   // schedule is compound-independent, so it persists across compound switches.
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('single');
-  const [interval, setInterval] = useState(6);
+  // `dosingInterval`, not `interval`, to avoid shadowing the global timer.
+  const [dosingInterval, setDosingInterval] = useState(6);
   const [count, setCount] = useState(4);
   const [adHoc, setAdHoc] = useState<DoseEvent[]>([]);
   // Half-life chosen within the reported band; undefined ⇒ the compound's
@@ -67,8 +68,8 @@ export function App() {
   // The dose amount is per-administration; the schedule repeats it. `count: 1`
   // in single mode makes single and recurring the same engine code path.
   const schedule = useMemo<DoseSchedule>(
-    () => ({ amount: dose, count: scheduleMode === 'recurring' ? count : 1, interval, adHoc }),
-    [dose, scheduleMode, count, interval, adHoc],
+    () => ({ amount: dose, count: scheduleMode === 'recurring' ? count : 1, interval: dosingInterval, adHoc }),
+    [dose, scheduleMode, count, dosingInterval, adHoc],
   );
 
   // Switching compounds can invalidate the current route (e.g. oral-only →
@@ -122,8 +123,8 @@ export function App() {
             <DosingScheduleEditor
               mode={scheduleMode}
               onModeChange={setScheduleMode}
-              interval={interval}
-              onIntervalChange={setInterval}
+              interval={dosingInterval}
+              onIntervalChange={setDosingInterval}
               count={count}
               onCountChange={setCount}
               adHoc={adHoc}
