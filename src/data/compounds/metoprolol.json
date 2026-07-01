@@ -1,0 +1,73 @@
+{
+  "id": "metoprolol",
+  "schemaVersion": 1,
+  "names": { "inn": "Metoprolol", "synonyms": ["Metoprolol tartrate"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 3.5,
+      "range": [3.0, 4.0],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "extensive (normal) CYP2D6 metabolisers; mean elimination half-life 3–4 h. Poor CYP2D6 metabolisers run 7–9 h — a discrete genotype subpopulation recorded under variability, deliberately NOT merged into this continuous band (it is bimodal, not a smooth spread)."
+    },
+    "vd": {
+      "value": 4.4,
+      "range": [3.2, 5.6],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "extensively distributed; reported volume 3.2–5.6 L/kg. Taken as a true volume (reported independently of oral F) and scaled to absolute litres against the 70 kg reference subject at derivation time; point value is the mid-range."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 0.5,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "~50% oral bioavailability due to saturable pre-systemic (first-pass) hepatic metabolism; because first-pass is saturable, exposure rises NON-proportionately with dose (see notes) — F is treated as fixed at 50% for the illustrative therapeutic dose"
+      },
+      "tmax": {
+        "value": 1.5,
+        "range": [1.0, 2.0],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "statpearls",
+        "conditions": "peak plasma concentration reached 1–2 h after oral immediate-release dosing; representative point value 1.5 h"
+      }
+    },
+    "iv_bolus": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    },
+    "iv_infusion": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "variability": {
+    "geneticFactors": ["CYP2D6"],
+    "notes": "Metoprolol is extensively metabolised by CYP2D6, which is genetically polymorphic. Poor metabolisers (absent CYP2D6 activity — about 8% of Caucasians, ~2% of most other populations) show several-fold higher plasma concentrations and a longer half-life (7–9 h vs 3–4 h in extensive metabolisers). This bimodal genotype effect is the dominant source of inter-individual variability and is the reason metoprolol is a flagged future genotype-example compound (§12) alongside diphenhydramine; it is intentionally kept separate from the continuous half-life band, which reflects only the extensive-metaboliser range."
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "fda_label": {
+      "type": "FDA label",
+      "title": "Metoprolol Tartrate Tablet, Film Coated (Mylan Pharmaceuticals) — FDA Structured Product Label, clinical pharmacology",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=809c6386-0039-42ff-a03e-e42733e229b8",
+      "accessed": "2026-07-01"
+    },
+    "statpearls": {
+      "type": "Reference monograph",
+      "title": "Morris J, Awosika AO, Dunham A. Metoprolol. StatPearls [Internet]. Treasure Island (FL): StatPearls Publishing; updated 2024 Feb 29 (oral Tmax)",
+      "url": "https://www.ncbi.nlm.nih.gov/books/NBK532923/",
+      "accessed": "2026-07-01"
+    }
+  },
+  "notes": "Curated primarily from the FDA Structured Product Label for immediate-release metoprolol tartrate (Mylan), with the oral Tmax taken from the StatPearls Metoprolol monograph (the label states beta-blockade within 1 h but gives no numeric Tmax). Reported values: elimination half-life 3–4 h in extensive CYP2D6 metabolisers, volume of distribution 3.2–5.6 L/kg, oral bioavailability ~50%, Tmax 1–2 h, low (~10–12%) protein binding. ke is taken from the extensive-metaboliser half-life (~3.5 h). The KEY nonlinearity note: the label states pre-systemic (first-pass) metabolism is SATURABLE, so oral exposure increases non-proportionately as the DOSE is raised (higher fraction escapes first-pass at higher doses). Like metformin, however, this nonlinearity lives in absorption/first-pass, NOT in elimination — elimination remains first-order with a dose-independent half-life — so superposition of IDENTICAL repeated doses (each with the same F and disposition) stays valid, and linear: true holds for fixed-dose multiple dosing. The entry must not be used to extrapolate across different dose sizes. Vd is kept as a true volume with explicit oral F = 0.5 (not folded in), so the oral curve is C = F·D/V; IV routes (metoprolol tartrate injection is a real product) use F = 1 by definition. CYP2D6 poor-metaboliser status is the dominant real-world variability driver and is recorded under variability.geneticFactors rather than smeared into the half-life band. Educational illustration only — not for dosing."
+}

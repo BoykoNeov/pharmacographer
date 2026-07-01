@@ -1,0 +1,67 @@
+{
+  "id": "caffeine",
+  "schemaVersion": 1,
+  "names": { "inn": "Caffeine", "synonyms": ["1,3,7-trimethylxanthine"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 5.0,
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "healthy adults; label states T1/2 = 5 h once metabolism matures (~9 months of age). Neonatal half-life is far longer (~3–4 days) due to immature hepatic metabolism and is out of scope for the 70 kg adult reference subject."
+    },
+    "vd": {
+      "value": 0.6,
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "adults; mean volume of distribution 0.6 L/kg (vs 0.8–0.9 L/kg in infants); scaled to absolute litres against the 70 kg reference subject at derivation time"
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 1.0,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "statpearls",
+        "conditions": "caffeine is nearly completely absorbed after oral intake (~100% bioavailability; negligible first-pass metabolism)"
+      },
+      "tmax": {
+        "value": 1.0,
+        "range": [0.5, 2.0],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "statpearls",
+        "conditions": "adult oral absorption is rapid; representative Tmax ≈ 1 h. Reported Tmax spans ~30 min–2 h with gastric-emptying variability — a curatorial point value within that range, not a single measured mean"
+      }
+    },
+    "iv_bolus": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    },
+    "iv_infusion": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "fda_label": {
+      "type": "FDA label",
+      "title": "Caffeine Citrate Injection / Oral Solution (Sagent Pharmaceuticals) — FDA Structured Product Label, clinical pharmacology (adult disposition values)",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=5f38c395-0093-4afd-89ec-f96e5dc0934a",
+      "accessed": "2026-07-01"
+    },
+    "statpearls": {
+      "type": "Reference monograph",
+      "title": "Evans J, Richards JR, Battisti AS. Caffeine. StatPearls [Internet]. Treasure Island (FL): StatPearls Publishing; updated 2024 May 29 (adult oral absorption)",
+      "url": "https://www.ncbi.nlm.nih.gov/books/NBK519490/",
+      "accessed": "2026-07-01"
+    }
+  },
+  "notes": "Curated for the 70 kg adult reference subject. The disposition (elimination half-life 5 h, Vd 0.6 L/kg) is taken from the FDA Structured Product Label for caffeine citrate (Sagent), which states the ADULT values explicitly while contrasting them with the very different neonatal PK (t½ ≈ 3–4 days, Vd 0.8–0.9 L/kg) that the product is actually indicated for (apnea of prematurity). Because this tool models a 70 kg adult, only the adult figures are used; the neonatal regime is out of scope. The label's absorption data (Cmax, Tmax 30 min–2 h) is measured in PRETERM NEONATES and its 'absolute bioavailability was not fully examined', so oral F and Tmax are instead sourced from StatPearls adult pharmacology: caffeine is nearly completely absorbed (~100%) with negligible first-pass, so F = 1; Tmax is set to a representative 1 h within the reported ~0.5–2 h adult spread (a curatorial point value, marked as such in conditions). ke is taken from the 5 h half-life. Caffeine is metabolised primarily by hepatic CYP1A2; at typical dietary/therapeutic intakes (roughly ≤ 250–400 mg) elimination is approximately first-order and doses superpose, so linear: true — the recurring-dose (e.g. a cup every few hours) teaching case is the point of this entry. At high doses caffeine metabolism saturates (Michaelis–Menten) and becomes nonlinear, a regime out of scope for this linear model, analogous to acetaminophen in overdose. IV routes (caffeine citrate injection is a real product) share the route-independent disposition; F = 1 by definition. Educational illustration only — not for dosing."
+}

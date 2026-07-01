@@ -45,6 +45,28 @@ _wrong_. Known exclusions: **phenytoin, ethanol, high-dose aspirin/salicylate**.
 Leave a short note explaining _why_ so the rationale survives to the nonlinear
 phase.
 
+### Vetted §14 candidates not shipped in v1
+
+These were on the handoff §14 candidate seed list but did **not** ship after
+vetting. The rationale is preserved here so it isn't re-litigated:
+
+- **Omeprazole — excluded, `linear: false`.** Omeprazole inhibits its own
+  metabolising enzyme (CYP2C19), so its clearance falls as concentration rises:
+  AUC increases _more_ than dose-proportionally above ~40 mg and exposure grows
+  on repeated dosing (autoinhibition; at high dose CYP2C19 saturates and CYP3A4
+  takes over). That is a genuine superposition violation — the same class of
+  problem as phenytoin — so it belongs in the nonlinear phase, not v1.
+- **Lisinopril — deferred, not excluded.** Its kinetics are compatible with the
+  linear model (the terminal ~40 h phase is saturable ACE binding that does _not_
+  accumulate; the accumulation-governing **effective half-life is ~12 h**, which
+  is what a superposition model should use). It is deferred only because a
+  concentration curve needs a volume of distribution and **neither the FDA label
+  nor the EMA SmPC states one** — they give absorption (~25%, 6–60% range),
+  effective half-life (12 h), and Tmax (~7 h), but no Vd/(V/F). Per the sourcing
+  rule "a value with no defensible source is omitted, not guessed," lisinopril
+  waits for a citable V/F (e.g. from an apparent oral clearance via the
+  `derived_from_clearance` route) rather than shipping a guessed volume.
+
 ## The schema (one JSON file per compound)
 
 Each parameter is an object carrying provenance. Disposition parameters (Vd, t½,

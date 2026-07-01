@@ -1,0 +1,72 @@
+{
+  "id": "diphenhydramine",
+  "schemaVersion": 1,
+  "names": { "inn": "Diphenhydramine", "synonyms": ["Diphenhydramine hydrochloride", "DPH"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 8.4,
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "blyden1986",
+      "conditions": "IV-derived elimination half-life in 10 healthy volunteers (Blyden 1986). StatPearls quotes ~9 h and the broader literature spans ~2–9 h; the primary IV study value is used here for internal consistency with the volume of distribution."
+    },
+    "vd": {
+      "value": 4.5,
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "blyden1986",
+      "conditions": "IV-derived (true) volume of distribution, 10 healthy volunteers (Blyden 1986); scaled to absolute litres against the 70 kg reference subject at derivation time. Chosen over the higher 17 L/kg quoted by StatPearls because 4.5 L/kg reproduces the reported 50 mg oral Cmax — see notes."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 0.72,
+        "range": [0.64, 0.80],
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "statpearls",
+        "conditions": "absolute oral bioavailability 72% (±8%); reduced and variable because of substantial first-pass hepatic metabolism (predominantly CYP2D6). Applied on top of the IV-derived true volume, so the oral curve is C = F·D/V without double-counting."
+      },
+      "tmax": {
+        "value": 2.0,
+        "range": [1.0, 4.0],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "statpearls",
+        "conditions": "peak plasma concentration attained ~1–4 h after oral administration (drug detectable within ~15 min); representative point value 2 h"
+      }
+    },
+    "iv_bolus": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    },
+    "iv_infusion": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "variability": {
+    "geneticFactors": ["CYP2D6"],
+    "notes": "Diphenhydramine is metabolised predominantly by CYP2D6, which is genetically polymorphic; poor metabolisers have higher exposure and a longer effective half-life. This tool does not (yet) model genotype presets — the value shown is a population average, and CYP2D6 is flagged here as a future genotype-example seam (§12) alongside metoprolol."
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "blyden1986": {
+      "type": "Journal article",
+      "title": "Blyden GT, Greenblatt DJ, Scavone JM, Shader RI. Pharmacokinetics of diphenhydramine and a demethylated metabolite following intravenous and oral administration. J Clin Pharmacol. 1986 Sep-Oct;26(7):529–533 (IV disposition: Vd, half-life, clearance; n=10 healthy volunteers, 50 mg)",
+      "url": "https://accp1.onlinelibrary.wiley.com/doi/abs/10.1002/j.1552-4604.1986.tb02946.x",
+      "accessed": "2026-07-01"
+    },
+    "statpearls": {
+      "type": "Reference monograph",
+      "title": "Sicari V, Patel P, Zabbo CP. Diphenhydramine. StatPearls [Internet]. Treasure Island (FL): StatPearls Publishing; updated 2025 Mar 27 (oral bioavailability, Tmax, CYP2D6)",
+      "url": "https://www.ncbi.nlm.nih.gov/books/NBK526010/",
+      "accessed": "2026-07-01"
+    }
+  },
+  "notes": "Disposition (volume of distribution 4.5 L/kg, elimination half-life 8.4 h) is taken from Blyden et al. 1986, a primary IV/oral pharmacokinetic study in 10 healthy adults; oral bioavailability (72% ±8%), Tmax, and CYP2D6 metabolism are from the StatPearls monograph, because the OTC FDA labels give little quantitative single-dose PK. ke is taken from the 8.4 h half-life. IMPORTANT curation note: StatPearls quotes a volume of distribution of 17 L/kg, but that value is anomalously high — under this model it caps the peak of a 50 mg oral dose near 26 ng/mL, well BELOW the measured 50 mg oral Cmax of 37–83 ng/mL (Blyden). The IV-derived 4.5 L/kg is used instead: it puts the model's 50 mg peak at ~97 ng/mL, the right order of magnitude and just above the reported range (a residual gap attributable to F and Tmax uncertainty across studies). This magnitude cross-check is exactly the kind of check that unit/derivation tests cannot perform. Blyden's IV clearance (6.2 mL/min/kg) is internally consistent with ke = CL/Vd ≈ ln2/t½, but is intentionally NOT stored as a structured field: since the IV half-life is itself derived from CL and Vd, recomputing ke = CL/Vd would be a circular cross-check that falsely reads as independent confirmation (same reasoning as cetirizine). Oral F is kept explicit (not folded into the volume) because the volume is a true IV-derived distribution volume, so the oral curve is C = F·D/V; IV routes (diphenhydramine injection is a real product) use F = 1 by definition. Diphenhydramine is linear at therapeutic doses, so identical repeated doses superpose. CYP2D6 polymorphism materially shifts individual exposure — recorded under variability.geneticFactors as a future genotype-example seam. Educational illustration only — not for dosing."
+}

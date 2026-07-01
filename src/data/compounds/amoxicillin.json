@@ -1,0 +1,60 @@
+{
+  "id": "amoxicillin",
+  "schemaVersion": 1,
+  "names": { "inn": "Amoxicillin", "synonyms": ["Amoxycillin"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 61.3,
+      "unit": "min",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "healthy adults; label states an elimination half-life of 61.3 minutes (~1.0 h)"
+    },
+    "vd": {
+      "value": 0.35,
+      "range": [0.3, 0.4],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "smpc",
+      "conditions": "apparent volume of distribution ~0.3–0.4 L/kg (SmPC); point value 0.35 L/kg reproduces the label's 500 mg oral peak (~5.5–7.5 µg/mL) under this one-compartment fit. Scaled to absolute litres against the 70 kg reference subject at derivation time."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 0.7,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "smpc",
+        "conditions": "SmPC states amoxicillin is approximately 70% orally bioavailable; other sources report up to ~89% for doses ≤ 2 g. Absorption is not affected by food."
+      },
+      "tmax": {
+        "value": 1.0,
+        "range": [1.0, 2.0],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "peak blood levels 1–2 h after oral administration (label); SmPC median ~1 h. Point value 1 h. Note ke (from a ~1 h half-life) is close to ka here, so this drug sits near the ka≈ke absorption/elimination boundary."
+      }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "fda_label": {
+      "type": "FDA label",
+      "title": "Amoxicillin Capsule (NorthStar Rx LLC; mfr Aurobindo Pharma) — FDA Structured Product Label, clinical pharmacology (half-life, Tmax, peak levels, protein binding)",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=843f6053-63d9-47d2-81f1-b6aa78a7c20c",
+      "accessed": "2026-07-01"
+    },
+    "smpc": {
+      "type": "EMA SmPC",
+      "title": "Amoxicillin 500 mg Capsules — Summary of Product Characteristics (emc), section 5.2 pharmacokinetic properties (bioavailability, volume of distribution)",
+      "url": "https://www.medicines.org.uk/emc/product/526/smpc",
+      "accessed": "2026-07-01"
+    }
+  },
+  "notes": "Curated from the FDA Structured Product Label for amoxicillin capsules (NorthStar/Aurobindo — half-life 61.3 min, Tmax 1–2 h, 250/500 mg peak blood levels, ~20% protein binding) plus the EMA SmPC (medicines.org.uk) for the apparent volume of distribution (~0.3–0.4 L/kg) and oral bioavailability (~70%), which the US label does not quantify. ke is taken from the ~1 h half-life. Amoxicillin is US oral-only (its IV sibling is ampicillin), so only the oral route is offered. LINEARITY: within 250–3000 mg the bioavailability (AUC) is proportional to dose and elimination is first-order and renal (dose-independent half-life), so identical repeated doses superpose and linear: true. The one documented nonlinearity is in the absorption RATE, not in AUC or elimination: at higher single doses the absorption rate saturates, which flattens Cmax (sub-proportional) and pushes Tmax later. That means the single ka used here is valid for the illustrative dose but would overstate the absorption rate at much larger doses — a shape caveat, not a superposition-breaking nonlinearity. A curatorial cross-check: Vd 0.35 L/kg with F 0.70 reproduces the label's reported 500 mg peak (~7 µg/mL) under this one-compartment model, which is why that Vd point value was chosen within the 0.3–0.4 range. Because the half-life (~1 h) makes ke comparable to the absorption rate ka, amoxicillin is a good illustration of near-flip-flop kinetics. Educational illustration only — not for dosing."
+}

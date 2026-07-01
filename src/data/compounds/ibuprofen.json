@@ -1,0 +1,60 @@
+{
+  "id": "ibuprofen",
+  "schemaVersion": 1,
+  "names": { "inn": "Ibuprofen", "synonyms": ["(RS)-ibuprofen"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 2.0,
+      "range": [1.8, 2.0],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "fda_tablet_label",
+      "conditions": "adults; tablet label states a serum half-life of 1.8–2.0 h. Elimination is described as BIPHASIC; this is the terminal half-life. Collapsing the biphasic curve to one compartment is faithful to the terminal slope but approximates the early shape (see notes)."
+    },
+    "vd": {
+      "value": 0.12,
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "fda_pk_label",
+      "conditions": "adults; apparent volume ~0.12 L/kg (febrile children <11 y ~0.2 L/kg). Treated as apparent V/F under the apparent-volume convention; scaled to absolute litres against the 70 kg reference subject at derivation time."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 1.0,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "definition",
+        "conditions": "set to 1 by the apparent-volume convention. Ibuprofen is rapidly and nearly completely absorbed, but the label reports no explicit absolute F%, so the reported volume is used as apparent V/F to avoid double-counting F."
+      },
+      "tmax": {
+        "value": 1.5,
+        "range": [1.0, 2.0],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "fda_tablet_label",
+        "conditions": "peak serum levels attained 1–2 h after oral administration (fasting or immediately before meals; food delays but does not much reduce total absorption); representative point value 1.5 h within that range"
+      }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "fda_tablet_label": {
+      "type": "FDA label",
+      "title": "Ibuprofen Tablet (Dr. Reddy's Laboratories Louisiana) — FDA Structured Product Label, clinical pharmacology (absorption, half-life, dose linearity)",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=0396bfec-afe1-460c-8141-e8ad877b4bc0",
+      "accessed": "2026-07-01"
+    },
+    "fda_pk_label": {
+      "type": "FDA label",
+      "title": "Ibuprofen Oral Suspension (Perrigo) — FDA Structured Product Label, clinical pharmacology (volume of distribution, protein binding)",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=07f01136-4649-4c5d-93c5-a8a7dbced9a1",
+      "accessed": "2026-07-01"
+    }
+  },
+  "notes": "Curated from two FDA Structured Product Labels for ibuprofen (Dr. Reddy's immediate-release tablet for absorption/half-life/dose-linearity; Perrigo oral suspension for volume of distribution and protein binding) — the PK is systemic and route-independent, so combining the two labels is defensible; each parameter's conditions name its source label. ke is taken from the terminal half-life (~2.0 h). TWO honesty caveats matter here. (1) The label explicitly calls the plasma elimination BIPHASIC (a fast distribution phase then the ~2 h terminal phase); v1 is strictly one-compartment, so this drug is collapsed to monophasic. The plotted terminal slope matches the label, but the early post-dose shape is an approximation — the true early concentration falls faster than a single-compartment fit. (2) Dose-proportionality holds for SINGLE doses up to 800 mg (label: linear AUC-vs-dose up to 800 mg); above 800 mg AUC rises less than proportionally because protein binding is saturable (>99% bound at 20 µg/mL, nonlinear above) and metabolism/clearance shift. Within the therapeutic single-dose range (≤800 mg) elimination is first-order and identical repeated doses superpose, so linear: true; the entry should not be used to extrapolate to supratherapeutic doses. Vd is treated as apparent V/F under the apparent-volume convention (F = 1) since the label gives no explicit absolute bioavailability. Educational illustration only — not for dosing."
+}
