@@ -107,7 +107,9 @@ export function ConcentrationChart({ points, band, horizonH, peak }: Concentrati
 
       <div className="chart__canvas">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} margin={{ top: 12, right: 24, bottom: 28, left: 16 }}>
+          {/* Top margin leaves room for the Cmax label, which sits above the
+              peak — the highest point on the plot — so a tight margin clips it. */}
+          <ComposedChart data={data} margin={{ top: 30, right: 24, bottom: 28, left: 16 }}>
             <CartesianGrid stroke="#2a2f3a" strokeDasharray="3 3" />
             <XAxis
               type="number"
