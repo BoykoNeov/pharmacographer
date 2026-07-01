@@ -19,6 +19,8 @@ import { loadAllCompounds } from '../data/loader.ts';
 import { CompoundPicker } from './components/CompoundPicker.tsx';
 import { ConcentrationChart } from './components/ConcentrationChart.tsx';
 import { DisclaimerBanner } from './components/DisclaimerBanner.tsx';
+import { ModelAssumptionsNote } from './components/ModelAssumptionsNote.tsx';
+import { ProvenancePanel } from './components/ProvenancePanel.tsx';
 import { RouteDoseControls } from './components/RouteDoseControls.tsx';
 import {
   buildCurve,
@@ -115,6 +117,13 @@ export function App() {
               </div>
             )}
           </section>
+
+          {curve.ok && compound && (
+            <aside className="honesty" aria-label="Provenance and assumptions">
+              <ProvenancePanel compound={compound} route={route} derived={curve.value.derived} />
+              <ModelAssumptionsNote />
+            </aside>
+          )}
         </main>
       </div>
     </>

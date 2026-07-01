@@ -215,3 +215,169 @@ body {
   font-size: 0.9rem;
   line-height: 1.5;
 }
+
+/* ── Honesty UI: provenance + assumptions (handoff §5, Phase 5) ────────────── */
+
+/* Spans both grid columns, below the controls + chart. */
+.honesty {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 760px) {
+  .honesty {
+    grid-template-columns: 1fr;
+  }
+}
+
+.prov__title,
+.assumptions__title {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.prov__subtitle {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.prov__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.prov__row {
+  padding: 0.6rem 0;
+  border-top: 1px solid #242833;
+}
+
+.prov__row:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.prov__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.prov__name {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.prov__value {
+  margin-top: 0.15rem;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.prov__source {
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.prov__conditions {
+  margin-top: 0.2rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.prov__derivation {
+  margin-top: 0.25rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--accent);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+/* Measured-vs-derived badge. */
+.badge {
+  flex: none;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.badge--measured {
+  background: #12321f;
+  border-color: #2e7d4f;
+  color: #9be0b4;
+}
+
+.badge--derived {
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
+  color: var(--warn-text);
+}
+
+.badge--definition {
+  background: #16233a;
+  border-color: #37527d;
+  color: #a9c6ef;
+}
+
+.prov__sources {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.prov__source-item {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.prov__source-item + .prov__source-item {
+  margin-top: 0.4rem;
+}
+
+.prov__source-type {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.prov__source-link {
+  color: var(--accent);
+}
+
+.prov__source-accessed {
+  color: var(--muted);
+}
+
+/* Model assumptions note. */
+.assumptions__list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.assumptions__list li {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.assumptions__list strong {
+  color: var(--text);
+}

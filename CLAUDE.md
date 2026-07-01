@@ -84,6 +84,25 @@ all pass.
 ## Build order
 
 Follow the phases in handoff §13 — engine + tests before UI. Current state:
+**Phase 5 done** (honesty UI). The honesty layer is now first-class:
+`ui/provenance.ts` is a pure, tested helper (`provenanceEntries`,
+`resolveSource`, `citedSources`) that turns a `Compound` + `route` into
+route-truthful rows. Two ORTHOGONAL axes of "measured vs derived" meet there:
+axis 1 = was the *source value* measured or curator-computed (the per-parameter
+`derived` flag + `derived_from_*` sentinel sourceRefs → the badge); axis 2 = did
+`derive.ts` transform it for the engine (the runtime `DerivedNote` list → grouped
+IN under its input row). The subtle rule: **`ke` has no raw parameter** — it only
+ever exists on axis 2 (computed from half-life or CL/Vd), so source rows show
+half-life (and clearance when present, since `resolveKe` cross-checks it), never a
+bare "ke measurement". Components: `ProvenancePanel` (rows + Sources
+bibliography) and `ModelAssumptionsNote` (standing caveats — one-compartment,
+linear/superposition, first-order absorption, 70 kg *illustrative* subject —
+deliberately distinct from the per-curve `ModelCaption`). "Inferred, not
+measured" was NOT re-copied a third time: `WarningsStrip` (App) owns dynamic
+cautions, the `RouteDoseControls` note owns the contextual one, the panel/
+assumptions own standing epistemic content. Phase 5 is pure-UI: no `engine/`,
+`schema.ts`, or `derive.ts` changes.
+
 **Phase 4 done** (minimum UI) — `ui/curve.ts` is the engine↔data glue
 (`routeOptions`/`defaultRoute`, `buildCurve`: `deriveParams` → inject infusion
 duration → single-dose schedule → auto-sized time grid → `concentrationCurve`).
@@ -95,10 +114,9 @@ y-toggle; log axis pins the domain to the smallest positive value so `log(0)`
 can't blank the chart). Earlier phases: Phase 3 data layer (`data/schema.ts` Zod
 validation, `loader.ts`, `derive.ts` with the linearity gate, 3 FDA-sourced seed
 compounds); Phases 1–2 engine (`models.ts`, `dosing.ts`, `pk.ts`) with the §10
-oracle tests. Next: **Phase 5 (honesty UI)** — `ProvenancePanel` (sources +
-conditions), `ModelAssumptionsNote`, measured-vs-derived flags, and the
-"inferred, not measured" warning surfaced properly (App already passes the
-`deriveParams` warnings through a light strip; Phase 5 makes it first-class).
+oracle tests. Next: **Phase 6 (schedules & variability)** — `DosingScheduleEditor`
+(single + recurring: interval τ, number of doses, extra ad-hoc doses) and
+`VariabilitySlider` with the shaded low/high half-life band.
 
 **Linearity gate — landed (Phase 3).** Superposition is valid only for linear
 PK. The engine stays pure with no `linear` flag; the gate lives in
