@@ -84,6 +84,29 @@ all pass.
 ## Build order
 
 Follow the phases in handoff §13 — engine + tests before UI. Current state:
+**Phase 6 done** (schedules & variability). The engine already supported
+multi-dose (`recurringDoses` + linear superposition), so Phase 6 was **pure-UI**
+— no `engine/`, `schema.ts`, or `derive.ts` changes. `ui/curve.ts` grew a
+`DoseSchedule` (`amount`, `count`, `interval`, `adHoc: DoseEvent[]`) that
+`buildSchedule` flattens to the engine's `DoseEvent[]`; `buildCurve` now takes
+that schedule (not a bare `dose`) and an optional `halfLifeH` slider override,
+sizes the horizon from the **last** dose so a recurring/ad-hoc course isn't
+clipped, and — when the compound reports a half-life `range` — emits a `band`
+(low/high `BandPoint[]`) fixed at the reported extremes. ke is scaled **around
+the nominal** (`scaleKe = baseKe · nominal/target`) not `ln2/target`, so
+selecting nominal reproduces the compound's derived ke exactly even for a future
+clearance-derived ke. Components: `DosingScheduleEditor` (single/recurring
+toggle, τ + count, add/remove ad-hoc doses) and `VariabilitySlider` (returns a
+"no range" note when the compound has none — cetirizine/metformin). The chart is
+now a Recharts `ComposedChart`: an `<Area dataKey="band">` (translucent, painted
+BEFORE the `<Line>` so it sits behind) with log-axis bounds floored to
+`minPositive`. **Variability = half-life only** (varying Vd/F/ka is a §11
+non-goal); the band is the reported range, the slider is one illustrative choice
+within it — the bright line holds (no patient input, no dose output). Verified
+end-to-end via a throwaway Playwright driver (12/12 assertions + screenshots:
+band-behind-line, slider+nominal, semi-log band, cetirizine no-band note,
+recurring+ad-hoc accumulation). Next: **Phase 7** per handoff §13.
+
 **Phase 5 done** (honesty UI). The honesty layer is now first-class:
 `ui/provenance.ts` is a pure, tested helper (`provenanceEntries`,
 `resolveSource`, `citedSources`) that turns a `Compound` + `route` into
@@ -114,9 +137,8 @@ y-toggle; log axis pins the domain to the smallest positive value so `log(0)`
 can't blank the chart). Earlier phases: Phase 3 data layer (`data/schema.ts` Zod
 validation, `loader.ts`, `derive.ts` with the linearity gate, 3 FDA-sourced seed
 compounds); Phases 1–2 engine (`models.ts`, `dosing.ts`, `pk.ts`) with the §10
-oracle tests. Next: **Phase 6 (schedules & variability)** — `DosingScheduleEditor`
-(single + recurring: interval τ, number of doses, extra ad-hoc doses) and
-`VariabilitySlider` with the shaded low/high half-life band.
+oracle tests. (Phase 6 — schedules & variability — landed on top of this; see
+the Phase 6 note above.)
 
 **Linearity gate — landed (Phase 3).** Superposition is valid only for linear
 PK. The engine stays pure with no `linear` flag; the gate lives in
