@@ -15,10 +15,16 @@
  */
 
 import { concentrationCurve, recurringDoses } from '../engine/dosing.ts';
+import { metaboliteConcentrationCurve } from '../engine/metabolite.ts';
 import { FLIP_FLOP_REL_TOL } from '../engine/models.ts';
 import type { DoseEvent, PkParams, Route } from '../engine/types.ts';
 import { REFERENCE_WEIGHT_KG, concentration, time } from '../engine/units.ts';
-import { deriveParams, type DeriveWarning, type DerivedNote } from '../data/derive.ts';
+import {
+  deriveMetaboliteParams,
+  deriveParams,
+  type DeriveWarning,
+  type DerivedNote,
+} from '../data/derive.ts';
 import type { Compound } from '../data/schema.ts';
 
 /** Routes the v1 engine understands, in the order the picker presents them. */
@@ -188,6 +194,28 @@ function scaleKe(baseKe: number, nominalHalfLifeH: number, targetHalfLifeH: numb
   return baseKe * (nominalHalfLifeH / targetHalfLifeH);
 }
 
+/**
+ * A metabolite's plotted curve (handoff §12; metabolites spike). One line per
+ * metabolite formed from the parent, with its own peak and provenance. Present
+ * only for an IV-bolus parent (the spike scope) that declares metabolites.
+ */
+export interface MetaboliteCurve {
+  /** Stable id (metabolite file key). */
+  id: string;
+  /** Human-facing name for the line and legend. */
+  name: string;
+  /** Whether the metabolite is pharmacologically active (a display hint). */
+  active: boolean;
+  /** Sampled metabolite concentration-time curve, mg/L vs h (shares the parent grid). */
+  points: CurvePoint[];
+  /** The metabolite's model-predicted peak (grid-sampled — not pinned like the parent's). */
+  peak: CurvePoint;
+  /** Values the metabolite derivation computed rather than read. */
+  derived: DerivedNote[];
+  /** Cautions surfaced for the metabolite (Vd scaling, implausible fraction, …). */
+  warnings: DeriveWarning[];
+}
+
 /** Everything the chart area needs for one parameter set. */
 export interface CurveResult {
   /** Sampled concentration-time curve, mg/L vs h. */
@@ -206,6 +234,11 @@ export interface CurveResult {
   band?: BandPoint[];
   /** The half-life range the band spans, for the slider's bounds. */
   halfLifeRange?: HalfLifeRange;
+  /**
+   * Metabolite curves, one per declared metabolite. Present only for an IV-bolus
+   * parent (the spike scope) that declares metabolites; `undefined` otherwise.
+   */
+  metabolites?: MetaboliteCurve[];
   /** The resolved engine parameters that produced the (main) curve. */
   params: PkParams;
   /** Values the derivation computed rather than read (handoff §8). */
@@ -393,9 +426,21 @@ export function buildCurve(input: CurveInput): CurveResult {
   const doses = buildSchedule(schedule);
   const lastDoseTime = doses.reduce((latest, dose) => Math.max(latest, dose.time), 0);
 
-  // Size the grid on the slowest curve in view (smallest ke) so the band's
-  // long-half-life tail isn't clipped mid-decay.
-  const slowestKe = Math.min(mainKe, keSlow);
+  // Metabolites (spike scope: IV-bolus parent only). Derive their params up front
+  // so a long-lived metabolite (keM < parent ke) extends the horizon below and
+  // isn't clipped mid-decay. Formation is driven by the parent ke actually plotted
+  // (mainKe), so moving the half-life slider moves the metabolite consistently.
+  const metaboliteDerivations =
+    route === 'iv_bolus' && compound.metabolites?.length
+      ? compound.metabolites.map((m) => ({
+          meta: m,
+          ...deriveMetaboliteParams(m, mainKe, { weightKg }),
+        }))
+      : [];
+
+  // Size the grid on the slowest curve in view (smallest ke) so neither the band's
+  // long-half-life tail nor a slow metabolite is clipped mid-decay.
+  const slowestKe = Math.min(mainKe, keSlow, ...metaboliteDerivations.map((d) => d.params.keM));
   const horizonH = curveHorizon(route, { ...disposition, ke: slowestKe }, lastDoseTime);
   // Uniform grid for the overall shape, plus the exact dose/infusion instants so
   // discontinuous IV peaks aren't aliased (and the axis doesn't flicker).
@@ -411,12 +456,30 @@ export function buildCurve(input: CurveInput): CurveResult {
     band = times.map((t, i) => ({ t, cLow: low[i] ?? 0, cHigh: high[i] ?? 0 }));
   }
 
+  // Evaluate each metabolite over the same grid/schedule as the parent.
+  const metabolites: MetaboliteCurve[] | undefined = metaboliteDerivations.length
+    ? metaboliteDerivations.map(({ meta, params: mp, derived: mDerived, warnings: mWarnings }) => {
+        const c = metaboliteConcentrationCurve(mp, doses, times);
+        const mPoints = times.map((t, i) => ({ t, c: c[i] ?? 0 }));
+        return {
+          id: meta.id,
+          name: meta.name,
+          active: meta.active,
+          points: mPoints,
+          peak: findPeak(mPoints),
+          derived: mDerived,
+          warnings: mWarnings,
+        };
+      })
+    : undefined;
+
   const halfLifeH = Math.LN2 / mainKe;
   return {
     points,
     peak: findPeak(points),
     band,
     halfLifeRange: range ?? undefined,
+    metabolites,
     params,
     derived,
     warnings,

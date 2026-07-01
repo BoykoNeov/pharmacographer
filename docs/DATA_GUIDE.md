@@ -67,6 +67,33 @@ vetting. The rationale is preserved here so it isn't re-litigated:
   waits for a citable V/F (e.g. from an apparent oral clearance via the
   `derived_from_clearance` route) rather than shipping a guessed volume.
 
+### Vetted metabolite-pair candidates not shipped (metabolites spike)
+
+The metabolites engine (`engine/metabolite.ts`) models an **IV-bolus parent** as a
+mono-exponential input to a Bateman-shaped metabolite; that assumption **requires a
+one-compartment parent**. Every well-characterised IV parent→metabolite pair vetted
+so far breaks it, so none shipped — the spike engine is proven against closed-form
+oracles and synthetic fixtures instead. Rationale preserved so it isn't re-litigated:
+
+- **Diazepam → nordiazepam (N-desmethyldiazepam) — deferred, two-compartment.** The
+  FDA Valium label + StatPearls describe a distribution phase (t½ ~1 h) then a
+  prolonged terminal phase (t½ ~48 h) — a pronounced 2-compartment structure that
+  violates the mono-exponential-parent assumption. Independently, neither source
+  states the **fraction converted** to nordiazepam or the metabolite Vd (only its
+  t½ ~100 h is clean), so `fm` is uncited — but the compartmental structure is the
+  decisive disqualifier: no `fm` rescues a parent the engine can't represent.
+- **Procainamide → NAPA — out, 2-compartment + genotype-dependent fm.** Parent is a
+  2-compartment model; NAPA formation is acetylator-dependent (urinary recovery
+  7–34%, bimodal fast/slow), so `fm` is not a single citable number.
+- **Cefotaxime → desacetylcefotaxime — out, 2-compartment (least-bad).** Its
+  secondary params ARE citable (`fm` ≈ 33%, parent t½ ~1.7 h, metabolite t½ ~2.6 h)
+  and its distribution/terminal split is mild, so it is the closest to a defensible
+  one-compartment approximation (comparable to ibuprofen's documented biphasic
+  collapse) — but the parent is still genuinely 2-compartment, so it waits.
+
+A real metabolite compound therefore waits for either a genuinely one-compartment IV
+pair with a citable `fm`, or the multi-compartment §12 engine extension.
+
 ## The schema (one JSON file per compound)
 
 Each parameter is an object carrying provenance. Disposition parameters (Vd, t½,

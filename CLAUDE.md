@@ -85,7 +85,33 @@ all pass.
 
 Follow the phases in handoff §13 — engine + tests before UI. Current state:
 **Phase 7 data expansion + all three chart refinements done; static-site deploy
-is the sole remaining item.**
+is the sole remaining Phase 7 item. Post-v1: the metabolites (§12) engine core
+landed as a spike (see below).**
+
+**Metabolites spike — engine core landed, UI + real compound deferred.** The §12
+metabolites extension was de-risked end-to-end through the data layer (192 tests).
+Landed and green: (1) **`engine/metabolite.ts`** — pure `singleDoseMetaboliteConcentration`
++ `metaboliteConcentrationCurve`, a 2-exp Bateman for an **IV-bolus parent** where the
+parent `ke` is the metabolite's formation (input) rate, reusing `models.ts`'s
+`FLIP_FLOP_REL_TOL` guard; oracles = `C_m(0)=0`, `AUC_m = fm·D/(k_m·Vd_m)` (k_p-independent,
+exact only for IV bolus), Bateman peak time, terminal slope `−min(k_p,k_m)` (formation-
+vs elimination-rate-limited), superposition. (2) **`MetaboliteParams`** in `engine/types.ts`.
+(3) **`schema.ts`** — the reserved `metabolites` slot is now a real `MetaboliteSchema`
+(fractionFormed/vd/halfLife each full-provenance; sourceRefs resolve into the compound
+bibliography via the superRefine); an omitted/empty array stays valid so all 8 compounds
+pass. (4) **`derive.ts`** `deriveMetaboliteParams` (keM=ln2/t½, Vd L/kg scaling, percent
+fm normalisation). (5) **`ui/curve.ts`** `buildCurve` returns `metabolites: MetaboliteCurve[]`
+— **only for `route === 'iv_bolus'`** (the mono-exponential-parent gate; also excludes
+infusion), formation driven by the plotted `mainKe` (slider reshapes the metabolite but
+preserves its AUC), and the horizon is sized on the slowest of parent/band/metabolite ke
+so a long-lived metabolite isn't clipped. **Deferred (not done):** the React `<Line>` +
+`provenance.ts`/`ProvenancePanel` metabolite rows (needs visual verification), and a real
+demo compound. **No real compound shipped** — the mono-exponential-parent assumption needs
+a one-compartment IV parent, and every vetted pair is two-compartment (rejection log in
+`docs/DATA_GUIDE.md`): **diazepam→nordiazepam** (2-compartment + uncited fm),
+**procainamide→NAPA** (2-compartment + acetylator-dependent fm), **cefotaxime→desacetyl-**
+(2-compartment; fm~33% and half-lives citable — the least-bad approximation). Awaits a
+clean one-compartment IV pair or the multi-compartment §12 engine extension.
 
 **Phase 7 in progress** (polish & expand, handoff §13/§14). The seed set grew
 from 3 → **8 compounds**: added `caffeine`, `ibuprofen`, `diphenhydramine`,

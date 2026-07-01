@@ -134,6 +134,35 @@ const RoutesSchema = z.strictObject({
   iv_infusion: IvRouteSchema.optional(),
 });
 
+/**
+ * A metabolite formed from the parent (handoff §12; metabolites spike). The
+ * previously-reserved `metabolites` slot, now typed. `fractionFormed` is the
+ * fraction of the parent dose converted to this metabolite; `vd` and `halfLife`
+ * are the metabolite's OWN one-compartment disposition. Its `sourceRef`s resolve
+ * into the compound-level `sources` map (or a sentinel), exactly like every other
+ * parameter — one bibliography per compound file.
+ */
+const MetaboliteSchema = z.strictObject({
+  id: z
+    .string()
+    .regex(/^[a-z0-9_-]+$/, 'metabolite id must be lowercase alphanumeric with _ or - separators'),
+  /** Human-facing metabolite name for the chart line and provenance rows. */
+  name: z.string().min(1),
+  /**
+   * Pharmacologically active? A display hint — an inactive metabolite may still be
+   * plotted (it carries exposure information) but the UI labels it as inactive.
+   */
+  active: z.boolean(),
+  /** Fraction of the parent dose converted to this metabolite (the formation ratio). */
+  fractionFormed: requiredParam(FractionUnit),
+  /** Metabolite volume of distribution — its own disposition, not the parent's. */
+  vd: requiredParam(VolumeOfDistributionUnit),
+  /** Metabolite elimination half-life — its own disposition, not the parent's. */
+  halfLife: requiredParam(TimeUnit),
+  /** Curator reasoning for the metabolite's numbers (same posture as compound `notes`). */
+  notes: z.string().optional(),
+});
+
 /** Supported model discriminators. v1 ships only the one-compartment model. */
 const ModelSchema = z.enum(['one_compartment_first_order']);
 
@@ -177,8 +206,8 @@ export const CompoundSchema = z
       })
       .optional(),
 
-    /** Reserved for parent→metabolite kinetics (§12); validated loosely for now. */
-    metabolites: z.array(z.unknown()).optional(),
+    /** Parent→metabolite kinetics (§12); an empty/omitted array = parent-only. */
+    metabolites: z.array(MetaboliteSchema).optional(),
 
     flags: z
       .strictObject({
@@ -223,6 +252,12 @@ export const CompoundSchema = z
       if ('ka' in route && route.ka) checkRef(route.ka.sourceRef, `routes.${routeName}.ka`);
       if ('tmax' in route && route.tmax) checkRef(route.tmax.sourceRef, `routes.${routeName}.tmax`);
     }
+    // Metabolite parameters cite the same compound-level bibliography.
+    compound.metabolites?.forEach((m, i) => {
+      checkRef(m.fractionFormed.sourceRef, `metabolites.${i}.fractionFormed`);
+      checkRef(m.vd.sourceRef, `metabolites.${i}.vd`);
+      checkRef(m.halfLife.sourceRef, `metabolites.${i}.halfLife`);
+    });
 
     // `linear` is the authoritative gate; if the redundant flags.nonlinear is
     // present it must agree (be the negation), so the two can't drift.
@@ -239,6 +274,9 @@ export const CompoundSchema = z
 
 /** A validated compound file. */
 export type Compound = z.infer<typeof CompoundSchema>;
+
+/** A validated metabolite entry (handoff §12). */
+export type Metabolite = z.infer<typeof MetaboliteSchema>;
 
 /** A single provenance-carrying parameter (generic over unit). */
 export interface CompoundParameter {

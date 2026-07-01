@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   KE_CROSSCHECK_REL_TOL,
+  deriveMetaboliteParams,
   deriveParams,
   kaFromTmax,
 } from '../../src/data/derive.ts';
+import type { Metabolite } from '../../src/data/schema.ts';
 import { parseCompound } from '../../src/data/loader.ts';
 import { timeToPeak } from '../../src/engine/pk.ts';
 import { REFERENCE_WEIGHT_KG } from '../../src/engine/units.ts';
@@ -183,6 +185,62 @@ describe('deriveParams — gates and warnings', () => {
     // base has no iv_infusion entry → inferred route warning.
     const { warnings } = deriveParams(parseCompound(baseRawCompound()), 'iv_infusion');
     expect(warnings.some((w) => w.parameter === 'route')).toBe(true);
+  });
+});
+
+describe('deriveMetaboliteParams — metabolite disposition', () => {
+  /** Parse a compound carrying one metabolite and return that validated metabolite. */
+  function metaboliteFrom(overrides: Record<string, unknown> = {}): Metabolite {
+    const raw = baseRawCompound();
+    raw.metabolites = [
+      {
+        id: 'testmetabolite',
+        name: 'Testmetabolite',
+        active: true,
+        fractionFormed: { value: 0.6, unit: 'fraction', derived: false, sourceRef: 'ref' },
+        vd: { value: 1.0, unit: 'L/kg', derived: false, sourceRef: 'ref' },
+        halfLife: { value: 20, unit: 'h', derived: false, sourceRef: 'ref' },
+        ...overrides,
+      },
+    ];
+    return parseCompound(raw).metabolites![0]!;
+  }
+
+  it('derives keM = ln2/t½, scales Vd L/kg → L, and threads the parent ke', () => {
+    const parentKe = 0.5;
+    const { params, derived } = deriveMetaboliteParams(metaboliteFrom(), parentKe);
+    expect(params.keM).toBeCloseTo(Math.LN2 / 20, 12);
+    expect(params.vdM).toBeCloseTo(1.0 * REFERENCE_WEIGHT_KG, 12); // 70 L
+    expect(params.keParent).toBe(parentKe);
+    expect(params.fractionFormed).toBe(0.6);
+    expect(derived.some((d) => d.parameter === 'vdM' && /reference subject/.test(d.note))).toBe(true);
+    expect(derived.some((d) => d.parameter === 'keM' && /ln2/.test(d.note))).toBe(true);
+  });
+
+  it('honours an absolute metabolite Vd in L without scaling', () => {
+    const m = metaboliteFrom({ vd: { value: 15, unit: 'L', derived: false, sourceRef: 'ref' } });
+    const { params, derived } = deriveMetaboliteParams(m, 0.5);
+    expect(params.vdM).toBe(15);
+    expect(derived.some((d) => d.parameter === 'vdM')).toBe(false);
+  });
+
+  it('normalises a formation fraction given as a percent', () => {
+    const m = metaboliteFrom({
+      fractionFormed: { value: 45, unit: 'percent', derived: false, sourceRef: 'ref' },
+    });
+    expect(deriveMetaboliteParams(m, 0.5).params.fractionFormed).toBeCloseTo(0.45, 12);
+  });
+
+  it('warns when the formation fraction is outside (0, 1]', () => {
+    const m = metaboliteFrom({
+      fractionFormed: { value: 1.4, unit: 'fraction', derived: false, sourceRef: 'ref' },
+    });
+    const { warnings } = deriveMetaboliteParams(m, 0.5);
+    expect(warnings.some((w) => w.parameter === 'fractionFormed')).toBe(true);
+  });
+
+  it('throws when the parent ke is not positive', () => {
+    expect(() => deriveMetaboliteParams(metaboliteFrom(), 0)).toThrow(/parentKe/);
   });
 });
 

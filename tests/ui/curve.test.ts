@@ -279,3 +279,107 @@ describe('buildCurve — half-life slider override', () => {
     expect(tailAt(long, 16)).toBeGreaterThan(tailAt(short, 16));
   });
 });
+
+/**
+ * Metabolite path (handoff §12; spike). The metabolite MATH is proven in the
+ * engine tests (metabolite.test.ts); here we pin the glue: the metabolite curve
+ * appears only for an IV-bolus parent, the horizon stretches so a long-lived
+ * metabolite isn't clipped, formation is linear in the parent dose/fraction, and
+ * the metabolite's own C_m(0) = 0 oracle survives the pipeline.
+ */
+describe('buildCurve — metabolites (IV-bolus parent)', () => {
+  /** IV-bolus fixture carrying one long-lived (t½ 40 h ≫ parent 4 h) metabolite. */
+  function metaboliteCompound(overrides: Record<string, unknown> = {}) {
+    const raw = baseRawCompound();
+    raw.metabolites = [
+      {
+        id: 'testmetabolite',
+        name: 'Testmetabolite',
+        active: true,
+        fractionFormed: { value: 0.5, unit: 'fraction', derived: false, sourceRef: 'ref' },
+        vd: { value: 1.0, unit: 'L/kg', derived: false, sourceRef: 'ref' },
+        halfLife: { value: 40, unit: 'h', derived: false, sourceRef: 'ref' },
+        ...overrides,
+      },
+    ];
+    return parseCompound(raw);
+  }
+
+  it('produces a metabolite curve for an IV-bolus parent that declares one', () => {
+    const { metabolites } = buildCurve({
+      compound: metaboliteCompound(),
+      route: 'iv_bolus',
+      schedule: single(350),
+    });
+    expect(metabolites).toBeDefined();
+    expect(metabolites).toHaveLength(1);
+    expect(metabolites![0]!.name).toBe('Testmetabolite');
+    expect(metabolites![0]!.derived.some((d) => d.parameter === 'keM')).toBe(true);
+  });
+
+  it('the metabolite starts at zero (C_m(0) = 0) and forms a positive peak later', () => {
+    const { metabolites } = buildCurve({
+      compound: metaboliteCompound(),
+      route: 'iv_bolus',
+      schedule: single(350),
+    });
+    const m = metabolites![0]!;
+    expect(m.points[0]!.t).toBe(0);
+    expect(m.points[0]!.c).toBe(0);
+    expect(m.peak.c).toBeGreaterThan(0);
+    expect(m.peak.t).toBeGreaterThan(0);
+  });
+
+  it('stretches the horizon to cover the long-lived metabolite (not just the parent)', () => {
+    // Parent-only horizon would be 5 × 4 h = 20 h; the t½ 40 h metabolite pushes
+    // it to 5 × 40 h = 200 h so its slow tail isn't clipped mid-decay.
+    const { horizonH } = buildCurve({
+      compound: metaboliteCompound(),
+      route: 'iv_bolus',
+      schedule: single(350),
+    });
+    expect(horizonH).toBe(200);
+  });
+
+  it('metabolite formation is linear in the formation fraction', () => {
+    const half = buildCurve({ compound: metaboliteCompound(), route: 'iv_bolus', schedule: single(350) });
+    const full = buildCurve({
+      compound: metaboliteCompound({
+        fractionFormed: { value: 1.0, unit: 'fraction', derived: false, sourceRef: 'ref' },
+      }),
+      route: 'iv_bolus',
+      schedule: single(350),
+    });
+    // Same grid (both driven by the same parent/metabolite ke) → compare pointwise.
+    const i = Math.floor(half.metabolites![0]!.points.length / 2);
+    const cHalf = half.metabolites![0]!.points[i]!.c;
+    const cFull = full.metabolites![0]!.points[i]!.c;
+    expect(cFull).toBeCloseTo(2 * cHalf, 10);
+  });
+
+  it('does NOT plot a metabolite for a non-IV-bolus route (spike scope)', () => {
+    const raw = baseRawCompound();
+    (raw.routes as Record<string, unknown>).oral = {
+      available: true,
+      tmax: { value: 1.5, unit: 'h', derived: false, sourceRef: 'ref' },
+    };
+    raw.metabolites = [
+      {
+        id: 'testmetabolite',
+        name: 'Testmetabolite',
+        active: true,
+        fractionFormed: { value: 0.5, unit: 'fraction', derived: false, sourceRef: 'ref' },
+        vd: { value: 1.0, unit: 'L/kg', derived: false, sourceRef: 'ref' },
+        halfLife: { value: 40, unit: 'h', derived: false, sourceRef: 'ref' },
+      },
+    ];
+    const oralWithMetabolite = parseCompound(raw);
+    expect(buildCurve({ compound: oralWithMetabolite, route: 'oral', schedule: single(350) }).metabolites).toBeUndefined();
+    // …but the same compound DOES plot it via IV bolus.
+    expect(buildCurve({ compound: oralWithMetabolite, route: 'iv_bolus', schedule: single(350) }).metabolites).toHaveLength(1);
+  });
+
+  it('omits metabolites entirely for a parent-only compound', () => {
+    expect(buildCurve({ compound, route: 'iv_bolus', schedule: single(350) }).metabolites).toBeUndefined();
+  });
+});

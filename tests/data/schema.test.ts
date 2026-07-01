@@ -114,6 +114,68 @@ describe('CompoundSchema validation', () => {
 });
 
 /**
+ * The metabolites slot is now a typed `MetaboliteSchema` (handoff §12): each
+ * entry carries its own provenance-bearing fractionFormed / vd / halfLife, and
+ * its sourceRefs must resolve into the same compound-level bibliography as every
+ * other parameter. An omitted/empty array must stay valid (parent-only compound).
+ */
+describe('MetaboliteSchema validation', () => {
+  /** A valid metabolite whose sourceRefs point at baseRawCompound's `ref` source. */
+  function validMetabolite(): Record<string, unknown> {
+    return {
+      id: 'testmetabolite',
+      name: 'Testmetabolite',
+      active: true,
+      fractionFormed: { value: 0.6, unit: 'fraction', derived: false, sourceRef: 'ref' },
+      vd: { value: 1.2, unit: 'L/kg', derived: false, sourceRef: 'ref' },
+      halfLife: { value: 30, unit: 'h', derived: false, sourceRef: 'ref' },
+    };
+  }
+
+  it('accepts a compound with a valid metabolite', () => {
+    const raw = baseRawCompound();
+    raw.metabolites = [validMetabolite()];
+    expect(CompoundSchema.safeParse(raw).success).toBe(true);
+  });
+
+  it('keeps an omitted or empty metabolites array valid (parent-only)', () => {
+    const omitted = baseRawCompound();
+    expect(CompoundSchema.safeParse(omitted).success).toBe(true);
+    const empty = baseRawCompound();
+    empty.metabolites = [];
+    expect(CompoundSchema.safeParse(empty).success).toBe(true);
+  });
+
+  it('rejects a metabolite sourceRef that resolves to nothing', () => {
+    const raw = baseRawCompound();
+    const m = validMetabolite();
+    (m.halfLife as { sourceRef: string }).sourceRef = 'nonexistent';
+    raw.metabolites = [m];
+    const result = CompoundSchema.safeParse(raw);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => /sourceRef/.test(i.message))).toBe(true);
+    }
+  });
+
+  it('rejects an unknown key inside a metabolite (strictObject)', () => {
+    const raw = baseRawCompound();
+    const m = validMetabolite();
+    m.clearance = { value: 1 }; // not a metabolite field
+    raw.metabolites = [m];
+    expect(CompoundSchema.safeParse(raw).success).toBe(false);
+  });
+
+  it('rejects a metabolite missing a required parameter (fractionFormed)', () => {
+    const raw = baseRawCompound();
+    const m = validMetabolite();
+    delete m.fractionFormed;
+    raw.metabolites = [m];
+    expect(CompoundSchema.safeParse(raw).success).toBe(false);
+  });
+});
+
+/**
  * The DATA_GUIDE abbreviated example is what curators copy from; if the schema
  * and the doc drift apart, contributors get bad guidance. Parse the actual
  * fenced JSON block out of the markdown and validate it, so they can't.

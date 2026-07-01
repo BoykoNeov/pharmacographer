@@ -19,7 +19,7 @@
  */
 
 import { FLIP_FLOP_REL_TOL } from '../engine/models.ts';
-import type { PkParams, Route } from '../engine/types.ts';
+import type { MetaboliteParams, PkParams, Route } from '../engine/types.ts';
 import {
   REFERENCE_WEIGHT_KG,
   absoluteVdFromPerKg,
@@ -27,7 +27,7 @@ import {
   rateConstant,
   time,
 } from '../engine/units.ts';
-import type { Compound } from './schema.ts';
+import type { Compound, Metabolite } from './schema.ts';
 
 /**
  * Relative tolerance for the ke cross-check. When a compound supplies BOTH
@@ -58,6 +58,16 @@ export interface DerivedParams {
   /** What had to be computed (vs read), for the "measured vs derived" UI. */
   derived: DerivedNote[];
   /** Cautions: inferred route, assumed F, ke disagreement, flip-flop, … */
+  warnings: DeriveWarning[];
+}
+
+/** Resolved metabolite engine parameters plus the provenance of what was derived. */
+export interface DerivedMetaboliteParams {
+  /** Canonical-unit metabolite parameters ready for `engine/metabolite.ts`. */
+  params: MetaboliteParams;
+  /** What had to be computed (vs read), for the "measured vs derived" UI. */
+  derived: DerivedNote[];
+  /** Cautions: Vd scaling assumption, implausible formation fraction, … */
   warnings: DeriveWarning[];
 }
 
@@ -269,5 +279,71 @@ export function deriveParams(
     }
   }
 
+  return { params, derived, warnings };
+}
+
+/**
+ * Resolve the {@link MetaboliteParams} the engine's `engine/metabolite.ts` needs
+ * for one metabolite, given the PARENT's already-derived elimination rate
+ * (`parentKe`, 1/h — the metabolite's formation/input rate). The metabolite
+ * carries its OWN disposition: `vd` (scaled from L/kg against the reference
+ * subject, like the parent's) and `keM = ln2 / t½_m` (metabolites report no
+ * clearance, so `ke` always comes from the half-life). `fractionFormed` is
+ * normalised from percent when needed.
+ *
+ * Like {@link deriveParams} it returns the list of derived values and any
+ * warnings so the UI stays honest. It does NOT re-check linearity — the caller
+ * only reaches this after {@link deriveParams} has passed the linearity gate for
+ * the parent, and the metabolite shares the parent's one-compartment/linear model.
+ */
+export function deriveMetaboliteParams(
+  metabolite: Metabolite,
+  parentKe: number,
+  options: DeriveOptions = {},
+): DerivedMetaboliteParams {
+  if (!(parentKe > 0)) {
+    throw new Error('deriveMetaboliteParams: parentKe must be a positive rate constant');
+  }
+  const weightKg = options.weightKg ?? REFERENCE_WEIGHT_KG;
+  const derived: DerivedNote[] = [];
+  const warnings: DeriveWarning[] = [];
+
+  // Metabolite Vd — absolute litres (scale per-kg against the reference subject).
+  let vdM = metabolite.vd.value;
+  if (metabolite.vd.unit === 'L/kg') {
+    vdM = absoluteVdFromPerKg(metabolite.vd.value, weightKg);
+    derived.push({
+      parameter: 'vdM',
+      note: `metabolite Vd ${fmt(metabolite.vd.value)} L/kg scaled to ${fmt(vdM)} L using the ${weightKg} kg illustrative reference subject`,
+    });
+  }
+
+  // Metabolite ke — always from its half-life (no clearance is stored for metabolites).
+  const halfLifeMH = time.toCanonical(metabolite.halfLife.value, metabolite.halfLife.unit);
+  const keM = Math.LN2 / halfLifeMH;
+  derived.push({
+    parameter: 'keM',
+    note: `metabolite ke = ln2 / t½ = ${fmt(keM)} 1/h (half-life ${fmt(metabolite.halfLife.value)} ${metabolite.halfLife.unit})`,
+  });
+
+  // Formation fraction — normalise percent to a [0, 1] fraction; flag implausible values.
+  const fractionFormed =
+    metabolite.fractionFormed.unit === 'percent'
+      ? metabolite.fractionFormed.value / 100
+      : metabolite.fractionFormed.value;
+  if (metabolite.fractionFormed.unit === 'percent') {
+    derived.push({
+      parameter: 'fractionFormed',
+      note: `formation fraction ${fmt(metabolite.fractionFormed.value)}% expressed as ${fmt(fractionFormed)}`,
+    });
+  }
+  if (fractionFormed <= 0 || fractionFormed > 1) {
+    warnings.push({
+      parameter: 'fractionFormed',
+      message: `metabolite formation fraction ${fmt(fractionFormed)} is outside (0, 1] — check the source and units`,
+    });
+  }
+
+  const params: MetaboliteParams = { vdM, keM, keParent: parentKe, fractionFormed };
   return { params, derived, warnings };
 }

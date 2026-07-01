@@ -28,6 +28,28 @@ export interface PkParams {
   infusionDuration?: number;
 }
 
+/**
+ * Parameters for a single metabolite formed from the parent, in canonical units
+ * (handoff §12). The metabolite has its own one-compartment disposition; its
+ * formation is driven by the parent's elimination flux, so the parent's `ke`
+ * enters as the *input* (formation) rate — the metabolite is Bateman-shaped with
+ * `keParent` playing the role the absorption constant `ka` plays for an oral dose.
+ *
+ * Spike scope is an IV-BOLUS parent only (a mono-exponential parent → a 2-exp
+ * metabolite). An oral parent (first-order absorption ⇒ a bi-exponential parent
+ * ⇒ a 3-exp metabolite) and pre-systemic/first-pass formation are deferred.
+ */
+export interface MetaboliteParams {
+  /** Metabolite volume of distribution, L (absolute, after any reference scaling). */
+  vdM: number;
+  /** Metabolite elimination rate constant, 1/h. */
+  keM: number;
+  /** Parent elimination rate constant, 1/h — the metabolite's formation (input) rate. */
+  keParent: number;
+  /** Fraction of the parent dose converted to this metabolite, in [0, 1]. */
+  fractionFormed: number;
+}
+
 /** A single administered dose: `amount` mg given at `time` h. */
 export interface DoseEvent {
   /** Administration time, h (relative to t = 0). */
