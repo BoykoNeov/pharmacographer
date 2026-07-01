@@ -15,6 +15,7 @@
  */
 
 import { concentrationCurve, recurringDoses } from '../engine/dosing.ts';
+import { FLIP_FLOP_REL_TOL } from '../engine/models.ts';
 import type { DoseEvent, PkParams, Route } from '../engine/types.ts';
 import { REFERENCE_WEIGHT_KG, time } from '../engine/units.ts';
 import { deriveParams, type DeriveWarning, type DerivedNote } from '../data/derive.ts';
@@ -106,6 +107,40 @@ export interface CurvePoint {
   c: number;
 }
 
+/**
+ * Analytic time-to-peak (h) of a SINGLE oral dose — the Bateman peak, where the
+ * absorption and elimination exponentials balance:
+ *
+ *   Tmax = ln(ka / ke) / (ka − ke)
+ *
+ * This is the forward of `derive.ts`'s `kaFromTmax`, so for a compound whose ka
+ * was inverted from a reported Tmax it round-trips to that Tmax. As `ka → ke`
+ * the expression is 0/0; the analytic limit is `1/ke` (same flip-flop guard the
+ * engine's oral model uses). Used to sample the exact oral peak instant so the
+ * marked Cmax/Tmax lands on the true peak instead of the nearest grid point.
+ */
+function oralPeakTime(ka: number, ke: number): number {
+  if (Math.abs(ka - ke) <= FLIP_FLOP_REL_TOL * Math.max(ka, ke)) return 1 / ke;
+  return Math.log(ka / ke) / (ka - ke);
+}
+
+/**
+ * The maximum-concentration point of a sampled curve — the model's predicted
+ * Cmax (mg/L) and Tmax (h). Argmax over the grid; exact for IV bolus (peak at
+ * the dose instant), infusion (peak at end-of-infusion) and a single oral dose
+ * because {@link criticalTimes} samples each of those instants precisely. For a
+ * multi-dose oral schedule the true peak has no closed form, so this is the
+ * grid's best sample (still pinned near each dose's single-dose peak). Empty or
+ * all-zero curves yield the first point (t = 0, c = 0).
+ */
+function findPeak(points: CurvePoint[]): CurvePoint {
+  let peak = points[0] ?? { t: 0, c: 0 };
+  for (const p of points) {
+    if (p.c > peak.c) peak = p;
+  }
+  return peak;
+}
+
 /** A sampled point of the variability envelope, mg/L at time `t` (h). */
 export interface BandPoint {
   t: number;
@@ -157,6 +192,13 @@ function scaleKe(baseKe: number, nominalHalfLifeH: number, targetHalfLifeH: numb
 export interface CurveResult {
   /** Sampled concentration-time curve, mg/L vs h. */
   points: CurvePoint[];
+  /**
+   * The peak of the main curve — model-predicted Cmax (mg/L) at Tmax (h). For a
+   * single dose this is the textbook Cmax/Tmax; for a recurring schedule it is
+   * the highest point of the whole plotted course (the last-dose accumulation
+   * peak), not a steady-state value.
+   */
+  peak: CurvePoint;
   /**
    * The low/high half-life envelope, present only when the compound reports a
    * half-life range. Fixed at the reported extremes (independent of the slider).
@@ -269,9 +311,11 @@ function sampleGrid(horizonH: number, samples: number): number[] {
  *   - a hair before it (`dose.time − ε`) — so the jump draws vertical instead of
  *     as a diagonal ramp up from the previous uniform sample;
  *   - for an infusion, `dose.time + infusionDuration` — the slope break at the
- *     end of the infusion.
- * Oral needs none of these (its peak is smooth); injecting the dose instants is
- * harmless, so we don't special-case route beyond the infusion end.
+ *     end of the infusion;
+ *   - for oral, `dose.time + oralPeakTime(ka, ke)` — the smooth Bateman peak of
+ *     that single dose. Its concentration IS continuous, but the uniform grid
+ *     can straddle it, so the marked Cmax/Tmax would otherwise land a fraction
+ *     of an hour off — visible against the Tmax the provenance panel reports.
  */
 function criticalTimes(route: Route, params: PkParams, doses: DoseEvent[], horizonH: number): number[] {
   // Small enough to look vertical, large enough to stay well clear of the
@@ -285,6 +329,10 @@ function criticalTimes(route: Route, params: PkParams, doses: DoseEvent[], horiz
     if (route === 'iv_infusion' && params.infusionDuration !== undefined) {
       const end = dose.time + params.infusionDuration;
       if (end <= horizonH) marks.push(end);
+    }
+    if (route === 'oral' && params.ka !== undefined && params.ka > 0) {
+      const peakT = dose.time + oralPeakTime(params.ka, params.ke);
+      if (peakT <= horizonH) marks.push(peakT);
     }
   }
   return marks;
@@ -366,6 +414,7 @@ export function buildCurve(input: CurveInput): CurveResult {
   const halfLifeH = Math.LN2 / mainKe;
   return {
     points,
+    peak: findPeak(points),
     band,
     halfLifeRange: range ?? undefined,
     params,

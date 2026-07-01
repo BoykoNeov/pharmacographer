@@ -144,6 +144,7 @@ export function App() {
                   points={curve.value.points}
                   band={curve.value.band}
                   horizonH={curve.value.horizonH}
+                  peak={curve.value.peak}
                 />
                 <ModelCaption
                   route={route}
@@ -151,6 +152,7 @@ export function App() {
                   infusionDuration={infusionDuration}
                   curve={curve.value}
                 />
+                <PeakNote route={route} schedule={schedule} />
                 <WarningsStrip warnings={curve.value.warnings} />
               </>
             ) : (
@@ -193,7 +195,7 @@ function describeSchedule(schedule: DoseSchedule, route: Route): string {
 
 /** "Show the model, not just the curve" (handoff §1) — a one-line summary. */
 function ModelCaption({ route, schedule, infusionDuration, curve }: ModelCaptionProps) {
-  const { params, halfLifeH } = curve;
+  const { params, halfLifeH, peak } = curve;
   const parts = [
     'One-compartment model',
     describeSchedule(schedule, route),
@@ -205,8 +207,37 @@ function ModelCaption({ route, schedule, infusionDuration, curve }: ModelCaption
   if (route === 'iv_infusion') {
     parts.push(`infused over ${fmtNum(infusionDuration)} h`);
   }
+  parts.push(`Cmax ${fmtNum(peak.c)} mg/L at Tmax ${fmtNum(peak.t)} h`);
   parts.push(`${REFERENCE_WEIGHT_KG} kg illustrative reference subject`);
   return <p className="caption">{parts.join(' · ')}</p>;
+}
+
+/**
+ * What the marked Cmax/Tmax means — the standing concept + honesty caveat, kept
+ * distinct from the dynamic values in the caption (which restate the numbers).
+ * The peak means something different per route, so the phrasing is route-aware;
+ * a recurring course marks the whole-course peak, NOT a steady-state value.
+ */
+function PeakNote({ route, schedule }: { route: Route; schedule: DoseSchedule }) {
+  const totalDoses = schedule.count + schedule.adHoc.length;
+  const routeMeaning =
+    route === 'iv_bolus'
+      ? 'An IV bolus peaks the instant it is given (Tmax = 0), at Cmax = dose / Vd, then only falls.'
+      : route === 'iv_infusion'
+        ? 'A constant infusion peaks at the end of the infusion, then falls.'
+        : 'An oral dose rises as it is absorbed and falls as it is eliminated; the peak (Tmax) is where those balance.';
+  const scheduleCaveat =
+    totalDoses > 1
+      ? ' With repeated doses the marker is the highest point of the whole plotted course (the last-dose accumulation peak) — not a steady-state value; the course may not have reached steady state.'
+      : '';
+  return (
+    <p className="caption">
+      <strong>Cmax / Tmax</strong> — the peak concentration the model predicts and the time it occurs.{' '}
+      {routeMeaning}
+      {scheduleCaveat} This is model-predicted for the {REFERENCE_WEIGHT_KG} kg illustrative subject and scales with
+      the dose you chose — it is not a measured Cmax from any study.
+    </p>
+  );
 }
 
 /** Cautions from the derivation layer (assumed F, inferred route, …). */

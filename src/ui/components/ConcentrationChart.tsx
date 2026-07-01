@@ -22,6 +22,7 @@ import {
   CartesianGrid,
   Label,
   Line,
+  ReferenceDot,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -40,10 +41,13 @@ interface ConcentrationChartProps {
   band?: BandPoint[];
   /** Right edge of the time axis, h. */
   horizonH: number;
+  /** The model-predicted peak (Cmax at Tmax) of the main curve, marked on the plot. */
+  peak: CurvePoint;
 }
 
-export function ConcentrationChart({ points, band, horizonH }: ConcentrationChartProps) {
+export function ConcentrationChart({ points, band, horizonH, peak }: ConcentrationChartProps) {
   const [yScale, setYScale] = useState<YScale>('linear');
+  const [showPeak, setShowPeak] = useState(true);
   const isLog = yScale === 'log';
 
   // The log-axis floor must clear every plotted series, band included.
@@ -70,6 +74,16 @@ export function ConcentrationChart({ points, band, horizonH }: ConcentrationChar
   return (
     <div className="chart">
       <div className="chart__toolbar">
+        <div className="toggle" role="group" aria-label="Peak marker">
+          <button
+            type="button"
+            className={`toggle__btn${showPeak ? ' toggle__btn--active' : ''}`}
+            onClick={() => setShowPeak((v) => !v)}
+            aria-pressed={showPeak}
+          >
+            Cmax / Tmax
+          </button>
+        </div>
         <span className="chart__toolbar-label">y-axis</span>
         <div className="toggle" role="group" aria-label="Y-axis scale">
           <button
@@ -153,6 +167,27 @@ export function ConcentrationChart({ points, band, horizonH }: ConcentrationChar
               isAnimationActive={false}
               connectNulls={false}
             />
+            {showPeak && peak.c > 0 && (
+              <ReferenceDot
+                x={peak.t}
+                y={peak.c}
+                r={5}
+                fill="#f2c94c"
+                stroke="#0b0d11"
+                strokeWidth={1.5}
+                ifOverflow="extendDomain"
+              >
+                <Label
+                  value={`Cmax ${fmtNum(peak.c)} @ ${fmtNum(peak.t)} h`}
+                  // Peaks sitting on the y-axis (IV bolus, Tmax = 0) would clip a
+                  // top-centred label off the left edge, so anchor those to the right.
+                  position={peak.t < horizonH * 0.08 ? 'right' : 'top'}
+                  fill="#f2c94c"
+                  fontSize={12}
+                  offset={8}
+                />
+              </ReferenceDot>
+            )}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
