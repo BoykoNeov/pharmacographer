@@ -67,21 +67,35 @@ vetting. The rationale is preserved here so it isn't re-litigated:
   waits for a citable V/F (e.g. from an apparent oral clearance via the
   `derived_from_clearance` route) rather than shipping a guessed volume.
 
-### Vetted metabolite-pair candidates not shipped (metabolites spike)
+### Metabolite-pair candidates — one shipped, two still deferred
 
-The metabolites engine (`engine/metabolite.ts`) models an **IV-bolus parent** as a
-mono-exponential input to a Bateman-shaped metabolite; that assumption **requires a
-one-compartment parent**. Every well-characterised IV parent→metabolite pair vetted
-so far breaks it, so none shipped — the spike engine is proven against closed-form
-oracles and synthetic fixtures instead. Rationale preserved so it isn't re-litigated:
+The metabolites engine (`engine/metabolite.ts`) originally modelled an **IV-bolus
+parent** as a mono-exponential input to a Bateman-shaped metabolite, which **requires
+a one-compartment parent**; the multi-compartment §12 engine extension generalised the
+formation input to the parent's α/β **modes**, so a two-compartment parent is now
+representable. Rationale preserved so it isn't re-litigated:
 
-- **Diazepam → nordiazepam (N-desmethyldiazepam) — deferred, two-compartment.** The
-  FDA Valium label + StatPearls describe a distribution phase (t½ ~1 h) then a
-  prolonged terminal phase (t½ ~48 h) — a pronounced 2-compartment structure that
-  violates the mono-exponential-parent assumption. Independently, neither source
-  states the **fraction converted** to nordiazepam or the metabolite Vd (only its
-  t½ ~100 h is clean), so `fm` is uncited — but the compartmental structure is the
-  decisive disqualifier: no `fm` rescues a parent the engine can't represent.
+- **Diazepam → nordiazepam (N-desmethyldiazepam) — SHIPPED** (`compounds/diazepam.json`;
+  the first real 2-comp compound and the first parent→metabolite pair). It was the
+  original deferral: a pronounced 2-compartment structure (distribution t½ ~1 h, terminal
+  t½ ~20–48 h) that the one-compartment metabolite spike could not represent — the
+  decisive disqualifier — plus an uncited `fm`. The 2-comp engine resolves the structure;
+  the `fm` blocker was resolved by the **IARC monograph** figure that ~50–60% of diazepam is
+  N-demethylated to nordiazepam (attributing Bertilsson et al. 1990). Curation carry-forwards:
+  the schema stores CL/Vc/Q/Vp, but Q and Vp are rarely reported directly, so only **CL**
+  (Greenblatt 1980, 0.39 mL/min/kg young males) and **Vc** (Klotz 1975, V1 ~0.3 L/kg) are
+  sourced and **Q, Vp are derived offline** (`derived: true`) from the citable macro-observables
+  CL, Vc, distribution t½(α)~1 h and terminal t½(β)~33 h — with the full micro-constant
+  arithmetic in the compound `notes`. Cross-check with care: Vc + Vp = 1.02 L/kg reproduces the
+  FDA ~1 L/kg Vd(ss), but that agreement validates CL and β (Vβ = CL/β) and is nearly blind to
+  Vc — any Vc in 0.2–0.4 L/kg lands Vss near ~1, while C(0) = Dose/Vc swings the distribution
+  peak ~2×. So **Vc is the softest input and the early-peak amplitude is illustrative** (0.3 L/kg
+  is a representative young-end value; Klotz reports V1 only as an age regression, not a single
+  number). Keep all four inputs to **one population** (young healthy adult) — diazepam
+  kinetics drift strongly with age, so a mixed-population set breaks the α/β/Vss algebra. The
+  metabolite Vd is derived from CL_m/t½_m (not measured), making nordiazepam exposure
+  clearance-defined. Oral is omitted (2-comp oral is deferred; leaving it out keeps the picker
+  from offering a route the engine throws on).
 - **Procainamide → NAPA — out, 2-compartment + genotype-dependent fm.** Parent is a
   2-compartment model; NAPA formation is acetylator-dependent (urinary recovery
   7–34%, bimodal fast/slow), so `fm` is not a single citable number.
@@ -91,8 +105,11 @@ oracles and synthetic fixtures instead. Rationale preserved so it isn't re-litig
   one-compartment approximation (comparable to ibuprofen's documented biphasic
   collapse) — but the parent is still genuinely 2-compartment, so it waits.
 
-A real metabolite compound therefore waits for either a genuinely one-compartment IV
-pair with a citable `fm`, or the multi-compartment §12 engine extension.
+The multi-compartment §12 engine extension unblocked the first of these (diazepam,
+above). Procainamide and cefotaxime still wait — not on the parent's compartmental
+structure (now representable) but on a citable single-value `fm` (procainamide's is
+acetylator-bimodal; cefotaxime's ~33% is citable, so it is the next candidate once its
+2-comp micro-parameters are sourced or derived the way diazepam's were).
 
 ## The schema (one JSON file per compound)
 

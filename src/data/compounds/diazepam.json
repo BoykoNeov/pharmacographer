@@ -1,0 +1,130 @@
+{
+  "id": "diazepam",
+  "schemaVersion": 1,
+  "names": { "inn": "Diazepam", "brand": ["Valium"], "synonyms": ["Diazepam"] },
+  "model": "two_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 33,
+      "range": [20, 48],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "klotz_1975",
+      "conditions": "terminal (β-phase) elimination half-life, young healthy adults; ~20 h at age 20 rising with age (FDA states up to ~48 h). This is the terminal slope carried for the caption/provenance rows; the engine recomputes β from the disposition2c micro-parameters (round-trips to ~33 h)."
+    },
+    "vd": {
+      "value": 1.0,
+      "range": [0.7, 1.3],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "steady-state volume of distribution Vd(ss) ~1 L/kg (FDA). The derived Vc + Vp = 0.30 + 0.72 = 1.02 L/kg reproduces this — but note that cross-check constrains CL and β (Vβ = CL/β ≈ 1.11 L/kg) and is nearly INDEPENDENT of Vc (any Vc in 0.2–0.4 L/kg lands Vss near ~1); it does NOT validate the distribution-peak height C(0) = Dose/Vc. Scaled to absolute litres against the 70 kg reference subject at derivation time."
+    }
+  },
+  "disposition2c": {
+    "clearance": {
+      "value": 0.0234,
+      "unit": "L/h/kg",
+      "derived": false,
+      "sourceRef": "greenblatt_1980",
+      "conditions": "total plasma clearance 0.39 mL/min/kg in young healthy males (Greenblatt 1980), expressed here as 0.0234 L/h/kg (≈1.64 L/h ≈ 27 mL/min for the 70 kg reference subject — within the FDA 'clearance of 20–30 mL/min in young adults'). Sets AUC = Dose/CL."
+    },
+    "centralVd": {
+      "value": 0.3,
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "klotz_1975",
+      "conditions": "central (initial distribution) volume V1 ~0.3 L/kg — a REPRESENTATIVE literature central-volume value for diazepam, NOT a verbatim extraction: Klotz 1975 established the two-compartment structure and that V1 rises with age (P<0.005) but reports V1 as an age regression, not a single young-adult number, so 0.3 L/kg is the customary young-end value used here. This is the SOFTEST of the four disposition2c inputs and it alone sets the early peak C(0) = Dose/Vc, so the distribution-phase amplitude is ILLUSTRATIVE (the Vss cross-check does not pin it — see disposition.vd)."
+    },
+    "interCompartmentalClearance": {
+      "value": 0.1348,
+      "unit": "L/h/kg",
+      "derived": true,
+      "sourceRef": "klotz_1975",
+      "conditions": "DERIVED, not reported by any single source: Q = k12·Vc, computed offline from CL (Greenblatt), Vc, distribution t½(α)≈1 h (CHEMM) and terminal t½(β)≈33 h (Klotz). sourceRef names the primary structural source (Klotz's 2-comp model); the full multi-source arithmetic is in notes. ≈9.4 L/h at 70 kg."
+    },
+    "peripheralVd": {
+      "value": 0.7224,
+      "unit": "L/kg",
+      "derived": true,
+      "sourceRef": "klotz_1975",
+      "conditions": "DERIVED, not reported by any single source: Vp = Vc·k12/k21, computed offline from CL (Greenblatt), Vc, t½(α) (CHEMM) and t½(β) (Klotz). sourceRef names the primary structural source; full multi-source arithmetic in notes. ≈50.6 L at 70 kg; Vc + Vp = 1.02 L/kg reproduces the FDA ~1 L/kg Vd(ss) (a CL/β cross-check, not a Vc check — see disposition.vd)."
+    }
+  },
+  "routes": {
+    "iv_bolus": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    },
+    "iv_infusion": {
+      "available": false,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "metabolites": [
+    {
+      "id": "nordiazepam",
+      "name": "Nordiazepam (N-desmethyldiazepam)",
+      "active": true,
+      "fractionFormed": {
+        "value": 55,
+        "range": [50, 60],
+        "unit": "percent",
+        "derived": false,
+        "sourceRef": "iarc_monograph",
+        "conditions": "≈50–60% of a diazepam dose is N-demethylated to nordiazepam (IARC monograph, attributing Bertilsson et al. 1990); nordiazepam is the major circulating metabolite. The minor pathways (3-hydroxylation to temazepam, then oxazepam) are not modelled. Point value 55%."
+      },
+      "vd": {
+        "value": 0.84,
+        "unit": "L/kg",
+        "derived": true,
+        "sourceRef": "chemm",
+        "conditions": "DERIVED to be consistent with the metabolite's own clearance and half-life: Vd_m = CL_m·t½_m/ln2 = 0.678 L/h × 60 h / ln2 ≈ 58.7 L ≈ 0.84 L/kg, from CL_m 11.3 mL/min (CHEMM) and t½_m 60 h. This makes nordiazepam exposure effectively clearance-defined (AUC_m = fm·Dose/CL_m); it is NOT an independently measured volume. Nordiazepam is itself multi-compartment in reality — modelled here as one-compartment (the metabolite engine's scope)."
+      },
+      "halfLife": {
+        "value": 60,
+        "range": [40, 100],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "terminal elimination half-life; FDA states 'up to 100 h', IARC/other sources report ~40–120 h. Point value 60 h. Nordiazepam is eliminated ~3× slower than diazepam and accumulates on repeated dosing."
+      },
+      "notes": "Nordiazepam (nordazepam / N-desmethyldiazepam) is the principal active metabolite of diazepam. It is COMPUTED end-to-end by the metabolite engine (formation rate = the parent's disposition modes; own 1-comp elimination) but not yet DRAWN as a chart line — the metabolite <Line> rows are deferred for both models (see handoff §12). fm is the one-time blocker that the IARC 50–60%-demethylated figure resolves; the metabolite Vd is derived from its clearance and half-life rather than measured."
+    }
+  ],
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "fda_label": {
+      "type": "FDA label",
+      "title": "VALIUM (diazepam) tablets — FDA Structured Product Label, clinical pharmacology (terminal half-life up to 48 h; clearance 20–30 mL/min in young adults; Vd(ss) ~1 L/kg; N-desmethyldiazepam active metabolite, half-life up to 100 h; CYP3A4/2C19 metabolism)",
+      "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2021/013263s096lbl.pdf",
+      "accessed": "2026-07-01"
+    },
+    "greenblatt_1980": {
+      "type": "Journal article",
+      "title": "Greenblatt DJ, Allen MD, Harmatz JS, Shader RI. Diazepam disposition determinants. Clin Pharmacol Ther. 1980;27(3):301–312 (two-compartment analysis; clearance ~0.39 mL/min/kg in young males)",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/7357789/",
+      "accessed": "2026-07-01"
+    },
+    "klotz_1975": {
+      "type": "Journal article",
+      "title": "Klotz U, Avant GR, Hoyumpa A, Schenker S, Wilkinson GR. The effects of age and liver disease on the disposition and elimination of diazepam in adult man. J Clin Invest. 1975;55(2):347–359 (two-compartment open model; initial distribution volume V1, Vd(ss), terminal half-life)",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/1127104/",
+      "accessed": "2026-07-01"
+    },
+    "iarc_monograph": {
+      "type": "Reference monograph",
+      "title": "IARC Monographs Vol. 66 — Diazepam, ADME section (states ~50–60% of diazepam is demethylated to N-desmethyldiazepam, citing Bertilsson et al. 1990). NCBI Bookshelf NBK423855",
+      "url": "https://www.ncbi.nlm.nih.gov/books/NBK423855/",
+      "accessed": "2026-07-01"
+    },
+    "chemm": {
+      "type": "Reference database",
+      "title": "CHEMM (Chemical Hazards Emergency Medical Management, HHS) — Diazepam Medical Countermeasures Database: distribution half-life 0.3–1.3 h; N-desmethyldiazepam clearance 11.3 ± 3.1 mL/min",
+      "url": "https://chemm.hhs.gov/countermeasure_diazepam.htm",
+      "accessed": "2026-07-01"
+    }
+  },
+  "notes": "FIRST real two-compartment compound (handoff §12) and the first shipped parent→metabolite pair. Diazepam has a pronounced distribution phase (fast α, t½ ~1 h) then a long terminal phase (β, t½ ~20–48 h) — the biphasic structure that was the decisive disqualifier under the one-compartment metabolite spike (docs/DATA_GUIDE.md rejection log) and is exactly what the 2-comp engine now represents.\n\nPOPULATION: every disposition input is a YOUNG HEALTHY ADULT value, kept to one population so the α/β/Vss relationships stay self-consistent (diazepam kinetics drift strongly with age — terminal t½ runs ~20 h at 20 y to ~90 h at 80 y — so mixing a young clearance with an elderly half-life would break the compartmental algebra).\n\nDISPOSITION2C — what is sourced vs derived. The schema stores CL/Vc/Q/Vp, but Q and Vp are rarely reported directly, so only CL and Vc are read from sources and Q, Vp are computed offline (derived: true) from four macro-observables: CL = 0.39 mL/min/kg (Greenblatt 1980, young males), Vc = V1 ~0.3 L/kg (representative literature central volume — see below), distribution t½(α) ~1 h (CHEMM/FDA) and terminal t½(β) ~33 h (Klotz). Working in per-kg units: k10 = CL/Vc = 0.078/h; α = ln2/1 = 0.6931/h, β = ln2/33 = 0.02100/h; k21 = α·β/k10 = 0.1867/h; k12 = (α+β) − k10 − k21 = 0.4495/h; Q = k12·Vc = 0.1348 L/h/kg; Vp = Q/k21 = 0.7224 L/kg. The constraint β < k10 < α holds (0.0210 < 0.078 < 0.6931), so k12, k21 are positive. The engine round-trips these stored micro-parameters back to α t½ ≈ 1.00 h and β t½ ≈ 33.0 h.\n\nWHAT THE Vss CROSS-CHECK DOES AND DOES NOT PROVE. Vc + Vp = 1.02 L/kg reproduces the FDA ~1 L/kg Vd(ss), but that agreement is essentially a check on CL and β, not on Vc: Vss = CL(α+β)/(αβ) − CL²/(αβ·Vc), which for these CL, α, β lands ~0.96–1.05 L/kg across the whole plausible Vc range 0.2–0.4 L/kg. So the cross-check validates the terminal disposition (Vβ = CL/β ≈ 1.11 L/kg) but is nearly blind to Vc. Vc is therefore the softest input and is NOT independently pinned: Klotz 1975 established the 2-comp structure and that V1 rises with age but reports V1 only as an age regression, so 0.3 L/kg is the customary young-end representative value, not a table extraction. Because C(0) = Dose/Vc is set by Vc alone, the DISTRIBUTION-PHASE PEAK AMPLITUDE is illustrative — a 0.2–0.4 L/kg Vc swings the early peak roughly 2× with almost no effect on the terminal curve or Vss. The terminal phase (the part that governs accumulation and the caption's β t½) is well-grounded; the fast early spike height is the deliberately-illustrative part.\n\nMETABOLITE (nordiazepam). fm was the one-time blocker in the rejection log (uncited fraction converted) — resolved by the IARC monograph's '~50–60% of diazepam is demethylated' (attributing Bertilsson et al. 1990), stored as 55% (range 50–60). The metabolite Vd is not measured; it is derived to be consistent with nordiazepam's own clearance (11.3 mL/min, CHEMM) and half-life (60 h) via Vd_m = CL_m·t½_m/ln2 ≈ 0.84 L/kg, which makes its exposure clearance-defined (AUC_m = fm·Dose/CL_m). Nordiazepam is COMPUTED end-to-end but its chart <Line> is still deferred (handoff §12), so it does not yet render.\n\nROUTES. IV bolus only is marked available (Valium injectable is a real slow-IV product); iv_infusion is offered as inferred (available: false) since diazepam is given by IV push, not continuous infusion. Oral is intentionally OMITTED: the two-compartment model does not yet support oral (a tri-exponential parent, deferred), and leaving oral data out keeps the picker from offering a route the engine would throw on.\n\nEducational illustration only — not for dosing."
+}

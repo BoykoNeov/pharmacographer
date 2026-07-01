@@ -124,10 +124,26 @@ sum, infusion continuity + `R0/CL` plateau, **collapse-to-1c** (`Q→0` reproduc
 distribution + terminal t½); the variability slider is gated to 1-comp (varying one
 half-life is ill-defined across two eigenvalues); `loader.test.ts`'s integration
 guard is model-aware. So a `two_compartment_first_order` JSON in `data/` renders its
-parent curve today. Deferred follow-on: the metabolite `<Line>` rows (still deferred
-from the spike, for both models — metabolites are COMPUTED but not yet drawn), a real
-2-comp compound (diazepam→nordiazepam lead), oral 2-comp (tri-exponential parent →
-3-mode metabolite), and 3-compartment.
+parent curve today. **The first real 2-comp compound has now SHIPPED:
+`compounds/diazepam.json` (diazepam→nordiazepam) — 247 tests, 9 compounds.** It is also
+the first parent→metabolite pair. Curation spine (details in `docs/DATA_GUIDE.md` and the
+compound `notes`): the schema stores CL/Vc/Q/Vp, but Q and Vp are rarely reported
+directly, so only **CL** (Greenblatt 1980, 0.39 mL/min/kg) and **Vc** (Klotz 1975, V1
+~0.3 L/kg) are sourced and **Q, Vp are derived offline** (`derived: true`) from the
+citable macro-observables CL, Vc, α t½~1 h, β t½~33 h via the standard micro-constant
+algebra (arithmetic in `notes`); the engine round-trips them back to α t½ 1.00 h / β t½
+33.0 h, and Vc+Vp = 1.02 L/kg matches the FDA ~1 L/kg Vd(ss) — but that cross-check
+validates CL/β (Vβ = CL/β), NOT Vc, which is the softest input: C(0)=Dose/Vc swings the
+distribution peak ~2× across the plausible 0.2–0.4 L/kg range with little effect on Vss,
+so the early-peak amplitude is deliberately illustrative (0.3 L/kg is a representative
+young-end value; Klotz reports V1 only as an age regression). Keep all inputs to ONE
+population (young healthy adult). The `fm` blocker (uncited in the old
+rejection log) was resolved by the IARC monograph's ~50–60% N-demethylation figure
+(Bertilsson et al. 1990); the metabolite Vd is derived from CL_m/t½_m (not measured).
+Oral omitted (2-comp oral deferred, and omitting it stops the picker offering a route
+`buildCurve2c` throws on). Deferred follow-on still open: the metabolite `<Line>` rows
+(nordiazepam is COMPUTED end-to-end but not yet DRAWN, for both models), oral 2-comp
+(tri-exponential parent → 3-mode metabolite), and 3-compartment.
 
 **Metabolites spike — engine core landed, UI + real compound deferred.** The §12
 metabolites extension was de-risked end-to-end through the data layer (192 tests).
