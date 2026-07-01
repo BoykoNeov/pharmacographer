@@ -14,8 +14,8 @@
  * No React here — this is plain TypeScript that the components consume.
  */
 
-import { concentrationCurve } from '../engine/dosing.ts';
-import type { PkParams, Route } from '../engine/types.ts';
+import { concentrationCurve, recurringDoses } from '../engine/dosing.ts';
+import type { DoseEvent, PkParams, Route } from '../engine/types.ts';
 import { REFERENCE_WEIGHT_KG } from '../engine/units.ts';
 import { deriveParams, type DeriveWarning, type DerivedNote } from '../data/derive.ts';
 import type { Compound } from '../data/schema.ts';
@@ -122,12 +122,41 @@ export interface CurveResult {
   horizonH: number;
 }
 
+/**
+ * A dosing schedule as the UI expresses it: a regular course of `count` doses of
+ * `amount` mg every `interval` h, plus any {@link DoseEvent} ad-hoc extra doses.
+ * A single dose is just `count: 1`. {@link buildSchedule} flattens this to the
+ * `DoseEvent[]` the engine's superposition consumes (handoff §7, §13 Phase 6).
+ */
+export interface DoseSchedule {
+  /** Amount of each regular dose, mg. */
+  amount: number;
+  /** Number of regular doses; integer ≥ 0. Single dose = 1. */
+  count: number;
+  /** Interval τ between regular doses, h. Used only when `count` > 1. */
+  interval: number;
+  /** Extra one-off doses on top of the regular course. */
+  adHoc: DoseEvent[];
+}
+
+/**
+ * Flatten a {@link DoseSchedule} to the `DoseEvent[]` the engine consumes: the
+ * regular course (via the engine's {@link recurringDoses}) followed by the
+ * ad-hoc doses. Superposition treats any `DoseEvent[]` uniformly, so order does
+ * not matter. Throws (via `recurringDoses`) if `count` > 1 with `interval` ≤ 0 —
+ * the editor guards against this, and `buildCurve`'s caller catches it.
+ */
+export function buildSchedule({ amount, count, interval, adHoc }: DoseSchedule): DoseEvent[] {
+  const regular = recurringDoses({ amount, count, interval });
+  return [...regular, ...adHoc];
+}
+
 /** Inputs to {@link buildCurve}. */
 export interface CurveInput {
   compound: Compound;
   route: Route;
-  /** Single dose amount, mg. */
-  dose: number;
+  /** The dosing schedule (single = `count: 1`). */
+  schedule: DoseSchedule;
   /** Infusion duration, h — used only for `iv_infusion`. */
   infusionDuration?: number;
   /** Reference-subject weight, kg, for scaling per-kg Vd (defaults to 70 kg). */
@@ -146,20 +175,22 @@ function niceCeil(x: number): number {
 }
 
 /**
- * Pick a time horizon (h) that shows the whole story: ~5 elimination half-lives
- * (the curve has decayed to ~3% by then), extended for oral so the absorption
- * phase plays out and for an infusion so it covers the infusion plus its decay.
+ * Pick a time horizon (h) that shows the whole story: the last dose plus a tail
+ * of ~5 elimination half-lives (the curve has decayed to ~3% by then), extended
+ * for oral so the absorption phase plays out and for an infusion so it covers
+ * the infusion plus its decay. `lastDoseTime` shifts the tail to the end of the
+ * course so a recurring schedule isn't clipped mid-decay.
  */
-function curveHorizon(route: Route, params: PkParams): number {
+function curveHorizon(route: Route, params: PkParams, lastDoseTime: number): number {
   const halfLife = Math.LN2 / params.ke;
-  let horizon = 5 * halfLife;
+  let tail = 5 * halfLife;
   if (route === 'oral' && params.ka !== undefined && params.ka > 0) {
-    horizon += 3 * (Math.LN2 / params.ka);
+    tail += 3 * (Math.LN2 / params.ka);
   }
   if (route === 'iv_infusion' && params.infusionDuration !== undefined) {
-    horizon = Math.max(horizon, params.infusionDuration + 5 * halfLife);
+    tail = Math.max(tail, params.infusionDuration + 5 * halfLife);
   }
-  return niceCeil(horizon);
+  return niceCeil(lastDoseTime + tail);
 }
 
 /** A uniform grid of `samples + 1` times from 0 to `horizonH` inclusive. */
@@ -168,14 +199,15 @@ function sampleGrid(horizonH: number, samples: number): number[] {
 }
 
 /**
- * Build the chart-ready curve for a single dose. Derives the engine parameters
- * from the compound (throwing, via `deriveParams`, if the compound is nonlinear
- * or the oral route lacks absorption data — the caller catches and shows the
- * message), injects the infusion duration for `iv_infusion`, sizes the time
- * grid, and evaluates the superposition engine over a one-element schedule.
+ * Build the chart-ready curve for a dosing schedule. Derives the engine
+ * parameters from the compound (throwing, via `deriveParams`, if the compound is
+ * nonlinear or the oral route lacks absorption data — the caller catches and
+ * shows the message), injects the infusion duration for `iv_infusion`, sizes the
+ * time grid to cover the last dose plus its decay, and evaluates the
+ * superposition engine over the whole schedule.
  */
 export function buildCurve(input: CurveInput): CurveResult {
-  const { compound, route, dose, weightKg, samples = DEFAULT_SAMPLES } = input;
+  const { compound, route, schedule, weightKg, samples = DEFAULT_SAMPLES } = input;
   const { params: base, derived, warnings } = deriveParams(compound, route, { weightKg });
 
   // Spread (don't mutate) so a memoized `base` stays a faithful cache entry.
@@ -186,10 +218,13 @@ export function buildCurve(input: CurveInput): CurveResult {
     params = { ...base, infusionDuration };
   }
 
+  const doses = buildSchedule(schedule);
+  const lastDoseTime = doses.reduce((latest, dose) => Math.max(latest, dose.time), 0);
+
   const halfLifeH = Math.LN2 / params.ke;
-  const horizonH = curveHorizon(route, params);
+  const horizonH = curveHorizon(route, params, lastDoseTime);
   const times = sampleGrid(horizonH, samples);
-  const concentrations = concentrationCurve(route, params, [{ time: 0, amount: dose }], times);
+  const concentrations = concentrationCurve(route, params, doses, times);
   const points = times.map((t, i) => ({ t, c: concentrations[i] ?? 0 }));
 
   return { points, params, derived, warnings, halfLifeH, horizonH };

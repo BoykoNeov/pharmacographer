@@ -13,12 +13,13 @@
  */
 
 import { useMemo, useState } from 'react';
-import type { Route } from '../engine/types.ts';
+import type { DoseEvent, Route } from '../engine/types.ts';
 import type { DeriveWarning } from '../data/derive.ts';
 import { loadAllCompounds } from '../data/loader.ts';
 import { CompoundPicker } from './components/CompoundPicker.tsx';
 import { ConcentrationChart } from './components/ConcentrationChart.tsx';
 import { DisclaimerBanner } from './components/DisclaimerBanner.tsx';
+import { DosingScheduleEditor, type ScheduleMode } from './components/DosingScheduleEditor.tsx';
 import { ModelAssumptionsNote } from './components/ModelAssumptionsNote.tsx';
 import { ProvenancePanel } from './components/ProvenancePanel.tsx';
 import { RouteDoseControls } from './components/RouteDoseControls.tsx';
@@ -30,6 +31,7 @@ import {
   ROUTE_LABELS,
   routeOptions,
   type CurveResult,
+  type DoseSchedule,
   DEFAULT_INFUSION_DURATION_H,
 } from './curve.ts';
 
@@ -46,9 +48,22 @@ export function App() {
   });
   const [dose, setDose] = useState(500);
   const [infusionDuration, setInfusionDuration] = useState(DEFAULT_INFUSION_DURATION_H);
+  // Schedule shape (interval τ, dose count, ad-hoc extras). Unlike `route`, a
+  // schedule is compound-independent, so it persists across compound switches.
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('single');
+  const [interval, setInterval] = useState(6);
+  const [count, setCount] = useState(4);
+  const [adHoc, setAdHoc] = useState<DoseEvent[]>([]);
 
   const compound = useMemo(() => COMPOUNDS.find((c) => c.id === compoundId), [compoundId]);
   const options = useMemo(() => (compound ? routeOptions(compound) : []), [compound]);
+
+  // The dose amount is per-administration; the schedule repeats it. `count: 1`
+  // in single mode makes single and recurring the same engine code path.
+  const schedule = useMemo<DoseSchedule>(
+    () => ({ amount: dose, count: scheduleMode === 'recurring' ? count : 1, interval, adHoc }),
+    [dose, scheduleMode, count, interval, adHoc],
+  );
 
   // Switching compounds can invalidate the current route (e.g. oral-only →
   // iv-only). Reset to the new compound's default rather than store-then-validate.
@@ -64,11 +79,11 @@ export function App() {
   const curve = useMemo(() => {
     if (!compound) return { ok: false as const, error: 'No compound selected.' };
     try {
-      return { ok: true as const, value: buildCurve({ compound, route, dose, infusionDuration }) };
+      return { ok: true as const, value: buildCurve({ compound, route, schedule, infusionDuration }) };
     } catch (error) {
       return { ok: false as const, error: error instanceof Error ? error.message : String(error) };
     }
-  }, [compound, route, dose, infusionDuration]);
+  }, [compound, route, schedule, infusionDuration]);
 
   return (
     <>
@@ -97,6 +112,16 @@ export function App() {
               infusionDuration={infusionDuration}
               onInfusionDurationChange={setInfusionDuration}
             />
+            <DosingScheduleEditor
+              mode={scheduleMode}
+              onModeChange={setScheduleMode}
+              interval={interval}
+              onIntervalChange={setInterval}
+              count={count}
+              onCountChange={setCount}
+              adHoc={adHoc}
+              onAdHocChange={setAdHoc}
+            />
           </section>
 
           <section className="panel chart-area" aria-label="Concentration curve">
@@ -105,7 +130,7 @@ export function App() {
                 <ConcentrationChart points={curve.value.points} horizonH={curve.value.horizonH} />
                 <ModelCaption
                   route={route}
-                  dose={dose}
+                  schedule={schedule}
                   infusionDuration={infusionDuration}
                   curve={curve.value}
                 />
@@ -132,17 +157,29 @@ export function App() {
 
 interface ModelCaptionProps {
   route: Route;
-  dose: number;
+  schedule: DoseSchedule;
   infusionDuration: number;
   curve: CurveResult;
 }
 
+/** Describe the dosing schedule in words for the caption. */
+function describeSchedule(schedule: DoseSchedule, route: Route): string {
+  const routeWord = ROUTE_LABELS[route].toLowerCase();
+  const base =
+    schedule.count <= 1
+      ? `single ${fmtNum(schedule.amount)} mg ${routeWord} dose`
+      : `${schedule.count} × ${fmtNum(schedule.amount)} mg ${routeWord} doses every ${fmtNum(schedule.interval)} h`;
+  if (schedule.adHoc.length === 0) return base;
+  const extras = schedule.adHoc.length === 1 ? '1 extra dose' : `${schedule.adHoc.length} extra doses`;
+  return `${base} + ${extras}`;
+}
+
 /** "Show the model, not just the curve" (handoff §1) — a one-line summary. */
-function ModelCaption({ route, dose, infusionDuration, curve }: ModelCaptionProps) {
+function ModelCaption({ route, schedule, infusionDuration, curve }: ModelCaptionProps) {
   const { params, halfLifeH } = curve;
   const parts = [
     'One-compartment model',
-    `single ${fmtNum(dose)} mg ${ROUTE_LABELS[route].toLowerCase()} dose`,
+    describeSchedule(schedule, route),
     `ke = ${fmtNum(params.ke)} /h (t½ ${fmtNum(halfLifeH)} h)`,
   ];
   if (route === 'oral' && params.ka !== undefined) {
