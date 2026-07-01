@@ -14,6 +14,7 @@
  */
 
 import type { DoseEvent } from '../../engine/types.ts';
+import { INPUT_LIMITS, clampInput } from '../limits.ts';
 
 export type ScheduleMode = 'single' | 'recurring';
 
@@ -90,10 +91,11 @@ export function DosingScheduleEditor({
             <input
               className="control__input"
               type="number"
-              min={0}
+              min={INPUT_LIMITS.intervalH.min}
+              max={INPUT_LIMITS.intervalH.max}
               step="any"
               value={interval}
-              onChange={(event) => onIntervalChange(toNumber(event.target.value))}
+              onChange={(event) => onIntervalChange(clampInput(toNumber(event.target.value), INPUT_LIMITS.intervalH))}
             />
           </label>
           <label className="control control--inline">
@@ -101,10 +103,13 @@ export function DosingScheduleEditor({
             <input
               className="control__input"
               type="number"
-              min={1}
+              min={INPUT_LIMITS.doseCount.min}
+              max={INPUT_LIMITS.doseCount.max}
               step={1}
               value={count}
-              onChange={(event) => onCountChange(Math.max(1, Math.round(toNumber(event.target.value))))}
+              onChange={(event) =>
+                onCountChange(clampInput(Math.round(toNumber(event.target.value)), INPUT_LIMITS.doseCount))
+              }
             />
           </label>
         </div>
@@ -123,10 +128,13 @@ export function DosingScheduleEditor({
                   <input
                     className="control__input"
                     type="number"
-                    min={0}
+                    min={INPUT_LIMITS.adHocTimeH.min}
+                    max={INPUT_LIMITS.adHocTimeH.max}
                     step="any"
                     value={dose.time}
-                    onChange={(event) => updateAdHoc(index, { time: toNumber(event.target.value) })}
+                    onChange={(event) =>
+                      updateAdHoc(index, { time: clampInput(toNumber(event.target.value), INPUT_LIMITS.adHocTimeH) })
+                    }
                   />
                 </label>
                 <label className="control control--inline">
@@ -134,10 +142,13 @@ export function DosingScheduleEditor({
                   <input
                     className="control__input"
                     type="number"
-                    min={0}
+                    min={INPUT_LIMITS.doseMg.min}
+                    max={INPUT_LIMITS.doseMg.max}
                     step="any"
                     value={dose.amount}
-                    onChange={(event) => updateAdHoc(index, { amount: toNumber(event.target.value) })}
+                    onChange={(event) =>
+                      updateAdHoc(index, { amount: clampInput(toNumber(event.target.value), INPUT_LIMITS.doseMg) })
+                    }
                   />
                 </label>
                 <button

@@ -118,7 +118,19 @@ tooltip, marker label, and the App `ModelCaption`). Because every offered unit
 is a power-of-ten factor, decade ticks generated in mg/L stay decade ticks after
 conversion — so the toggle and the decade gridlines compose for free (curve.ts
 `CONCENTRATION_UNITS` + `toDisplayConcentration`, re-exported like
-`REFERENCE_WEIGHT_KG`). Key decisions: the unit is lifted to **App state** (not
+`REFERENCE_WEIGHT_KG`).
+
+**Input-field limits** (`src/ui/limits.ts`): every numeric control clamps its
+value (`INPUT_LIMITS` + `clampInput`) — dose/ad-hoc-amount ≤ 100 g, infusion ≤
+72 h, interval ≤ 168 h, ad-hoc time ≤ 1000 h, and **dose count ≤ 200**. The
+count cap is the load-bearing one: `concentrationCurve` is ~O(samples × doses)
+(the grid itself grows with the count via `criticalTimes`), so an uncapped count
+could freeze the tab; count=200 (main + both band curves) recomputes in ~50 ms.
+The clamp runs in `onChange`, not just the `max`/`min` attributes, because those
+only drive the spinner/validity UI — they do NOT stop a typed or pasted value.
+These are input hygiene, not clinical limits.
+
+Key chart-refinement decisions: the unit is lifted to **App state** (not
 chart-local like the y-scale) because `ModelCaption` also prints a Cmax and the
 two must never disagree on screen; the semi-log y-domain **snaps to whole
 decades** `[10^floor(log10 min), 10^ceil(log10 max)]` with `10^n` ticks (a plain

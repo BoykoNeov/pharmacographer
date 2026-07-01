@@ -12,6 +12,7 @@
 
 import type { Route } from '../../engine/types.ts';
 import type { RouteOption } from '../curve.ts';
+import { INPUT_LIMITS, clampInput } from '../limits.ts';
 
 interface RouteDoseControlsProps {
   routeOptions: RouteOption[];
@@ -69,10 +70,11 @@ export function RouteDoseControls({
         <input
           className="control__input"
           type="number"
-          min={0}
+          min={INPUT_LIMITS.doseMg.min}
+          max={INPUT_LIMITS.doseMg.max}
           step="any"
           value={dose}
-          onChange={(event) => onDoseChange(toNumber(event.target.value))}
+          onChange={(event) => onDoseChange(clampInput(toNumber(event.target.value), INPUT_LIMITS.doseMg))}
         />
       </label>
 
@@ -82,10 +84,13 @@ export function RouteDoseControls({
           <input
             className="control__input"
             type="number"
-            min={0}
+            min={INPUT_LIMITS.infusionH.min}
+            max={INPUT_LIMITS.infusionH.max}
             step="any"
             value={infusionDuration}
-            onChange={(event) => onInfusionDurationChange(toNumber(event.target.value))}
+            onChange={(event) =>
+              onInfusionDurationChange(clampInput(toNumber(event.target.value), INPUT_LIMITS.infusionH))
+            }
           />
         </label>
       )}
