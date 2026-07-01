@@ -17,38 +17,55 @@
 
 import { useState } from 'react';
 import {
+  Area,
+  ComposedChart,
   CartesianGrid,
   Label,
   Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
-import { fmtNum, type CurvePoint } from '../curve.ts';
+import { fmtNum, type BandPoint, type CurvePoint } from '../curve.ts';
 
 type YScale = 'linear' | 'log';
 
 interface ConcentrationChartProps {
   points: CurvePoint[];
+  /**
+   * The low/high half-life variability envelope, shaded behind the main line.
+   * Absent when the compound reports no half-life range.
+   */
+  band?: BandPoint[];
   /** Right edge of the time axis, h. */
   horizonH: number;
 }
 
-export function ConcentrationChart({ points, horizonH }: ConcentrationChartProps) {
+export function ConcentrationChart({ points, band, horizonH }: ConcentrationChartProps) {
   const [yScale, setYScale] = useState<YScale>('linear');
   const isLog = yScale === 'log';
 
-  const positives = points.filter((point) => point.c > 0).map((point) => point.c);
+  // The log-axis floor must clear every plotted series, band included.
+  const positives = [
+    ...points.map((p) => p.c),
+    ...(band ?? []).flatMap((b) => [b.cLow, b.cHigh]),
+  ].filter((c) => c > 0);
   const minPositive = positives.length > 0 ? Math.min(...positives) : 1e-6;
 
-  // On a log axis, drop non-positive points (they cannot be plotted) by nulling
-  // them so the line breaks rather than collapsing the axis.
-  const data = points.map((point) => ({
-    t: point.t,
-    c: isLog && !(point.c > 0) ? null : point.c,
-  }));
+  // Recharts draws a range area from a `[low, high]` dataKey. On a log axis a
+  // non-positive bound cannot be plotted, so we floor it to `minPositive` (the
+  // band edge simply rides the axis floor) and null non-positive line points so
+  // the line breaks rather than collapsing the axis.
+  const clampLog = (value: number): number => (isLog && !(value > 0) ? minPositive : value);
+  const data = points.map((point, i) => {
+    const b = band?.[i];
+    return {
+      t: point.t,
+      c: isLog && !(point.c > 0) ? null : point.c,
+      band: b ? [clampLog(b.cLow), clampLog(b.cHigh)] : undefined,
+    };
+  });
 
   return (
     <div className="chart">
@@ -76,7 +93,7 @@ export function ConcentrationChart({ points, horizonH }: ConcentrationChartProps
 
       <div className="chart__canvas">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 12, right: 24, bottom: 28, left: 16 }}>
+          <ComposedChart data={data} margin={{ top: 12, right: 24, bottom: 28, left: 16 }}>
             <CartesianGrid stroke="#2a2f3a" strokeDasharray="3 3" />
             <XAxis
               type="number"
@@ -115,6 +132,18 @@ export function ConcentrationChart({ points, horizonH }: ConcentrationChartProps
               labelFormatter={(label) => `t = ${fmtNum(Number(label), 3)} h`}
               formatter={(value) => [`${fmtNum(Number(value), 3)} mg/L`, 'Concentration']}
             />
+            {band && (
+              <Area
+                type="monotone"
+                dataKey="band"
+                stroke="none"
+                fill="#5b9dd9"
+                fillOpacity={0.18}
+                isAnimationActive={false}
+                activeDot={false}
+                tooltipType="none"
+              />
+            )}
             <Line
               type="monotone"
               dataKey="c"
@@ -124,7 +153,7 @@ export function ConcentrationChart({ points, horizonH }: ConcentrationChartProps
               isAnimationActive={false}
               connectNulls={false}
             />
-          </LineChart>
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     </div>

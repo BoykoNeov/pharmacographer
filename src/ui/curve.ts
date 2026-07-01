@@ -16,7 +16,7 @@
 
 import { concentrationCurve, recurringDoses } from '../engine/dosing.ts';
 import type { DoseEvent, PkParams, Route } from '../engine/types.ts';
-import { REFERENCE_WEIGHT_KG } from '../engine/units.ts';
+import { REFERENCE_WEIGHT_KG, time } from '../engine/units.ts';
 import { deriveParams, type DeriveWarning, type DerivedNote } from '../data/derive.ts';
 import type { Compound } from '../data/schema.ts';
 
@@ -106,17 +106,71 @@ export interface CurvePoint {
   c: number;
 }
 
+/** A sampled point of the variability envelope, mg/L at time `t` (h). */
+export interface BandPoint {
+  t: number;
+  /** Concentration at the short (fast-elimination) half-life. */
+  cLow: number;
+  /** Concentration at the long (slow-elimination) half-life. */
+  cHigh: number;
+}
+
+/** A half-life range in canonical hours, as read from the compound's source. */
+export interface HalfLifeRange {
+  /** Shortest reported half-life, h. */
+  low: number;
+  /** Point (nominal) half-life, h — where the slider starts. */
+  nominal: number;
+  /** Longest reported half-life, h. */
+  high: number;
+}
+
+/**
+ * The compound's reported half-life range in canonical hours, or `null` if the
+ * source gives no range (then there is no variability band to draw). This is the
+ * ONE parameter v1 varies — Vd/F/ka variability is a documented non-goal
+ * (handoff §11). All three values come from the same `disposition.halfLife`
+ * field, so the point value always lies within the range (schema-enforced).
+ */
+export function halfLifeRangeH(compound: Compound): HalfLifeRange | null {
+  const hl = compound.disposition.halfLife;
+  if (!hl.range) return null;
+  return {
+    low: time.toCanonical(hl.range[0], hl.unit),
+    nominal: time.toCanonical(hl.value, hl.unit),
+    high: time.toCanonical(hl.range[1], hl.unit),
+  };
+}
+
+/**
+ * Scale a derived `ke` to a target half-life, holding everything else fixed.
+ * Expressed as a ratio around the nominal (`ke × nominal/target`) rather than
+ * `ln2/target` so that selecting the nominal half-life reproduces the compound's
+ * default `ke` EXACTLY — even when that `ke` came from clearance (CL/Vd) rather
+ * than from the half-life. Longer target ⇒ smaller `ke` ⇒ slower elimination.
+ */
+function scaleKe(baseKe: number, nominalHalfLifeH: number, targetHalfLifeH: number): number {
+  return baseKe * (nominalHalfLifeH / targetHalfLifeH);
+}
+
 /** Everything the chart area needs for one parameter set. */
 export interface CurveResult {
   /** Sampled concentration-time curve, mg/L vs h. */
   points: CurvePoint[];
-  /** The resolved engine parameters that produced the curve. */
+  /**
+   * The low/high half-life envelope, present only when the compound reports a
+   * half-life range. Fixed at the reported extremes (independent of the slider).
+   */
+  band?: BandPoint[];
+  /** The half-life range the band spans, for the slider's bounds. */
+  halfLifeRange?: HalfLifeRange;
+  /** The resolved engine parameters that produced the (main) curve. */
   params: PkParams;
   /** Values the derivation computed rather than read (handoff §8). */
   derived: DerivedNote[];
   /** Cautions to surface alongside the curve (inferred route, assumed F, …). */
   warnings: DeriveWarning[];
-  /** Elimination half-life, h (ln2 / ke) — for the model caption. */
+  /** Elimination half-life, h (ln2 / ke) of the main curve — for the caption. */
   halfLifeH: number;
   /** Right edge of the time axis, h. */
   horizonH: number;
@@ -159,6 +213,12 @@ export interface CurveInput {
   schedule: DoseSchedule;
   /** Infusion duration, h — used only for `iv_infusion`. */
   infusionDuration?: number;
+  /**
+   * Main-curve half-life override, h — the variability slider. When set, `ke` is
+   * scaled to this half-life (via {@link scaleKe}); unset, the compound's derived
+   * `ke` is used. Does NOT move the band, which stays at the reported extremes.
+   */
+  halfLifeH?: number;
   /** Reference-subject weight, kg, for scaling per-kg Vd (defaults to 70 kg). */
   weightKg?: number;
   /** Grid resolution; defaults to {@link DEFAULT_SAMPLES}. */
@@ -210,24 +270,60 @@ export function buildCurve(input: CurveInput): CurveResult {
   const { compound, route, schedule, weightKg, samples = DEFAULT_SAMPLES } = input;
   const { params: base, derived, warnings } = deriveParams(compound, route, { weightKg });
 
+  // Disposition + injected infusion duration, shared by the main line and band.
   // Spread (don't mutate) so a memoized `base` stays a faithful cache entry.
-  let params = base;
+  let disposition = base;
   if (route === 'iv_infusion') {
     const requested = input.infusionDuration;
     const infusionDuration = requested !== undefined && requested > 0 ? requested : DEFAULT_INFUSION_DURATION_H;
-    params = { ...base, infusionDuration };
+    disposition = { ...base, infusionDuration };
   }
+
+  // Reference half-life for ke scaling: the reported nominal when there is a
+  // range (keeps the band centred), else ln2/ke (identity — no scaling).
+  const range = halfLifeRangeH(compound);
+  const nominalHalfLifeH = range?.nominal ?? Math.LN2 / base.ke;
+
+  // Main line: slider override (if any), scaled around the derived ke.
+  const selectedHalfLifeH = input.halfLifeH !== undefined && input.halfLifeH > 0 ? input.halfLifeH : nominalHalfLifeH;
+  const mainKe = scaleKe(base.ke, nominalHalfLifeH, selectedHalfLifeH);
+  const params: PkParams = { ...disposition, ke: mainKe };
+
+  // Band extremes are FIXED at the reported low/high half-life (not the slider):
+  // longer half-life ⇒ smaller ke ⇒ slower elimination ⇒ higher exposure (cHigh).
+  const keSlow = range ? scaleKe(base.ke, nominalHalfLifeH, range.high) : mainKe;
+  const keFast = range ? scaleKe(base.ke, nominalHalfLifeH, range.low) : mainKe;
 
   const doses = buildSchedule(schedule);
   const lastDoseTime = doses.reduce((latest, dose) => Math.max(latest, dose.time), 0);
 
-  const halfLifeH = Math.LN2 / params.ke;
-  const horizonH = curveHorizon(route, params, lastDoseTime);
+  // Size the grid on the slowest curve in view (smallest ke) so the band's
+  // long-half-life tail isn't clipped mid-decay.
+  const slowestKe = Math.min(mainKe, keSlow);
+  const horizonH = curveHorizon(route, { ...disposition, ke: slowestKe }, lastDoseTime);
   const times = sampleGrid(horizonH, samples);
+
   const concentrations = concentrationCurve(route, params, doses, times);
   const points = times.map((t, i) => ({ t, c: concentrations[i] ?? 0 }));
 
-  return { points, params, derived, warnings, halfLifeH, horizonH };
+  let band: BandPoint[] | undefined;
+  if (range) {
+    const high = concentrationCurve(route, { ...disposition, ke: keSlow }, doses, times);
+    const low = concentrationCurve(route, { ...disposition, ke: keFast }, doses, times);
+    band = times.map((t, i) => ({ t, cLow: low[i] ?? 0, cHigh: high[i] ?? 0 }));
+  }
+
+  const halfLifeH = Math.LN2 / mainKe;
+  return {
+    points,
+    band,
+    halfLifeRange: range ?? undefined,
+    params,
+    derived,
+    warnings,
+    halfLifeH,
+    horizonH,
+  };
 }
 
 /** Format a number to `sig` significant figures, trimming trailing zeros. */

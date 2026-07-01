@@ -23,10 +23,12 @@ import { DosingScheduleEditor, type ScheduleMode } from './components/DosingSche
 import { ModelAssumptionsNote } from './components/ModelAssumptionsNote.tsx';
 import { ProvenancePanel } from './components/ProvenancePanel.tsx';
 import { RouteDoseControls } from './components/RouteDoseControls.tsx';
+import { VariabilitySlider } from './components/VariabilitySlider.tsx';
 import {
   buildCurve,
   defaultRoute,
   fmtNum,
+  halfLifeRangeH,
   REFERENCE_WEIGHT_KG,
   ROUTE_LABELS,
   routeOptions,
@@ -54,9 +56,13 @@ export function App() {
   const [interval, setInterval] = useState(6);
   const [count, setCount] = useState(4);
   const [adHoc, setAdHoc] = useState<DoseEvent[]>([]);
+  // Half-life chosen within the reported band; undefined ⇒ the compound's
+  // nominal. Compound-specific (its range differs), so reset on compound switch.
+  const [halfLifeH, setHalfLifeH] = useState<number | undefined>(undefined);
 
   const compound = useMemo(() => COMPOUNDS.find((c) => c.id === compoundId), [compoundId]);
   const options = useMemo(() => (compound ? routeOptions(compound) : []), [compound]);
+  const halfLifeRange = useMemo(() => (compound ? halfLifeRangeH(compound) : null), [compound]);
 
   // The dose amount is per-administration; the schedule repeats it. `count: 1`
   // in single mode makes single and recurring the same engine code path.
@@ -71,6 +77,7 @@ export function App() {
     setCompoundId(id);
     const next = COMPOUNDS.find((c) => c.id === id);
     if (next) setRoute(defaultRoute(next));
+    setHalfLifeH(undefined); // back to the new compound's nominal half-life
   };
 
   // The derive → engine pipeline. `deriveParams` throws for a nonlinear compound
@@ -79,11 +86,11 @@ export function App() {
   const curve = useMemo(() => {
     if (!compound) return { ok: false as const, error: 'No compound selected.' };
     try {
-      return { ok: true as const, value: buildCurve({ compound, route, schedule, infusionDuration }) };
+      return { ok: true as const, value: buildCurve({ compound, route, schedule, infusionDuration, halfLifeH }) };
     } catch (error) {
       return { ok: false as const, error: error instanceof Error ? error.message : String(error) };
     }
-  }, [compound, route, schedule, infusionDuration]);
+  }, [compound, route, schedule, infusionDuration, halfLifeH]);
 
   return (
     <>
@@ -122,12 +129,21 @@ export function App() {
               adHoc={adHoc}
               onAdHocChange={setAdHoc}
             />
+            <VariabilitySlider
+              range={halfLifeRange}
+              valueH={halfLifeH ?? halfLifeRange?.nominal ?? 0}
+              onChange={setHalfLifeH}
+            />
           </section>
 
           <section className="panel chart-area" aria-label="Concentration curve">
             {curve.ok ? (
               <>
-                <ConcentrationChart points={curve.value.points} horizonH={curve.value.horizonH} />
+                <ConcentrationChart
+                  points={curve.value.points}
+                  band={curve.value.band}
+                  horizonH={curve.value.horizonH}
+                />
                 <ModelCaption
                   route={route}
                   schedule={schedule}

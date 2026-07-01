@@ -202,6 +202,38 @@ body {
   color: var(--muted);
 }
 
+/* ── Variability slider ──────────────────────────────────────────────────── */
+
+.control__hint {
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.slider {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.slider__scale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.slider__nominal {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0;
+}
+
 /* ── Chart ────────────────────────────────────────────────────────────────── */
 
 .chart__toolbar {
