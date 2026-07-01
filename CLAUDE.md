@@ -84,7 +84,8 @@ all pass.
 ## Build order
 
 Follow the phases in handoff §13 — engine + tests before UI. Current state:
-**Phase 7 data expansion done; charts + deploy deferred.**
+**Phase 7 data expansion + all three chart refinements done; static-site deploy
+is the sole remaining item.**
 
 **Phase 7 in progress** (polish & expand, handoff §13/§14). The seed set grew
 from 3 → **8 compounds**: added `caffeine`, `ibuprofen`, `diphenhydramine`,
@@ -103,11 +104,33 @@ when t½ is derived from CL/Vd — it's a circular ke cross-check" rule (from
 cetirizine) both recur. Two §14 candidates were vetted and NOT shipped, rationale
 in `docs/DATA_GUIDE.md`: **omeprazole excluded** (`linear: false` — CYP2C19
 autoinhibition breaks superposition) and **lisinopril deferred** (neither FDA
-label nor EMA SmPC states a Vd; not guessed). **Deferred to a later session
-(user's call):** the three chart refinements — Cmax/Tmax markers, a concentration
-unit toggle (mg/L ↔ ng/mL ↔ µg/mL, handoff §15 #6), and semi-log decade ticks +
-band values in the tooltip — and the **static-site deploy** (vite `base` +
-GitHub Pages workflow). Those are the remaining Phase 7 items.
+label nor EMA SmPC states a Vd; not guessed).
+
+**All three chart refinements now landed** (pure-UI — no `engine/`, `schema.ts`,
+or `derive.ts` changes). (1) **Cmax/Tmax markers** — `buildCurve` returns a
+`peak`; `criticalTimes` samples each oral dose's analytic Bateman peak so the
+marked Tmax is exact (round-trips `derive.ts`'s `kaFromTmax`), IV bolus/infusion
+peaks were already pinned; a `ReferenceDot` + a route-aware `PeakNote`. (2)
+**Concentration unit toggle** (mg/L ↔ µg/mL ↔ ng/mL, handoff §15 #6) and (3)
+**semi-log decade ticks + band-in-tooltip**: curve math stays canonical mg/L;
+concentration is converted **only at display** (tick formatter, axis label,
+tooltip, marker label, and the App `ModelCaption`). Because every offered unit
+is a power-of-ten factor, decade ticks generated in mg/L stay decade ticks after
+conversion — so the toggle and the decade gridlines compose for free (curve.ts
+`CONCENTRATION_UNITS` + `toDisplayConcentration`, re-exported like
+`REFERENCE_WEIGHT_KG`). Key decisions: the unit is lifted to **App state** (not
+chart-local like the y-scale) because `ModelCaption` also prints a Cmax and the
+two must never disagree on screen; the semi-log y-domain **snaps to whole
+decades** `[10^floor(log10 min), 10^ceil(log10 max)]` with `10^n` ticks (a plain
+`'auto'` domain drops the edge decade ticks) — a sub-decade curve rides high in
+its band, the conventional log-axis tradeoff; a **custom Tooltip** shows the
+band's extremes labelled by meaning (short vs long t½), reading a `bandRaw`
+(unclamped) datum so it stays honest even where the log axis floors a
+non-positive band edge. Verified end-to-end via a throwaway Playwright driver:
+mg/L→µg/mL keeps the number identical (only the label changes — the teachable
+equivalence), mg/L→ng/mL scales ×1000, semi-log shows clean decade gridlines,
+hover shows the band rows. The **static-site deploy** (vite `base` + GitHub
+Pages workflow) is now the sole remaining Phase 7 item.
 
 **Phase 6 done** (schedules & variability). The engine already supported
 multi-dose (`recurringDoses` + linear superposition), so Phase 6 was **pure-UI**

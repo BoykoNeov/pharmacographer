@@ -15,7 +15,7 @@
  *     renders blank — pinning the floor and `allowDataOverflow` avoids that.
  */
 
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import {
   Area,
   ComposedChart,
@@ -28,7 +28,14 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { fmtNum, type BandPoint, type CurvePoint } from '../curve.ts';
+import {
+  CONCENTRATION_UNITS,
+  fmtNum,
+  toDisplayConcentration,
+  type BandPoint,
+  type ConcentrationDisplayUnit,
+  type CurvePoint,
+} from '../curve.ts';
 
 type YScale = 'linear' | 'log';
 
@@ -43,31 +50,108 @@ interface ConcentrationChartProps {
   horizonH: number;
   /** The model-predicted peak (Cmax at Tmax) of the main curve, marked on the plot. */
   peak: CurvePoint;
+  /** Display unit for every concentration on the chart (data stays canonical mg/L). */
+  concUnit: ConcentrationDisplayUnit;
+  /** Change the concentration display unit (owned by App so the caption agrees). */
+  onConcUnitChange: (unit: ConcentrationDisplayUnit) => void;
 }
 
-export function ConcentrationChart({ points, band, horizonH, peak }: ConcentrationChartProps) {
+/** The tooltip's dark box, shared by the default and custom renderers. */
+const TOOLTIP_STYLE: CSSProperties = {
+  background: '#181b22',
+  border: '1px solid #2a2f3a',
+  borderRadius: 6,
+  color: '#e8eaed',
+  padding: '0.5rem 0.7rem',
+  fontSize: 12,
+  lineHeight: 1.5,
+};
+
+/** One row of the datum the chart plots (t, main c, and — when present — the band). */
+interface ChartDatum {
+  t: number;
+  c: number | null;
+  /** Log-clamped band the Area draws; non-positive bounds floored to the axis. */
+  band?: [number, number];
+  /** The true, unclamped band for the tooltip — honest even where the Area floors. */
+  bandRaw?: [number, number];
+}
+
+/**
+ * Tooltip content that reports the main concentration and, when a variability
+ * band exists, its extremes labelled by what they MEAN (short vs long half-life)
+ * rather than a bare low/high. Reads the raw band so it is truthful even at
+ * points where the log axis floored the shaded area. Survives no band and a
+ * null main concentration (oral C(0) = 0 on a log axis).
+ */
+function ConcTooltip(props: {
+  active?: boolean;
+  payload?: { payload: ChartDatum }[];
+  concUnit: ConcentrationDisplayUnit;
+}) {
+  const { active, payload, concUnit } = props;
+  if (!active || !payload || payload.length === 0) return null;
+  const datum = payload[0]?.payload;
+  if (!datum) return null;
+  const fmt = (v: number) => `${fmtNum(toDisplayConcentration(v, concUnit))} ${concUnit}`;
+  return (
+    <div style={TOOLTIP_STYLE}>
+      <div>t = {fmtNum(datum.t, 3)} h</div>
+      <div>Concentration: {datum.c == null ? '—' : fmt(datum.c)}</div>
+      {datum.bandRaw && (
+        <>
+          <div style={{ color: '#9aa0a6' }}>Short t½ (fast elim.): {fmt(datum.bandRaw[0])}</div>
+          <div style={{ color: '#9aa0a6' }}>Long t½ (slow elim.): {fmt(datum.bandRaw[1])}</div>
+        </>
+      )}
+    </div>
+  );
+}
+
+export function ConcentrationChart({
+  points,
+  band,
+  horizonH,
+  peak,
+  concUnit,
+  onConcUnitChange,
+}: ConcentrationChartProps) {
   const [yScale, setYScale] = useState<YScale>('linear');
   const [showPeak, setShowPeak] = useState(true);
   const isLog = yScale === 'log';
 
-  // The log-axis floor must clear every plotted series, band included.
+  // The log axis spans every plotted series, band included.
   const positives = [
     ...points.map((p) => p.c),
     ...(band ?? []).flatMap((b) => [b.cLow, b.cHigh]),
   ].filter((c) => c > 0);
   const minPositive = positives.length > 0 ? Math.min(...positives) : 1e-6;
+  const maxPositive = positives.length > 0 ? Math.max(...positives) : 1;
+
+  // Semi-log: snap the domain to whole decades and tick each 10ⁿ across it. A
+  // plain [minPositive, 'auto'] domain would push the edge decade ticks outside
+  // the axis, so they wouldn't render. Snapping means a narrow curve (< 1 decade)
+  // rides high in its decade band — inherent to a log axis, and the conventional
+  // choice. Decades stay round in any unit because the unit factors are all 10ⁿ.
+  const loExp = Math.floor(Math.log10(minPositive));
+  const hiExp = Math.max(loExp + 1, Math.ceil(Math.log10(maxPositive)));
+  const logDomain: [number, number] = [Math.pow(10, loExp), Math.pow(10, hiExp)];
+  const decadeTicks: number[] = [];
+  for (let e = loExp; e <= hiExp; e++) decadeTicks.push(Math.pow(10, e));
 
   // Recharts draws a range area from a `[low, high]` dataKey. On a log axis a
   // non-positive bound cannot be plotted, so we floor it to `minPositive` (the
   // band edge simply rides the axis floor) and null non-positive line points so
-  // the line breaks rather than collapsing the axis.
+  // the line breaks rather than collapsing the axis. `bandRaw` keeps the true
+  // values for the tooltip, which should not lie about a floored point.
   const clampLog = (value: number): number => (isLog && !(value > 0) ? minPositive : value);
-  const data = points.map((point, i) => {
+  const data: ChartDatum[] = points.map((point, i) => {
     const b = band?.[i];
     return {
       t: point.t,
       c: isLog && !(point.c > 0) ? null : point.c,
       band: b ? [clampLog(b.cLow), clampLog(b.cHigh)] : undefined,
+      bandRaw: b ? [b.cLow, b.cHigh] : undefined,
     };
   });
 
@@ -83,6 +167,20 @@ export function ConcentrationChart({ points, band, horizonH, peak }: Concentrati
           >
             Cmax / Tmax
           </button>
+        </div>
+        <span className="chart__toolbar-label">units</span>
+        <div className="toggle" role="group" aria-label="Concentration unit">
+          {CONCENTRATION_UNITS.map((unit) => (
+            <button
+              key={unit}
+              type="button"
+              className={`toggle__btn${unit === concUnit ? ' toggle__btn--active' : ''}`}
+              onClick={() => onConcUnitChange(unit)}
+              aria-pressed={unit === concUnit}
+            >
+              {unit}
+            </button>
+          ))}
         </div>
         <span className="chart__toolbar-label">y-axis</span>
         <div className="toggle" role="group" aria-label="Y-axis scale">
@@ -123,31 +221,24 @@ export function ConcentrationChart({ points, band, horizonH, peak }: Concentrati
             </XAxis>
             <YAxis
               scale={isLog ? 'log' : 'linear'}
-              domain={isLog ? [minPositive, 'auto'] : [0, 'auto']}
+              domain={isLog ? logDomain : [0, 'auto']}
+              ticks={isLog ? decadeTicks : undefined}
               allowDataOverflow={isLog}
               stroke="#9aa0a6"
-              width={68}
+              // ng/mL multiplies every tick by 1000, so its labels need more room.
+              width={concUnit === 'ng/mL' ? 84 : 68}
               tick={{ fill: '#9aa0a6', fontSize: 12 }}
-              tickFormatter={(value: number) => fmtNum(value, 3)}
+              tickFormatter={(value: number) => fmtNum(toDisplayConcentration(value, concUnit), 3)}
             >
               <Label
-                value="Concentration (mg/L)"
+                value={`Concentration (${concUnit})`}
                 angle={-90}
                 position="insideLeft"
                 fill="#9aa0a6"
                 style={{ textAnchor: 'middle' }}
               />
             </YAxis>
-            <Tooltip
-              contentStyle={{
-                background: '#181b22',
-                border: '1px solid #2a2f3a',
-                borderRadius: 6,
-                color: '#e8eaed',
-              }}
-              labelFormatter={(label) => `t = ${fmtNum(Number(label), 3)} h`}
-              formatter={(value) => [`${fmtNum(Number(value), 3)} mg/L`, 'Concentration']}
-            />
+            <Tooltip content={<ConcTooltip concUnit={concUnit} />} />
             {band && (
               <Area
                 type="monotone"
@@ -180,7 +271,7 @@ export function ConcentrationChart({ points, band, horizonH, peak }: Concentrati
                 ifOverflow="extendDomain"
               >
                 <Label
-                  value={`Cmax ${fmtNum(peak.c)} @ ${fmtNum(peak.t)} h`}
+                  value={`Cmax ${fmtNum(toDisplayConcentration(peak.c, concUnit))} ${concUnit} @ ${fmtNum(peak.t)} h`}
                   // Peaks sitting on the y-axis (IV bolus, Tmax = 0) would clip a
                   // top-centred label off the left edge, so anchor those to the right.
                   position={peak.t < horizonH * 0.08 ? 'right' : 'top'}

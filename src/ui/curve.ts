@@ -17,7 +17,7 @@
 import { concentrationCurve, recurringDoses } from '../engine/dosing.ts';
 import { FLIP_FLOP_REL_TOL } from '../engine/models.ts';
 import type { DoseEvent, PkParams, Route } from '../engine/types.ts';
-import { REFERENCE_WEIGHT_KG, time } from '../engine/units.ts';
+import { REFERENCE_WEIGHT_KG, concentration, time } from '../engine/units.ts';
 import { deriveParams, type DeriveWarning, type DerivedNote } from '../data/derive.ts';
 import type { Compound } from '../data/schema.ts';
 
@@ -429,6 +429,25 @@ export function buildCurve(input: CurveInput): CurveResult {
 export function fmtNum(x: number, sig = 3): string {
   if (!Number.isFinite(x)) return '—';
   return Number(x.toPrecision(sig)).toString();
+}
+
+/**
+ * Concentration display units offered by the chart's unit toggle (handoff §15
+ * #6). All curve math stays in canonical mg/L; these are display-only. The three
+ * chosen units differ by powers of ten (µg/mL ≡ mg/L; ng/mL = mg/L × 1000), a
+ * deliberate teaching point — switching mg/L ↔ µg/mL must not move the number.
+ */
+export const CONCENTRATION_UNITS = ['mg/L', 'µg/mL', 'ng/mL'] as const;
+export type ConcentrationDisplayUnit = (typeof CONCENTRATION_UNITS)[number];
+
+/**
+ * Convert a canonical mg/L concentration into a chosen display unit. Because
+ * every offered unit is a power-of-ten factor, decade ticks generated in mg/L
+ * remain decade ticks after conversion — the chart relies on this to keep its
+ * semi-log gridlines round in any unit.
+ */
+export function toDisplayConcentration(mgPerL: number, unit: ConcentrationDisplayUnit): number {
+  return concentration.fromCanonical(mgPerL, unit);
 }
 
 /** Re-export so the UI labels the reference subject without reaching into engine. */

@@ -32,6 +32,8 @@ import {
   REFERENCE_WEIGHT_KG,
   ROUTE_LABELS,
   routeOptions,
+  toDisplayConcentration,
+  type ConcentrationDisplayUnit,
   type CurveResult,
   type DoseSchedule,
   DEFAULT_INFUSION_DURATION_H,
@@ -60,6 +62,10 @@ export function App() {
   // Half-life chosen within the reported band; undefined ⇒ the compound's
   // nominal. Compound-specific (its range differs), so reset on compound switch.
   const [halfLifeH, setHalfLifeH] = useState<number | undefined>(undefined);
+  // Concentration display unit. Owned here (not in the chart) because the model
+  // caption also prints a Cmax — the two must never disagree on screen. The curve
+  // math stays in canonical mg/L; this only changes how values are shown.
+  const [concUnit, setConcUnit] = useState<ConcentrationDisplayUnit>('mg/L');
 
   const compound = useMemo(() => COMPOUNDS.find((c) => c.id === compoundId), [compoundId]);
   const options = useMemo(() => (compound ? routeOptions(compound) : []), [compound]);
@@ -145,12 +151,15 @@ export function App() {
                   band={curve.value.band}
                   horizonH={curve.value.horizonH}
                   peak={curve.value.peak}
+                  concUnit={concUnit}
+                  onConcUnitChange={setConcUnit}
                 />
                 <ModelCaption
                   route={route}
                   schedule={schedule}
                   infusionDuration={infusionDuration}
                   curve={curve.value}
+                  concUnit={concUnit}
                 />
                 <PeakNote route={route} schedule={schedule} />
                 <WarningsStrip warnings={curve.value.warnings} />
@@ -179,6 +188,7 @@ interface ModelCaptionProps {
   schedule: DoseSchedule;
   infusionDuration: number;
   curve: CurveResult;
+  concUnit: ConcentrationDisplayUnit;
 }
 
 /** Describe the dosing schedule in words for the caption. */
@@ -194,7 +204,7 @@ function describeSchedule(schedule: DoseSchedule, route: Route): string {
 }
 
 /** "Show the model, not just the curve" (handoff §1) — a one-line summary. */
-function ModelCaption({ route, schedule, infusionDuration, curve }: ModelCaptionProps) {
+function ModelCaption({ route, schedule, infusionDuration, curve, concUnit }: ModelCaptionProps) {
   const { params, halfLifeH, peak } = curve;
   const parts = [
     'One-compartment model',
@@ -207,7 +217,7 @@ function ModelCaption({ route, schedule, infusionDuration, curve }: ModelCaption
   if (route === 'iv_infusion') {
     parts.push(`infused over ${fmtNum(infusionDuration)} h`);
   }
-  parts.push(`Cmax ${fmtNum(peak.c)} mg/L at Tmax ${fmtNum(peak.t)} h`);
+  parts.push(`Cmax ${fmtNum(toDisplayConcentration(peak.c, concUnit))} ${concUnit} at Tmax ${fmtNum(peak.t)} h`);
   parts.push(`${REFERENCE_WEIGHT_KG} kg illustrative reference subject`);
   return <p className="caption">{parts.join(' · ')}</p>;
 }

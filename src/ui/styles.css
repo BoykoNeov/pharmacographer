@@ -238,6 +238,7 @@ body {
 
 .chart__toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;
