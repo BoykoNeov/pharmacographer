@@ -19,13 +19,20 @@
  */
 
 import { FLIP_FLOP_REL_TOL } from '../engine/models.ts';
-import type { MetaboliteParams, PkParams, Route } from '../engine/types.ts';
+import type {
+  MetaboliteDisposition,
+  MetaboliteParams,
+  PkParams,
+  Route,
+  TwoCompParams,
+} from '../engine/types.ts';
 import {
   REFERENCE_WEIGHT_KG,
   absoluteVdFromPerKg,
   clearance as clearanceConverter,
   rateConstant,
   time,
+  type ClearanceUnit,
 } from '../engine/units.ts';
 import type { Compound, Metabolite } from './schema.ts';
 
@@ -217,7 +224,7 @@ export function deriveParams(
   }
   if (compound.model !== 'one_compartment_first_order') {
     throw new Error(
-      `deriveParams: "${compound.id}" uses model "${compound.model}", which the v1 engine cannot resolve (only one_compartment_first_order).`,
+      `deriveParams: "${compound.id}" uses model "${compound.model}"; this resolver handles only one_compartment_first_order. Use deriveParams2c for the two-compartment model (handoff §12).`,
     );
   }
 
@@ -282,28 +289,143 @@ export function deriveParams(
   return { params, derived, warnings };
 }
 
-/**
- * Resolve the {@link MetaboliteParams} the engine's `engine/metabolite.ts` needs
- * for one metabolite, given the PARENT's already-derived elimination rate
- * (`parentKe`, 1/h — the metabolite's formation/input rate). The metabolite
- * carries its OWN disposition: `vd` (scaled from L/kg against the reference
- * subject, like the parent's) and `keM = ln2 / t½_m` (metabolites report no
- * clearance, so `ke` always comes from the half-life). `fractionFormed` is
- * normalised from percent when needed.
- *
- * Like {@link deriveParams} it returns the list of derived values and any
- * warnings so the UI stays honest. It does NOT re-check linearity — the caller
- * only reaches this after {@link deriveParams} has passed the linearity gate for
- * the parent, and the metabolite shares the parent's one-compartment/linear model.
- */
-export function deriveMetaboliteParams(
-  metabolite: Metabolite,
-  parentKe: number,
-  options: DeriveOptions = {},
-): DerivedMetaboliteParams {
-  if (!(parentKe > 0)) {
-    throw new Error('deriveMetaboliteParams: parentKe must be a positive rate constant');
+/** Resolved two-compartment engine parameters plus the provenance of what was derived. */
+export interface DerivedParams2c {
+  /** Canonical-unit 2-comp parameters ready for `engine/models2c.ts`. */
+  params: TwoCompParams;
+  /** What had to be computed (vs read), for the "measured vs derived" UI. */
+  derived: DerivedNote[];
+  /** Cautions: inferred route, per-kg scaling assumption, … */
+  warnings: DeriveWarning[];
+}
+
+/** Resolve a volume parameter to absolute litres, noting any per-kg scaling. */
+function resolveVolumeParam(
+  param: { value: number; unit: string },
+  label: string,
+  key: string,
+  weightKg: number,
+  derived: DerivedNote[],
+): number {
+  if (param.unit === 'L/kg') {
+    const absolute = absoluteVdFromPerKg(param.value, weightKg);
+    derived.push({
+      parameter: key,
+      note: `${label} ${fmt(param.value)} L/kg scaled to ${fmt(absolute)} L using the ${weightKg} kg illustrative reference subject`,
+    });
+    return absolute;
   }
+  return param.value; // already absolute litres
+}
+
+/** Resolve a clearance parameter to absolute L/h, noting any per-kg scaling. */
+function resolveClearanceParam(
+  param: { value: number; unit: string },
+  label: string,
+  key: string,
+  weightKg: number,
+  derived: DerivedNote[],
+): number {
+  if (param.unit === 'L/h/kg') {
+    const absolute = param.value * weightKg;
+    derived.push({
+      parameter: key,
+      note: `${label} ${fmt(param.value)} L/h/kg scaled to ${fmt(absolute)} L/h using the ${weightKg} kg illustrative reference subject`,
+    });
+    return absolute;
+  }
+  // Every non-per-kg schema clearance unit is an engine ClearanceUnit.
+  return clearanceConverter.toCanonical(param.value, param.unit as ClearanceUnit);
+}
+
+/**
+ * Resolve the {@link TwoCompParams} the engine's `engine/models2c.ts` needs for a
+ * `two_compartment_first_order` compound via `route` (handoff §12). Reads the
+ * clinical `disposition2c` block (CL, Vc, Q, Vp), scaling per-kg volumes and
+ * clearances against the reference subject. Disposition is route-independent; as
+ * with {@link deriveParams} the infusion DURATION is a dosing/UI input, injected
+ * later. `oral` is deferred for the 2-comp model (a tri-exponential parent) and
+ * throws.
+ *
+ * Throws if the compound is nonlinear, not two-compartment, or missing its
+ * `disposition2c` block (the last is schema-guaranteed, but guarded here so the
+ * engine never sees a partial parameter set).
+ */
+export function deriveParams2c(
+  compound: Compound,
+  route: Route,
+  options: DeriveOptions = {},
+): DerivedParams2c {
+  if (!compound.linear) {
+    throw new Error(
+      `deriveParams2c: "${compound.id}" is nonlinear (linear: false). Superposition is invalid for nonlinear PK; such compounds are excluded from v1 (handoff §8).`,
+    );
+  }
+  if (compound.model !== 'two_compartment_first_order') {
+    throw new Error(
+      `deriveParams2c: "${compound.id}" uses model "${compound.model}", not two_compartment_first_order. Use deriveParams for the one-compartment model.`,
+    );
+  }
+  const d2 = compound.disposition2c;
+  if (!d2) {
+    throw new Error(
+      `deriveParams2c: "${compound.id}" is two-compartment but has no disposition2c block (CL, Vc, Q, Vp).`,
+    );
+  }
+  if (route === 'oral') {
+    throw new Error(
+      `deriveParams2c: oral is not supported by the two-compartment model yet (a tri-exponential parent; deferred — handoff §12).`,
+    );
+  }
+
+  const weightKg = options.weightKg ?? REFERENCE_WEIGHT_KG;
+  const derived: DerivedNote[] = [];
+  const warnings: DeriveWarning[] = [];
+
+  const vc = resolveVolumeParam(d2.centralVd, 'central Vd', 'vc', weightKg, derived);
+  const vp = resolveVolumeParam(d2.peripheralVd, 'peripheral Vd', 'vp', weightKg, derived);
+  const cl = resolveClearanceParam(d2.clearance, 'clearance', 'cl', weightKg, derived);
+  const q = resolveClearanceParam(
+    d2.interCompartmentalClearance,
+    'inter-compartmental clearance',
+    'q',
+    weightKg,
+    derived,
+  );
+
+  const routeData = compound.routes[route];
+  if (!routeData?.available) {
+    warnings.push({
+      parameter: 'route',
+      message: `route "${route}" is not marked available for "${compound.id}"; this curve is inferred, not based on route-specific data`,
+    });
+  }
+
+  const params: TwoCompParams = { vc, cl, q, vp };
+  return { params, derived, warnings };
+}
+
+/** Resolved metabolite disposition (model-agnostic) plus the provenance of what was derived. */
+export interface DerivedMetaboliteDisposition {
+  params: MetaboliteDisposition;
+  derived: DerivedNote[];
+  warnings: DeriveWarning[];
+}
+
+/**
+ * Resolve the metabolite's OWN disposition — `vdM` (scaled from L/kg against the
+ * reference subject, like the parent's), `keM = ln2 / t½_m` (metabolites report
+ * no clearance, so `ke` always comes from the half-life), and `fractionFormed`
+ * (normalised from percent when needed). This is independent of how the parent
+ * delivers the metabolite, so it is shared by both the one- and two-compartment
+ * parent paths (the one-compartment {@link deriveMetaboliteParams} adds the
+ * single `keParent` input rate; the two-compartment path pairs it with the
+ * parent's modes at plot time).
+ */
+export function deriveMetaboliteDisposition(
+  metabolite: Metabolite,
+  options: DeriveOptions = {},
+): DerivedMetaboliteDisposition {
   const weightKg = options.weightKg ?? REFERENCE_WEIGHT_KG;
   const derived: DerivedNote[] = [];
   const warnings: DeriveWarning[] = [];
@@ -344,6 +466,25 @@ export function deriveMetaboliteParams(
     });
   }
 
-  const params: MetaboliteParams = { vdM, keM, keParent: parentKe, fractionFormed };
-  return { params, derived, warnings };
+  return { params: { vdM, keM, fractionFormed }, derived, warnings };
+}
+
+/**
+ * Resolve the {@link MetaboliteParams} the engine's `engine/metabolite.ts` needs
+ * for one metabolite formed from a ONE-COMPARTMENT parent, given the parent's
+ * already-derived elimination rate (`parentKe`, 1/h — the metabolite's
+ * formation/input rate). Thin wrapper over {@link deriveMetaboliteDisposition}
+ * that attaches `keParent`. Does NOT re-check linearity — the caller only reaches
+ * this after {@link deriveParams} has passed the linearity gate for the parent.
+ */
+export function deriveMetaboliteParams(
+  metabolite: Metabolite,
+  parentKe: number,
+  options: DeriveOptions = {},
+): DerivedMetaboliteParams {
+  if (!(parentKe > 0)) {
+    throw new Error('deriveMetaboliteParams: parentKe must be a positive rate constant');
+  }
+  const { params, derived, warnings } = deriveMetaboliteDisposition(metabolite, options);
+  return { params: { ...params, keParent: parentKe }, derived, warnings };
 }

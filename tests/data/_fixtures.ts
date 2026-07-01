@@ -29,3 +29,38 @@ export function baseRawCompound(): Record<string, unknown> {
     notes: 'synthetic fixture — not a real compound',
   };
 }
+
+/**
+ * A minimal valid raw TWO-COMPARTMENT compound (handoff §12) ready to mutate
+ * per-test. Clean round numbers in ABSOLUTE units so the derivation is easy to
+ * check: CL = 5 L/h, Vc = 10 L, Q = 10 L/h, Vp = 20 L. Still carries the
+ * one-compartment `disposition` block (terminal t½ + Vss) alongside, as a real
+ * 2-comp compound would, for the caption/provenance rows.
+ */
+export function baseRawTwoCompCompound(): Record<string, unknown> {
+  return {
+    id: 'testdrug2c',
+    schemaVersion: 1,
+    names: { usan: 'Testdrug2C' },
+    model: 'two_compartment_first_order',
+    linear: true,
+    disposition: {
+      halfLife: { value: 5.17, unit: 'h', derived: true, sourceRef: 'ref' },
+      vd: { value: 30, unit: 'L', derived: true, sourceRef: 'ref' },
+    },
+    disposition2c: {
+      clearance: { value: 5, unit: 'L/h', derived: false, sourceRef: 'ref' },
+      centralVd: { value: 10, unit: 'L', derived: false, sourceRef: 'ref' },
+      interCompartmentalClearance: { value: 10, unit: 'L/h', derived: false, sourceRef: 'ref' },
+      peripheralVd: { value: 20, unit: 'L', derived: false, sourceRef: 'ref' },
+    },
+    routes: {
+      iv_bolus: {
+        available: true,
+        F: { value: 1, unit: 'fraction', derived: false, sourceRef: 'definition' },
+      },
+    },
+    sources: { ref: { type: 'test', title: 'Synthetic test source' } },
+    notes: 'synthetic 2-compartment fixture — not a real compound',
+  };
+}

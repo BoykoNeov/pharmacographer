@@ -86,7 +86,48 @@ all pass.
 Follow the phases in handoff §13 — engine + tests before UI. Current state:
 **Phase 7 data expansion + all three chart refinements done; static-site deploy
 is the sole remaining Phase 7 item. Post-v1: the metabolites (§12) engine core
-landed as a spike (see below).**
+landed as a spike, and the **multi-compartment (2-compartment) §12 engine
+extension** now landed (engine + glue + tests; see below).**
+
+**Multi-compartment (2-compartment) §12 engine extension — engine + glue + tests
+landed AND wired into the app (246 tests).** The linear 2-comp model (central +
+peripheral, elimination from central), for **IV bolus + IV infusion**, unblocks
+the real metabolite compounds whose parents are all 2-compartment (diazepam→
+nordiazepam etc.). Design spine: the central concentration is a sum of exponential
+**modes** `Σ coef_λ·e^(−λt)` (`engine/types.ts` `ExpMode`), which unifies the
+parent bolus/infusion curves and the metabolite (a superposition over the parent's
+modes). Landed and green: (1) **`engine/models2c.ts`** — clinical params
+(`TwoCompParams`: CL/Vc/Q/Vp) → micro-constants (`k10=CL/Vc`, `k12=Q/Vc`,
+`k21=Q/Vp`) + eigenvalues α,β; `twoCompModes`, `singleDose2cConcentration`
+(bolus + infusion; oral throws — deferred), `concentrationCurve2c`. **`models.ts`
+left untouched.** (2) **`engine/metabolite.ts`** — extracted `batemanMode(amplitude,
+inputRate, elimRate, τ)`; the KEY subtlety is the metabolite formation amplitude
+carries the parent **CL** (via `k10`), decoupled from the mode rates α/β — so
+`singleDoseMetaboliteConcentration` (1-comp) is the single-mode special case of
+`metaboliteConcentrationFromModes`, and `singleDose2cMetaboliteConcentration`/
+`metabolite2cConcentrationCurve` drive it off the parent's α/β modes. `AUC_m =
+fm·D/(k_m·Vd_m)` is UNCHANGED (parent-disposition-independent) — a free regression
+anchor. (3) **`engine/pk.ts`** — `initialConcentration2c` (D/Vc), `singleDoseAuc2c`
+(D/CL), `terminalRate2c` (β). (4) **`schema.ts`** — `two_compartment_first_order`
+model + optional `disposition2c` block (CL/Vc/Q/Vp full-provenance), required iff
+the model is 2-comp (superRefine). (5) **`derive.ts`** — SPLIT linearity gate
+(`deriveParams` still 1-comp; new `deriveParams2c`); `deriveMetaboliteDisposition`
+extracted (model-agnostic) with `deriveMetaboliteParams` wrapping it. (6)
+**`ui/curve.ts`** — `buildCurve2c` (returns `TwoCompartmentCurveResult`): horizon
+on the terminal β, **distribution-phase grid densification** (`criticalTimes2c`
+log-spaces samples over the first α half-lives so the fast knee isn't aliased),
+metabolite modes wired. Oracles: `C(0)=D/Vc`, `AUC=D/CL`, terminal slope `−β`, coef
+sum, infusion continuity + `R0/CL` plateau, **collapse-to-1c** (`Q→0` reproduces the
+1-comp curve AND the 1-comp metabolite exactly), metabolite AUC/terminal/superposition.
+**Wired into the app:** `CurveResult` is now a discriminated union on `model`;
+`buildCurve` DISPATCHES (2-comp → `buildCurve2c`); `ModelCaption` branches (α/β
+distribution + terminal t½); the variability slider is gated to 1-comp (varying one
+half-life is ill-defined across two eigenvalues); `loader.test.ts`'s integration
+guard is model-aware. So a `two_compartment_first_order` JSON in `data/` renders its
+parent curve today. Deferred follow-on: the metabolite `<Line>` rows (still deferred
+from the spike, for both models — metabolites are COMPUTED but not yet drawn), a real
+2-comp compound (diazepam→nordiazepam lead), oral 2-comp (tri-exponential parent →
+3-mode metabolite), and 3-compartment.
 
 **Metabolites spike — engine core landed, UI + real compound deferred.** The §12
 metabolites extension was de-risked end-to-end through the data layer (192 tests).

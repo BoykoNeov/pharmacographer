@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadAllCompounds, parseCompound } from '../../src/data/loader.ts';
-import { deriveParams } from '../../src/data/derive.ts';
+import { deriveParams, deriveParams2c } from '../../src/data/derive.ts';
 import type { Route } from '../../src/engine/types.ts';
 import { baseRawCompound } from './_fixtures.ts';
 
@@ -38,10 +38,22 @@ describe('loadAllCompounds — every bundled compound is valid and derivable', (
 
   for (const compound of compounds) {
     describe(compound.id, () => {
+      const twoComp = compound.model === 'two_compartment_first_order';
       for (const route of routes) {
         const available = compound.routes[route]?.available;
         if (!available) continue;
+        // Oral is deferred for the two-compartment model (a tri-exponential parent).
+        if (twoComp && route === 'oral') continue;
         it(`derives engine params for the available ${route} route`, () => {
+          if (twoComp) {
+            // Model-aware dispatch (handoff §12): a 2-comp compound resolves CL/Vc/Q/Vp.
+            const { params } = deriveParams2c(compound, route);
+            for (const v of [params.vc, params.cl, params.q, params.vp]) {
+              expect(Number.isFinite(v)).toBe(true);
+              expect(v).toBeGreaterThan(0);
+            }
+            return;
+          }
           const { params } = deriveParams(compound, route);
           expect(Number.isFinite(params.vd)).toBe(true);
           expect(params.vd).toBeGreaterThan(0);

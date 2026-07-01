@@ -1,50 +1,115 @@
 /**
- * Parent → metabolite kinetics (handoff §12 extension; metabolites spike).
+ * Parent → metabolite kinetics (handoff §12 extension; metabolites spike, then
+ * the multi-compartment generalisation).
  *
- * One-compartment parent, one-compartment metabolite, linear throughout. A
- * fraction `fm` of what the parent eliminates forms the metabolite, which then
- * clears with its own rate. For an IV-BOLUS parent the parent amount is a single
- * exponential `A_p(t) = D·e^(−k_p·t)`, and the metabolite ODE
+ * A fraction `fm` of what the parent eliminates forms the metabolite, which then
+ * clears with its own one-compartment disposition (`Vd_m`, `k_m`). The parent's
+ * central concentration is a sum of exponential MODES (`Σ coef_λ·e^(−λ·t)`) — one
+ * mode for a one-compartment parent, two for a two-compartment IV-bolus parent
+ * (α, β). The metabolite amount then solves, mode by mode, to a Bateman term:
  *
- *   dA_m/dt = fm·k_p·A_p − k_m·A_m,   A_m(0) = 0
+ *   dA_m/dt = fm·k10·A_central − k_m·A_m,   A_m(0) = 0
  *
- * solves in closed form to a Bateman function:
+ * where the formation flux `fm·k10·A_central = fm·CL·Σ coef_λ·e^(−λ·t)` (because
+ * `k10·Vc = CL`). So each parent mode contributes
  *
- *   A_m(t) = fm·k_p·D / (k_m − k_p) · ( e^(−k_p·t) − e^(−k_m·t) )
- *   C_m(t) = A_m(t) / Vd_m
+ *   A_m,λ(t) = batemanMode(fm·CL·coef_λ, λ, k_m, t)
+ *   C_m(t)   = (1/Vd_m)·Σ_λ A_m,λ(t)
  *
- * This is STRUCTURALLY the oral Bateman model with the parent rate `k_p` playing
- * the role of the absorption constant `ka` and the metabolite rate `k_m` playing
- * the role of elimination `ke` — so it shares the same `k_p ≈ k_m` degeneracy and
- * the same analytic limit. Because the whole parent+metabolite system is linear,
- * superposition over a dose schedule stays valid (same mechanism as `dosing.ts`).
+ * The KEY subtlety of the multi-compartment case: the input AMPLITUDE carries the
+ * clearance `CL` (via `k10`), while the exponent and denominator carry the mode
+ * rate `λ` (α or β). These coincide only in one compartment (where the parent
+ * decays at the same rate `ke` it eliminates), which is why the one-compartment
+ * function below is exactly the single-mode specialisation.
+ *
+ * `batemanMode` shares `models.ts`'s `FLIP_FLOP_REL_TOL` guard for its `λ ≈ k_m`
+ * (formation ≈ elimination) 0/0 degeneracy. Because the whole parent+metabolite
+ * system is linear, superposition over a dose schedule stays valid (same
+ * mechanism as `dosing.ts`).
  *
  * Formation- vs elimination-rate-limited behaviour is NOT special-cased: the
- * terminal slope is simply `−min(k_p, k_m)`, which falls out of the Bateman form.
- * When `k_m > k_p` the metabolite's apparent half-life tracks the PARENT
- * (formation-rate-limited); when `k_m < k_p` it reflects the metabolite's own
- * elimination (elimination-rate-limited).
- *
- * SPIKE SCOPE: IV-bolus parent only. An oral parent (bi-exponential input → a
- * 3-exponential metabolite) and pre-systemic/first-pass formation are deferred.
+ * terminal slope is `−min(slowest parent rate, k_m)`, which falls out of the
+ * Bateman form. SPIKE/EXTENSION SCOPE: IV-bolus (bi-exponential) parent. An oral
+ * parent (an extra absorption mode) and pre-systemic/first-pass formation are
+ * deferred.
  *
  * No React, no DOM, no data/JSON imports, no I/O — see CLAUDE.md / handoff §4.
  */
 
 import { FLIP_FLOP_REL_TOL } from './models.ts';
-import type { DoseEvent, MetaboliteParams } from './types.ts';
+import { twoCompModes } from './models2c.ts';
+import type {
+  DoseEvent,
+  ExpMode,
+  MetaboliteDisposition,
+  MetaboliteParams,
+  TwoCompParams,
+} from './types.ts';
 
 /**
- * Metabolite concentration (mg/L) contributed by a SINGLE IV-bolus parent dose
- * of `dose` mg, `tau` hours after that dose. Nothing has formed before the dose
- * (`tau < 0` → 0) and nothing has formed at the instant of the dose (`C_m(0) = 0`,
- * which the Bateman form gives exactly).
+ * One parent mode's contribution to the metabolite AMOUNT at elapsed time `tau`:
+ * a first-order compartment (rate `elimRate`) driven by an exponentially-decaying
+ * input `amplitude·e^(−inputRate·tau)` from a zero start. The closed form is a
+ * Bateman function
  *
- * When the parent and metabolite rates converge (`k_p ≈ k_m`) the Bateman
- * expression is 0/0; the analytic limit is used instead, mirroring the oral
- * model's flip-flop guard:
+ *   amplitude / (elimRate − inputRate) · ( e^(−inputRate·tau) − e^(−elimRate·tau) )
  *
- *   C_m(t) = (fm·k·D / Vd_m) · t · e^(−k·t)     where k = k_m ≈ k_p
+ * which is 0 at `tau = 0` and 0/0 when `inputRate ≈ elimRate`; the analytic limit
+ * `amplitude·tau·e^(−elimRate·tau)` is used there (same relative tolerance as the
+ * oral Bateman flip-flop branch in `models.ts`). `amplitude` is a formation flux
+ * amplitude (mg/h) — divide the summed amount by the metabolite Vd for a
+ * concentration.
+ */
+export function batemanMode(
+  amplitude: number,
+  inputRate: number,
+  elimRate: number,
+  tau: number,
+): number {
+  if (Math.abs(inputRate - elimRate) <= FLIP_FLOP_REL_TOL * Math.max(inputRate, elimRate)) {
+    // Equal-rates limit — avoids the 0/0 singularity of the Bateman function.
+    return amplitude * tau * Math.exp(-elimRate * tau);
+  }
+  const diff = Math.exp(-inputRate * tau) - Math.exp(-elimRate * tau);
+  // At tau = 0 the difference is exactly 0; return +0 (not the −0 a negative
+  // prefactor would produce) so callers can `=== 0` the dose instant cleanly.
+  if (diff === 0) return 0;
+  return (amplitude / (elimRate - inputRate)) * diff;
+}
+
+/**
+ * Metabolite concentration (mg/L) from a set of parent central-concentration
+ * modes (each `coef·e^(−rate·t)`, already scaled for the parent dose) and the
+ * parent's clearance `parentCl` (L/h). Each mode drives a Bateman term with
+ * amplitude `fm·CL·coef` and input rate `rate`; the terms sum and divide by the
+ * metabolite Vd. Nothing has formed before the dose (`tau < 0` → 0) or at the
+ * instant of the dose (`C_m(0) = 0`). This is the shared core the one- and
+ * two-compartment entry points below both reduce to.
+ */
+export function metaboliteConcentrationFromModes(
+  modes: ExpMode[],
+  parentCl: number,
+  meta: MetaboliteDisposition,
+  tau: number,
+): number {
+  if (tau < 0) return 0;
+  const { vdM, keM, fractionFormed } = meta;
+  let amount = 0;
+  for (const { coef, rate } of modes) {
+    amount += batemanMode(fractionFormed * parentCl * coef, rate, keM, tau);
+  }
+  return amount / vdM;
+}
+
+/**
+ * Metabolite concentration (mg/L) contributed by a SINGLE one-compartment
+ * IV-bolus parent dose of `dose` mg, `tau` hours after that dose. The
+ * one-compartment (single-mode) specialisation of
+ * {@link metaboliteConcentrationFromModes}: the parent is one mode
+ * `coef = D/Vd_p`, `rate = keParent`, with `CL = keParent·Vd_p`, so the amplitude
+ * `fm·CL·coef = fm·keParent·D` (the parent Vd cancels — the function needs no
+ * parent volume). Retained as the original spike API and as a regression anchor
+ * for the generalised core.
  */
 export function singleDoseMetaboliteConcentration(
   params: MetaboliteParams,
@@ -53,24 +118,34 @@ export function singleDoseMetaboliteConcentration(
 ): number {
   if (tau < 0) return 0;
   const { vdM, keM, keParent, fractionFormed } = params;
-  const amount = fractionFormed * dose;
-  if (Math.abs(keParent - keM) <= FLIP_FLOP_REL_TOL * Math.max(keParent, keM)) {
-    // Equal-rates limit — avoids the 0/0 singularity of the Bateman function.
-    return ((amount * keM) / vdM) * tau * Math.exp(-keM * tau);
-  }
-  return (
-    ((amount * keParent) / (vdM * (keParent - keM))) *
-    (Math.exp(-keM * tau) - Math.exp(-keParent * tau))
-  );
+  return batemanMode(fractionFormed * keParent * dose, keParent, keM, tau) / vdM;
+}
+
+/**
+ * Metabolite concentration (mg/L) contributed by a SINGLE two-compartment
+ * IV-bolus parent dose of `dose` mg, `tau` hours after that dose. Builds the
+ * parent's α/β modes from {@link twoCompModes} and drives the metabolite with
+ * them via {@link metaboliteConcentrationFromModes} (amplitude carries the
+ * parent clearance `parent.cl`). The result is a 3-exponential curve (α, β, k_m);
+ * its terminal slope is `−min(β, k_m)` and its total exposure is still
+ * `fm·D/(k_m·Vd_m)`, independent of the parent's distribution.
+ */
+export function singleDose2cMetaboliteConcentration(
+  parent: TwoCompParams,
+  meta: MetaboliteDisposition,
+  dose: number,
+  tau: number,
+): number {
+  if (tau < 0) return 0;
+  return metaboliteConcentrationFromModes(twoCompModes(parent, dose), parent.cl, meta, tau);
 }
 
 /**
  * Total metabolite concentration (mg/L) at each grid time, as the linear
- * superposition of the metabolite contribution of every scheduled parent dose.
- * Mirrors `dosing.ts`'s `concentrationCurve` (same linearity invariant): each
+ * superposition of the metabolite contribution of every scheduled parent dose
+ * (one-compartment parent). Mirrors `dosing.ts`'s `concentrationCurve`: each
  * parent dose `d` contributes `singleDoseMetaboliteConcentration(params, d.amount,
- * t − d.time)`, which is 0 until the dose is given. An empty schedule yields all
- * zeros.
+ * t − d.time)`, 0 until the dose is given. An empty schedule yields all zeros.
  */
 export function metaboliteConcentrationCurve(
   params: MetaboliteParams,
@@ -80,6 +155,26 @@ export function metaboliteConcentrationCurve(
   return timeGrid.map((t) =>
     schedule.reduce(
       (total, dose) => total + singleDoseMetaboliteConcentration(params, dose.amount, t - dose.time),
+      0,
+    ),
+  );
+}
+
+/**
+ * Total metabolite concentration (mg/L) at each grid time for a two-compartment
+ * IV-bolus parent — the {@link concentrationCurve2c} analogue for metabolites.
+ * Superposes {@link singleDose2cMetaboliteConcentration} over the schedule.
+ */
+export function metabolite2cConcentrationCurve(
+  parent: TwoCompParams,
+  meta: MetaboliteDisposition,
+  schedule: DoseEvent[],
+  timeGrid: number[],
+): number[] {
+  return timeGrid.map((t) =>
+    schedule.reduce(
+      (total, dose) =>
+        total + singleDose2cMetaboliteConcentration(parent, meta, dose.amount, t - dose.time),
       0,
     ),
   );

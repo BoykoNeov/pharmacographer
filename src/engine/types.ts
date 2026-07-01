@@ -29,6 +29,48 @@ export interface PkParams {
 }
 
 /**
+ * Resolved two-compartment disposition (handoff §12; the multi-compartment
+ * extension), in canonical units. A linear mammillary model: a central
+ * compartment (where drug is measured and eliminated) exchanging with one
+ * peripheral compartment. Parameterised in the most *citable* clinical form —
+ * clearances and volumes — from which the engine derives the micro-rate
+ * constants (`k10 = CL/Vc`, `k12 = Q/Vc`, `k21 = Q/Vp`) and the bi-exponential
+ * eigenvalues α, β internally (see {@link ./models2c.ts}).
+ *
+ * The whole system is linear, so superposition over a dose schedule stays valid
+ * (same mechanism as `dosing.ts`). Spike scope for this extension is the IV
+ * routes (bolus + infusion); an oral 2-comp parent (a tri-exponential curve) is
+ * deferred.
+ */
+export interface TwoCompParams {
+  /** Central volume of distribution, L — the concentration reference (C = A_central / Vc). */
+  vc: number;
+  /** Total (central) clearance, L/h — `= k10·Vc`; sets AUC = Dose/CL. */
+  cl: number;
+  /** Inter-compartmental clearance, L/h — `= k12·Vc = k21·Vp`; drives distribution. */
+  q: number;
+  /** Peripheral volume of distribution, L. */
+  vp: number;
+  /** Infusion duration, h. `iv_infusion` only. */
+  infusionDuration?: number;
+}
+
+/**
+ * One exponential mode of a linear disposition's central concentration for a
+ * given dose: contributes `coef · e^(−rate·t)` mg/L. A one-compartment curve is
+ * a single mode (`coef = D/Vd`, `rate = ke`); a two-compartment IV-bolus curve
+ * is two modes (the distribution α and terminal β). Expressing disposition as a
+ * list of modes is what lets the metabolite math (a superposition over the
+ * parent's modes) and the parent curve share one building block (handoff §12).
+ */
+export interface ExpMode {
+  /** Concentration coefficient, mg/L (scales with dose). */
+  coef: number;
+  /** Decay rate constant, 1/h. */
+  rate: number;
+}
+
+/**
  * Parameters for a single metabolite formed from the parent, in canonical units
  * (handoff §12). The metabolite has its own one-compartment disposition; its
  * formation is driven by the parent's elimination flux, so the parent's `ke`
@@ -46,6 +88,23 @@ export interface MetaboliteParams {
   keM: number;
   /** Parent elimination rate constant, 1/h — the metabolite's formation (input) rate. */
   keParent: number;
+  /** Fraction of the parent dose converted to this metabolite, in [0, 1]. */
+  fractionFormed: number;
+}
+
+/**
+ * The metabolite's OWN disposition, independent of how the parent delivers it
+ * (handoff §12). For a two-compartment parent the formation input is no longer a
+ * single parent rate but a superposition over the parent's modes, so the
+ * metabolite math is parameterised by these three quantities plus the parent's
+ * modes and clearance — see {@link ./metabolite.ts}. `MetaboliteParams` (the
+ * one-compartment case) is this shape plus the single `keParent` input rate.
+ */
+export interface MetaboliteDisposition {
+  /** Metabolite volume of distribution, L (absolute, after any reference scaling). */
+  vdM: number;
+  /** Metabolite elimination rate constant, 1/h. */
+  keM: number;
   /** Fraction of the parent dose converted to this metabolite, in [0, 1]. */
   fractionFormed: number;
 }

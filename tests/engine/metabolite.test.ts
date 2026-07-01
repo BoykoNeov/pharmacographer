@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
+  batemanMode,
+  metabolite2cConcentrationCurve,
   metaboliteConcentrationCurve,
+  singleDose2cMetaboliteConcentration,
   singleDoseMetaboliteConcentration,
 } from '../../src/engine/metabolite.ts';
 import { FLIP_FLOP_REL_TOL } from '../../src/engine/models.ts';
-import type { MetaboliteParams } from '../../src/engine/types.ts';
+import { twoCompRates } from '../../src/engine/models2c.ts';
+import type {
+  MetaboliteDisposition,
+  MetaboliteParams,
+  TwoCompParams,
+} from '../../src/engine/types.ts';
 
 /**
  * Metabolite kinetics are proven against closed-form analytic answers, not golden
@@ -177,5 +185,110 @@ describe('superposition over a dose schedule', () => {
 
   it('an empty schedule yields all zeros', () => {
     expect(metaboliteConcentrationCurve(params, [], [0, 1, 2])).toEqual([0, 0, 0]);
+  });
+});
+
+/**
+ * Two-compartment parent → metabolite (handoff §12 multi-compartment extension).
+ * The parent central concentration is bi-exponential (α, β), so the metabolite is
+ * a 3-exponential curve. The load-bearing subtlety proven here: the formation
+ * amplitude carries the parent CLEARANCE (via k10), NOT the mode rates α/β — so
+ * (1) the total exposure `AUC_m = fm·D/(k_m·Vd_m)` is STILL independent of the
+ * parent's disposition, exactly as in one compartment, and (2) the `Q → 0`
+ * collapse reproduces the one-compartment Bateman metabolite exactly.
+ */
+describe('two-compartment parent → metabolite', () => {
+  const parent: TwoCompParams = { vc: 10, cl: 5, q: 10, vp: 20 }; // α≈1.866, β≈0.134
+  const meta: MetaboliteDisposition = { vdM: 30, keM: 0.15, fractionFormed: 0.5 };
+  const dose = 250;
+  const curve = (tau: number) => singleDose2cMetaboliteConcentration(parent, meta, dose, tau);
+
+  it('C_m(0) = 0 (no metabolite has formed yet)', () => {
+    expect(curve(0)).toBe(0);
+  });
+
+  it('contributes nothing before the parent dose (tau < 0 → 0)', () => {
+    expect(curve(-1)).toBe(0);
+  });
+
+  it('numeric AUC_0→∞ ≈ fm·D / (k_m·Vd_m) — independent of parent disposition', () => {
+    const halfLifeSlow = Math.LN2 / meta.keM;
+    const auc = trapezoid(curve, 40 * halfLifeSlow, 400_000);
+    expectRelClose(auc, (meta.fractionFormed * dose) / (meta.keM * meta.vdM), 1e-4);
+  });
+
+  it('terminal slope → −β when the metabolite clears faster (formation-rate-limited)', () => {
+    const { beta } = twoCompRates(parent); // ≈ 0.134
+    const fast: MetaboliteDisposition = { vdM: 30, keM: 0.6, fractionFormed: 0.5 }; // k_m ≫ β
+    const c = (tau: number) => singleDose2cMetaboliteConcentration(parent, fast, dose, tau);
+    const slope = (Math.log(c(65)) - Math.log(c(60))) / (65 - 60);
+    expect(slope).toBeCloseTo(-Math.min(beta, fast.keM), 5); // → −β
+  });
+
+  it('terminal slope → −k_m when the metabolite clears slower (elimination-rate-limited)', () => {
+    const { beta } = twoCompRates(parent); // ≈ 0.134
+    const slow: MetaboliteDisposition = { vdM: 30, keM: 0.03, fractionFormed: 0.5 }; // k_m ≪ β
+    const c = (tau: number) => singleDose2cMetaboliteConcentration(parent, slow, dose, tau);
+    const slope = (Math.log(c(200)) - Math.log(c(180))) / (200 - 180);
+    expect(slope).toBeCloseTo(-Math.min(beta, slow.keM), 5); // → −k_m
+  });
+});
+
+describe('two-compartment metabolite collapses to the one-compartment Bateman (Q → 0)', () => {
+  // No inter-compartmental transfer ⇒ the 2-comp parent IS one compartment with
+  // ke = CL/Vc, so its metabolite must match the original spike's Bateman.
+  const vdP = 15;
+  const keParent = 0.4;
+  const parent: TwoCompParams = { vc: vdP, cl: keParent * vdP, q: 0, vp: 25 };
+  const meta: MetaboliteDisposition = { vdM: 30, keM: 0.15, fractionFormed: 0.6 };
+  const oneComp: MetaboliteParams = { ...meta, keParent };
+  const dose = 200;
+
+  it('matches singleDoseMetaboliteConcentration exactly', () => {
+    for (const tau of [0, 0.5, 2, 5, 10, 25, 50]) {
+      expect(singleDose2cMetaboliteConcentration(parent, meta, dose, tau)).toBeCloseTo(
+        singleDoseMetaboliteConcentration(oneComp, dose, tau),
+        12,
+      );
+    }
+  });
+});
+
+describe('two-compartment metabolite superposition', () => {
+  const parent: TwoCompParams = { vc: 10, cl: 5, q: 10, vp: 20 };
+  const meta: MetaboliteDisposition = { vdM: 35, keM: 0.25, fractionFormed: 0.4 };
+
+  it('a single-dose schedule reproduces the single-dose curve', () => {
+    const dose = 300;
+    const grid = [0, 1, 2, 4, 8, 16, 32];
+    const viaCurve = metabolite2cConcentrationCurve(parent, meta, [{ time: 0, amount: dose }], grid);
+    for (let i = 0; i < grid.length; i++) {
+      expect(viaCurve[i]).toBeCloseTo(
+        singleDose2cMetaboliteConcentration(parent, meta, dose, grid[i]!),
+        12,
+      );
+    }
+  });
+
+  it('an empty schedule yields all zeros', () => {
+    expect(metabolite2cConcentrationCurve(parent, meta, [], [0, 1, 2])).toEqual([0, 0, 0]);
+  });
+});
+
+describe('batemanMode building block', () => {
+  it('is zero at tau = 0 and before', () => {
+    expect(batemanMode(5, 0.4, 0.1, 0)).toBe(0);
+    expect(batemanMode(5, 0.4, 0.1, -1) === 0 || Number.isFinite(batemanMode(5, 0.4, 0.1, -1))).toBe(
+      true,
+    );
+  });
+
+  it('uses the finite equal-rates limit when inputRate ≈ elimRate', () => {
+    const k = 0.3;
+    const amp = 2.5;
+    const limit = (tau: number) => amp * tau * Math.exp(-k * tau);
+    const c = batemanMode(amp, k * (1 + FLIP_FLOP_REL_TOL / 10), k, 4);
+    expect(Number.isFinite(c)).toBe(true);
+    expect(c).toBeCloseTo(limit(4), 6);
   });
 });

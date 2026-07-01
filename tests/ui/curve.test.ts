@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { parseCompound } from '../../src/data/loader.ts';
 import {
   buildCurve,
+  buildCurve2c,
   buildSchedule,
   halfLifeRangeH,
   type DoseSchedule,
 } from '../../src/ui/curve.ts';
-import { baseRawCompound } from '../data/_fixtures.ts';
+import { singleDoseAuc2c } from '../../src/engine/pk.ts';
+import { baseRawCompound, baseRawTwoCompCompound } from '../data/_fixtures.ts';
 
 /**
  * The UI ↔ engine glue. The superposition MATH is proven in the engine tests
@@ -58,6 +60,20 @@ function single(amount: number): DoseSchedule {
   return { amount, count: 1, interval: 6, adHoc: [] };
 }
 
+/**
+ * `buildCurve` for a ONE-COMPARTMENT fixture, narrowed to the 1-comp result so
+ * the tests can read `params.ke` / `halfLifeH` / `halfLifeRange` (which live only
+ * on the 1-comp arm of the `CurveResult` union). Every fixture in this file is
+ * one-compartment; the 2-comp path is exercised via `buildCurve2c` below.
+ */
+function build1c(input: Parameters<typeof buildCurve>[0]) {
+  const result = buildCurve(input);
+  if (result.model !== 'one_compartment_first_order') {
+    throw new Error('expected a one-compartment curve result');
+  }
+  return result;
+}
+
 describe('buildSchedule — flattening a DoseSchedule to DoseEvent[]', () => {
   it('single mode (count 1) is one dose at t = 0, ignoring the interval', () => {
     expect(buildSchedule(single(200))).toEqual([{ time: 0, amount: 200 }]);
@@ -93,13 +109,13 @@ describe('buildSchedule — flattening a DoseSchedule to DoseEvent[]', () => {
 
 describe('buildCurve — single dose preserves the analytic oracle', () => {
   it('IV bolus C(0) = D/Vd through the full pipeline', () => {
-    const { points } = buildCurve({ compound, route: 'iv_bolus', schedule: single(350) });
+    const { points } = build1c({ compound, route: 'iv_bolus', schedule: single(350) });
     expect(points[0]!.t).toBe(0);
     expect(points[0]!.c).toBeCloseTo(350 / VD_ABS, 10); // 10 mg/L
   });
 
   it('sizes the horizon to ~5 half-lives for a single dose (5 × 4 h → 20 h)', () => {
-    const { horizonH } = buildCurve({ compound, route: 'iv_bolus', schedule: single(350) });
+    const { horizonH } = build1c({ compound, route: 'iv_bolus', schedule: single(350) });
     expect(horizonH).toBe(20);
   });
 });
@@ -107,7 +123,7 @@ describe('buildCurve — single dose preserves the analytic oracle', () => {
 describe('buildCurve — schedule shapes the curve and the horizon', () => {
   it('recurring doses accumulate: peak exceeds a single dose C(0)', () => {
     const dose = 350;
-    const { points } = buildCurve({
+    const { points } = build1c({
       compound,
       route: 'iv_bolus',
       schedule: { amount: dose, count: 3, interval: 4, adHoc: [] },
@@ -118,7 +134,7 @@ describe('buildCurve — schedule shapes the curve and the horizon', () => {
   });
 
   it('extends the horizon past the last regular dose', () => {
-    const { horizonH } = buildCurve({
+    const { horizonH } = build1c({
       compound,
       route: 'iv_bolus',
       schedule: { amount: 100, count: 4, interval: 8, adHoc: [] }, // last dose at 24 h
@@ -127,7 +143,7 @@ describe('buildCurve — schedule shapes the curve and the horizon', () => {
   });
 
   it('extends the horizon to cover an ad-hoc dose far in the future', () => {
-    const { horizonH } = buildCurve({
+    const { horizonH } = build1c({
       compound,
       route: 'iv_bolus',
       schedule: { amount: 100, count: 1, interval: 6, adHoc: [{ time: 50, amount: 100 }] },
@@ -143,7 +159,7 @@ describe('buildCurve — schedule shapes the curve and the horizon', () => {
     // not a multiple) so this fails before the dose instant is injected.
     const dose = 350;
     const tau = 13.37;
-    const { points, params } = buildCurve({
+    const { points, params } = build1c({
       compound,
       route: 'iv_bolus',
       schedule: { amount: dose, count: 2, interval: tau, adHoc: [] },
@@ -163,7 +179,7 @@ describe('buildCurve — schedule shapes the curve and the horizon', () => {
     // in τ. Sweep by 1 h and assert each peak is below the previous — the exact
     // "flicker gone" invariant, not just "some point moved".
     const peakAt = (tau: number) => {
-      const { points } = buildCurve({
+      const { points } = build1c({
         compound,
         route: 'iv_bolus',
         schedule: { amount: 350, count: 2, interval: tau, adHoc: [] },
@@ -183,7 +199,7 @@ describe('buildCurve — schedule shapes the curve and the horizon', () => {
   });
 
   it('keeps the merged grid strictly ascending and free of duplicate times', () => {
-    const { points } = buildCurve({
+    const { points } = build1c({
       compound,
       route: 'iv_bolus',
       schedule: { amount: 100, count: 3, interval: 7, adHoc: [{ time: 7, amount: 50 }] }, // ad-hoc coincides with a dose
@@ -194,7 +210,7 @@ describe('buildCurve — schedule shapes the curve and the horizon', () => {
   });
 
   it('single mode does not extend the horizon for an unused interval/count', () => {
-    const wide = buildCurve({
+    const wide = build1c({
       compound,
       route: 'iv_bolus',
       schedule: { amount: 350, count: 1, interval: 100, adHoc: [] },
@@ -217,13 +233,13 @@ describe('buildCurve — variability band', () => {
   const ranged = rangedCompound();
 
   it('omits the band when the compound reports no half-life range', () => {
-    const { band, halfLifeRange } = buildCurve({ compound, route: 'iv_bolus', schedule: single(350) });
+    const { band, halfLifeRange } = build1c({ compound, route: 'iv_bolus', schedule: single(350) });
     expect(band).toBeUndefined();
     expect(halfLifeRange).toBeUndefined();
   });
 
   it('envelopes the main curve: cLow ≤ c ≤ cHigh at every sample', () => {
-    const { points, band } = buildCurve({ compound: ranged, route: 'iv_bolus', schedule: single(350) });
+    const { points, band } = build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350) });
     expect(band).toBeDefined();
     band!.forEach((b, i) => {
       const c = points[i]!.c;
@@ -233,7 +249,7 @@ describe('buildCurve — variability band', () => {
   });
 
   it('the slow (long-t½) edge decays above the fast edge after the peak', () => {
-    const { band } = buildCurve({ compound: ranged, route: 'iv_bolus', schedule: single(350) });
+    const { band } = build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350) });
     // Pick a mid-curve sample; IV bolus starts at the same C(0), then the longer
     // half-life sits strictly above the shorter one.
     const mid = band![Math.floor(band!.length / 2)]!;
@@ -241,14 +257,14 @@ describe('buildCurve — variability band', () => {
   });
 
   it('the band is FIXED at the reported extremes, independent of the slider', () => {
-    const atLow = buildCurve({ compound: ranged, route: 'iv_bolus', schedule: single(350), halfLifeH: 2 });
-    const atHigh = buildCurve({ compound: ranged, route: 'iv_bolus', schedule: single(350), halfLifeH: 8 });
+    const atLow = build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350), halfLifeH: 2 });
+    const atHigh = build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350), halfLifeH: 8 });
     expect(atLow.band).toEqual(atHigh.band);
   });
 
   it('envelopes the ORAL curve too (absorption phase included)', () => {
     const oral = rangedOralCompound();
-    const { points, band } = buildCurve({ compound: oral, route: 'oral', schedule: single(350) });
+    const { points, band } = build1c({ compound: oral, route: 'oral', schedule: single(350) });
     expect(band).toBeDefined();
     band!.forEach((b, i) => {
       const c = points[i]!.c;
@@ -262,15 +278,15 @@ describe('buildCurve — half-life slider override', () => {
   const ranged = rangedCompound();
 
   it('selecting the nominal reproduces the compound default ke', () => {
-    const dflt = buildCurve({ compound: ranged, route: 'iv_bolus', schedule: single(350) });
-    const nominal = buildCurve({ compound: ranged, route: 'iv_bolus', schedule: single(350), halfLifeH: 4 });
+    const dflt = build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350) });
+    const nominal = build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350), halfLifeH: 4 });
     expect(nominal.params.ke).toBeCloseTo(dflt.params.ke, 12);
     expect(nominal.halfLifeH).toBeCloseTo(4, 12);
   });
 
   it('a longer selected half-life gives a smaller ke and a higher tail', () => {
-    const short = buildCurve({ compound: ranged, route: 'iv_bolus', schedule: single(350), halfLifeH: 2 });
-    const long = buildCurve({ compound: ranged, route: 'iv_bolus', schedule: single(350), halfLifeH: 8 });
+    const short = build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350), halfLifeH: 2 });
+    const long = build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350), halfLifeH: 8 });
     expect(long.params.ke).toBeLessThan(short.params.ke);
     expect(long.halfLifeH).toBeCloseTo(8, 12);
     // Compare the tail at a common late time both grids resolve.
@@ -306,7 +322,7 @@ describe('buildCurve — metabolites (IV-bolus parent)', () => {
   }
 
   it('produces a metabolite curve for an IV-bolus parent that declares one', () => {
-    const { metabolites } = buildCurve({
+    const { metabolites } = build1c({
       compound: metaboliteCompound(),
       route: 'iv_bolus',
       schedule: single(350),
@@ -318,7 +334,7 @@ describe('buildCurve — metabolites (IV-bolus parent)', () => {
   });
 
   it('the metabolite starts at zero (C_m(0) = 0) and forms a positive peak later', () => {
-    const { metabolites } = buildCurve({
+    const { metabolites } = build1c({
       compound: metaboliteCompound(),
       route: 'iv_bolus',
       schedule: single(350),
@@ -333,7 +349,7 @@ describe('buildCurve — metabolites (IV-bolus parent)', () => {
   it('stretches the horizon to cover the long-lived metabolite (not just the parent)', () => {
     // Parent-only horizon would be 5 × 4 h = 20 h; the t½ 40 h metabolite pushes
     // it to 5 × 40 h = 200 h so its slow tail isn't clipped mid-decay.
-    const { horizonH } = buildCurve({
+    const { horizonH } = build1c({
       compound: metaboliteCompound(),
       route: 'iv_bolus',
       schedule: single(350),
@@ -342,8 +358,8 @@ describe('buildCurve — metabolites (IV-bolus parent)', () => {
   });
 
   it('metabolite formation is linear in the formation fraction', () => {
-    const half = buildCurve({ compound: metaboliteCompound(), route: 'iv_bolus', schedule: single(350) });
-    const full = buildCurve({
+    const half = build1c({ compound: metaboliteCompound(), route: 'iv_bolus', schedule: single(350) });
+    const full = build1c({
       compound: metaboliteCompound({
         fractionFormed: { value: 1.0, unit: 'fraction', derived: false, sourceRef: 'ref' },
       }),
@@ -374,12 +390,150 @@ describe('buildCurve — metabolites (IV-bolus parent)', () => {
       },
     ];
     const oralWithMetabolite = parseCompound(raw);
-    expect(buildCurve({ compound: oralWithMetabolite, route: 'oral', schedule: single(350) }).metabolites).toBeUndefined();
+    expect(build1c({ compound: oralWithMetabolite, route: 'oral', schedule: single(350) }).metabolites).toBeUndefined();
     // …but the same compound DOES plot it via IV bolus.
-    expect(buildCurve({ compound: oralWithMetabolite, route: 'iv_bolus', schedule: single(350) }).metabolites).toHaveLength(1);
+    expect(build1c({ compound: oralWithMetabolite, route: 'iv_bolus', schedule: single(350) }).metabolites).toHaveLength(1);
   });
 
   it('omits metabolites entirely for a parent-only compound', () => {
-    expect(buildCurve({ compound, route: 'iv_bolus', schedule: single(350) }).metabolites).toBeUndefined();
+    expect(build1c({ compound, route: 'iv_bolus', schedule: single(350) }).metabolites).toBeUndefined();
+  });
+});
+
+/**
+ * The two-compartment glue (handoff §12). The disposition/superposition MATH is
+ * proven in the engine tests (models2c.test.ts); here we pin the seam's own
+ * responsibilities: sizing the horizon on the terminal β, DENSIFYING the fast
+ * distribution phase so the α knee isn't aliased, and driving metabolites off the
+ * parent's α/β modes for an IV bolus only. The fixture is CL=5, Vc=10, Q=10,
+ * Vp=20 (α≈1.866/h, β≈0.134/h).
+ */
+describe('buildCurve dispatches on the compound model', () => {
+  it('routes a two-compartment compound to the 2-comp path (tagged result)', () => {
+    const result = buildCurve({
+      compound: parseCompound(baseRawTwoCompCompound()),
+      route: 'iv_bolus',
+      schedule: single(100),
+    });
+    expect(result.model).toBe('two_compartment_first_order');
+    if (result.model === 'two_compartment_first_order') {
+      expect(result.params).toEqual({ vc: 10, cl: 5, q: 10, vp: 20 });
+      expect(result.terminalHalfLifeH).toBeGreaterThan(result.distributionHalfLifeH);
+    }
+  });
+
+  it('keeps a one-compartment compound on the 1-comp path', () => {
+    expect(buildCurve({ compound, route: 'iv_bolus', schedule: single(350) }).model).toBe(
+      'one_compartment_first_order',
+    );
+  });
+});
+
+describe('buildCurve2c — two-compartment parent', () => {
+  const twoComp = parseCompound(baseRawTwoCompCompound());
+
+  /** Trapezoid the sampled curve (its own non-uniform grid) for an AUC check. */
+  function trapezoidPoints(points: { t: number; c: number }[]): number {
+    let sum = 0;
+    for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1]!;
+      const b = points[i]!;
+      sum += 0.5 * (a.c + b.c) * (b.t - a.t);
+    }
+    return sum;
+  }
+
+  it('IV-bolus peak is C(0) = D/Vc', () => {
+    const dose = 100;
+    const { peak } = buildCurve2c({ compound: twoComp, route: 'iv_bolus', schedule: single(dose) });
+    expect(peak.t).toBe(0);
+    expect(peak.c).toBeCloseTo(dose / 10, 9); // Vc = 10 L
+  });
+
+  it('sizes the horizon on the terminal β (many terminal half-lives)', () => {
+    const { horizonH, terminalHalfLifeH } = buildCurve2c({
+      compound: twoComp,
+      route: 'iv_bolus',
+      schedule: single(100),
+    });
+    // ~5 terminal half-lives (β ≈ 0.134/h ⇒ t½ ≈ 5.2 h) → tens of hours, rounded up.
+    expect(horizonH).toBeGreaterThan(4 * terminalHalfLifeH);
+  });
+
+  it('densifies the distribution phase: many samples inside the first α half-life', () => {
+    const { points } = buildCurve2c({ compound: twoComp, route: 'iv_bolus', schedule: single(100) });
+    const alphaHalfLife = Math.LN2 / 1.8660254; // α ≈ 1.866/h
+    const early = points.filter((p) => p.t > 0 && p.t <= alphaHalfLife);
+    // A uniform 300-pt grid over a ~30 h horizon would give ~4 points here; the
+    // densification must give many more so the α knee renders as a curve.
+    expect(early.length).toBeGreaterThan(15);
+  });
+
+  it('recovers AUC = D/CL from the sampled curve (grid is dense enough)', () => {
+    const dose = 100;
+    const { points } = buildCurve2c({ compound: twoComp, route: 'iv_bolus', schedule: single(dose) });
+    // The finite horizon truncates a small terminal tail, so allow a modest tol.
+    expect(trapezoidPoints(points)).toBeCloseTo(singleDoseAuc2c({ vc: 10, cl: 5, q: 10, vp: 20 }, dose), 0);
+  });
+
+  it('the grid stays strictly ascending and free of duplicate times', () => {
+    const { points } = buildCurve2c({
+      compound: twoComp,
+      route: 'iv_bolus',
+      schedule: { amount: 100, count: 2, interval: 8, adHoc: [] },
+    });
+    for (let i = 1; i < points.length; i++) {
+      expect(points[i]!.t).toBeGreaterThan(points[i - 1]!.t);
+    }
+  });
+
+  it('throws for the deferred oral route (caller shows the message)', () => {
+    expect(() => buildCurve2c({ compound: twoComp, route: 'oral', schedule: single(100) })).toThrow(
+      /oral|deferred/i,
+    );
+  });
+});
+
+describe('buildCurve2c — two-compartment metabolite (IV bolus only)', () => {
+  /** The 2-comp fixture with one metabolite (fm = 0.4, its own Vd + t½). */
+  function withMetabolite() {
+    const raw = baseRawTwoCompCompound();
+    raw.metabolites = [
+      {
+        id: 'testmeta2c',
+        name: 'Testmeta2C',
+        active: true,
+        fractionFormed: { value: 0.4, unit: 'fraction', derived: false, sourceRef: 'ref' },
+        vd: { value: 25, unit: 'L', derived: false, sourceRef: 'ref' },
+        halfLife: { value: 12, unit: 'h', derived: false, sourceRef: 'ref' },
+      },
+    ];
+    return parseCompound(raw);
+  }
+
+  it('plots one metabolite line via IV bolus, starting at C_m(0) = 0', () => {
+    const { metabolites } = buildCurve2c({
+      compound: withMetabolite(),
+      route: 'iv_bolus',
+      schedule: single(100),
+    });
+    expect(metabolites).toHaveLength(1);
+    expect(metabolites![0]!.points[0]!.c).toBe(0);
+    expect(metabolites![0]!.peak.c).toBeGreaterThan(0);
+  });
+
+  it('a long-lived metabolite extends the horizon beyond the parent terminal', () => {
+    const parentOnly = buildCurve2c({
+      compound: parseCompound(baseRawTwoCompCompound()),
+      route: 'iv_bolus',
+      schedule: single(100),
+    });
+    // Metabolite t½ = 12 h ≫ parent terminal t½ ≈ 5.2 h ⇒ a wider horizon.
+    const withMeta = buildCurve2c({
+      compound: withMetabolite(),
+      route: 'iv_bolus',
+      schedule: single(100),
+    });
+    expect(withMeta.horizonH).toBeGreaterThan(parentOnly.horizonH);
   });
 });

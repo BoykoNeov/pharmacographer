@@ -114,6 +114,26 @@ const DispositionSchema = z.strictObject({
   clearance: optionalParam(ClearanceUnit).optional(),
 });
 
+/**
+ * Two-compartment disposition (handoff §12; the multi-compartment extension).
+ * Stored in the most CITABLE clinical form — clearances and volumes — from which
+ * the engine derives the micro-rate constants and eigenvalues. Present only on a
+ * `two_compartment_first_order` compound (an omitted block keeps every existing
+ * one-compartment compound valid). The route-independent {@link DispositionSchema}
+ * (terminal half-life + steady-state Vd) is still carried alongside it, for the
+ * caption and provenance rows.
+ */
+const Disposition2cSchema = z.strictObject({
+  /** Total (central) clearance, CL — sets AUC = Dose/CL. */
+  clearance: requiredParam(ClearanceUnit),
+  /** Central volume of distribution, Vc — the concentration reference (C = A/Vc). */
+  centralVd: requiredParam(VolumeOfDistributionUnit),
+  /** Inter-compartmental clearance, Q — drives the distribution phase. */
+  interCompartmentalClearance: requiredParam(ClearanceUnit),
+  /** Peripheral volume of distribution, Vp. */
+  peripheralVd: requiredParam(VolumeOfDistributionUnit),
+});
+
 /** Oral route: first-order absorption (needs ka, or a Tmax to derive it from). */
 const OralRouteSchema = z.strictObject({
   available: z.boolean(),
@@ -163,8 +183,12 @@ const MetaboliteSchema = z.strictObject({
   notes: z.string().optional(),
 });
 
-/** Supported model discriminators. v1 ships only the one-compartment model. */
-const ModelSchema = z.enum(['one_compartment_first_order']);
+/**
+ * Supported model discriminators (handoff §12 seam). `one_compartment_first_order`
+ * is the v1 model; `two_compartment_first_order` adds a distribution phase and
+ * requires the {@link Disposition2cSchema} block.
+ */
+const ModelSchema = z.enum(['one_compartment_first_order', 'two_compartment_first_order']);
 
 // ── Compound ───────────────────────────────────────────────────────────────
 
@@ -197,6 +221,8 @@ export const CompoundSchema = z
     linear: z.boolean(),
 
     disposition: DispositionSchema,
+    /** Two-compartment parameters (§12) — required iff model is two-compartment. */
+    disposition2c: Disposition2cSchema.optional(),
     routes: RoutesSchema,
 
     variability: z
@@ -246,6 +272,13 @@ export const CompoundSchema = z
     if (compound.disposition.clearance) {
       checkRef(compound.disposition.clearance.sourceRef, 'disposition.clearance');
     }
+    if (compound.disposition2c) {
+      const d2 = compound.disposition2c;
+      checkRef(d2.clearance.sourceRef, 'disposition2c.clearance');
+      checkRef(d2.centralVd.sourceRef, 'disposition2c.centralVd');
+      checkRef(d2.interCompartmentalClearance.sourceRef, 'disposition2c.interCompartmentalClearance');
+      checkRef(d2.peripheralVd.sourceRef, 'disposition2c.peripheralVd');
+    }
     for (const [routeName, route] of Object.entries(compound.routes)) {
       if (!route) continue;
       if ('F' in route && route.F) checkRef(route.F.sourceRef, `routes.${routeName}.F`);
@@ -258,6 +291,25 @@ export const CompoundSchema = z
       checkRef(m.vd.sourceRef, `metabolites.${i}.vd`);
       checkRef(m.halfLife.sourceRef, `metabolites.${i}.halfLife`);
     });
+
+    // The two-compartment model and its parameter block must agree, so neither a
+    // 2-comp compound is missing its parameters nor a 1-comp compound carries an
+    // ignored block (handoff §12).
+    const isTwoComp = compound.model === 'two_compartment_first_order';
+    if (isTwoComp && !compound.disposition2c) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'model "two_compartment_first_order" requires a disposition2c block (CL, Vc, Q, Vp)',
+        path: ['disposition2c'],
+      });
+    }
+    if (!isTwoComp && compound.disposition2c) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `disposition2c is only valid for model "two_compartment_first_order", not "${compound.model}"`,
+        path: ['disposition2c'],
+      });
+    }
 
     // `linear` is the authoritative gate; if the redundant flags.nonlinear is
     // present it must agree (be the negation), so the two can't drift.

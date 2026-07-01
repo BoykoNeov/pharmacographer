@@ -15,13 +15,16 @@
  */
 
 import { concentrationCurve, recurringDoses } from '../engine/dosing.ts';
-import { metaboliteConcentrationCurve } from '../engine/metabolite.ts';
+import { metabolite2cConcentrationCurve, metaboliteConcentrationCurve } from '../engine/metabolite.ts';
 import { FLIP_FLOP_REL_TOL } from '../engine/models.ts';
-import type { DoseEvent, PkParams, Route } from '../engine/types.ts';
+import { concentrationCurve2c, twoCompRates } from '../engine/models2c.ts';
+import type { DoseEvent, PkParams, Route, TwoCompParams } from '../engine/types.ts';
 import { REFERENCE_WEIGHT_KG, concentration, time } from '../engine/units.ts';
 import {
+  deriveMetaboliteDisposition,
   deriveMetaboliteParams,
   deriveParams,
+  deriveParams2c,
   type DeriveWarning,
   type DerivedNote,
 } from '../data/derive.ts';
@@ -216,8 +219,8 @@ export interface MetaboliteCurve {
   warnings: DeriveWarning[];
 }
 
-/** Everything the chart area needs for one parameter set. */
-export interface CurveResult {
+/** Fields common to every chart result, whatever the disposition model. */
+interface CurveResultBase {
   /** Sampled concentration-time curve, mg/L vs h. */
   points: CurvePoint[];
   /**
@@ -229,27 +232,51 @@ export interface CurveResult {
   peak: CurvePoint;
   /**
    * The low/high half-life envelope, present only when the compound reports a
-   * half-life range. Fixed at the reported extremes (independent of the slider).
+   * half-life range (one-compartment only). Fixed at the reported extremes.
    */
   band?: BandPoint[];
-  /** The half-life range the band spans, for the slider's bounds. */
-  halfLifeRange?: HalfLifeRange;
   /**
    * Metabolite curves, one per declared metabolite. Present only for an IV-bolus
-   * parent (the spike scope) that declares metabolites; `undefined` otherwise.
+   * parent (the extension scope) that declares metabolites; `undefined` otherwise.
    */
   metabolites?: MetaboliteCurve[];
-  /** The resolved engine parameters that produced the (main) curve. */
-  params: PkParams;
   /** Values the derivation computed rather than read (handoff §8). */
   derived: DerivedNote[];
   /** Cautions to surface alongside the curve (inferred route, assumed F, …). */
   warnings: DeriveWarning[];
-  /** Elimination half-life, h (ln2 / ke) of the main curve — for the caption. */
-  halfLifeH: number;
   /** Right edge of the time axis, h. */
   horizonH: number;
 }
+
+/** A one-compartment chart result (the v1 model). */
+export interface OneCompartmentCurveResult extends CurveResultBase {
+  model: 'one_compartment_first_order';
+  /** The resolved engine parameters that produced the (main) curve. */
+  params: PkParams;
+  /** The half-life range the band spans, for the slider's bounds. */
+  halfLifeRange?: HalfLifeRange;
+  /** Elimination half-life, h (ln2 / ke) of the main curve — for the caption. */
+  halfLifeH: number;
+}
+
+/** A two-compartment chart result (handoff §12). */
+export interface TwoCompartmentCurveResult extends CurveResultBase {
+  model: 'two_compartment_first_order';
+  /** The resolved 2-comp engine parameters that produced the curve. */
+  params: TwoCompParams;
+  /** Distribution half-life, h (ln2 / α) — the fast early phase. */
+  distributionHalfLifeH: number;
+  /** Terminal half-life, h (ln2 / β) — the slow late phase, for the caption. */
+  terminalHalfLifeH: number;
+}
+
+/**
+ * Everything the chart area needs for one parameter set. A discriminated union on
+ * `model`: the UI narrows on it to read the model-specific fields (1-comp `ke`/
+ * `halfLifeH` vs 2-comp α/β half-lives). Shared fields (points, peak, band,
+ * metabolites, warnings, horizon) are on the base so the chart consumes either.
+ */
+export type CurveResult = OneCompartmentCurveResult | TwoCompartmentCurveResult;
 
 /**
  * A dosing schedule as the UI expresses it: a regular course of `count` doses of
@@ -396,6 +423,13 @@ function mergeGrid(uniform: number[], marks: number[]): number[] {
  * superposition engine over the whole schedule.
  */
 export function buildCurve(input: CurveInput): CurveResult {
+  // Dispatch on the compound's disposition model. Two-compartment compounds go
+  // through the parallel 2-comp path (α/β modes, distribution-phase densification);
+  // everything below is the one-compartment model.
+  if (input.compound.model === 'two_compartment_first_order') {
+    return buildCurve2c(input);
+  }
+
   const { compound, route, schedule, weightKg, samples = DEFAULT_SAMPLES } = input;
   const { params: base, derived, warnings } = deriveParams(compound, route, { weightKg });
 
@@ -475,6 +509,7 @@ export function buildCurve(input: CurveInput): CurveResult {
 
   const halfLifeH = Math.LN2 / mainKe;
   return {
+    model: 'one_compartment_first_order',
     points,
     peak: findPeak(points),
     band,
@@ -484,6 +519,147 @@ export function buildCurve(input: CurveInput): CurveResult {
     derived,
     warnings,
     halfLifeH,
+    horizonH,
+  };
+}
+
+// ── Two-compartment glue (handoff §12) ──────────────────────────────────────
+// The parallel build path for `two_compartment_first_order` compounds, reached
+// via `buildCurve`'s model dispatch. Kept a separate function (not folded into
+// the 1-comp body) because its disposition is α/β modes, not ke/ka, and it needs
+// distribution-phase grid densification. Returns a {@link TwoCompartmentCurveResult}
+// so the UI narrows on `model` for the caption. (The metabolite `<Line>` rows and
+// a real 2-comp compound remain deferred, as with the metabolites spike.)
+
+/**
+ * Pick a 2-comp time horizon (h): the last dose plus ~5 TERMINAL (β) half-lives,
+ * extended for an infusion to cover the infusion plus its decay. Sized on the
+ * `slowestRate` (the smallest of β and any metabolite's kₘ) so a long-lived
+ * metabolite isn't clipped mid-decay — the 2-comp analogue of {@link curveHorizon}.
+ */
+function curveHorizon2c(
+  params: TwoCompParams,
+  slowestRate: number,
+  lastDoseTime: number,
+): number {
+  const terminalHalfLife = Math.LN2 / slowestRate;
+  let tail = 5 * terminalHalfLife;
+  if (params.infusionDuration !== undefined) {
+    tail = Math.max(tail, params.infusionDuration + 5 * terminalHalfLife);
+  }
+  return niceCeil(lastDoseTime + tail);
+}
+
+/**
+ * Critical sample times for a 2-comp curve. On top of the {@link criticalTimes}
+ * concerns (the IV-bolus jump at each dose, the infusion end), this DENSIFIES the
+ * fast distribution (α) phase: the horizon is sized on the slow terminal β, so a
+ * uniform grid gives the α phase — the very feature that motivates 2-comp — only
+ * a handful of points and aliases it into a straight line. We add log-spaced
+ * marks over the first few α half-lives after each dose so the distribution knee
+ * renders truthfully.
+ */
+function criticalTimes2c(params: TwoCompParams, doses: DoseEvent[], horizonH: number): number[] {
+  const { alpha } = twoCompRates(params);
+  const jumpEps = horizonH * 1e-5;
+  const alphaHalfLife = Math.LN2 / alpha;
+  const distEnd = Math.min(horizonH, 6 * alphaHalfLife);
+  const distStart = distEnd * 1e-3;
+  const nDist = 40;
+  // Geometric offsets spanning the distribution phase (dense near t = 0).
+  const distOffsets = Array.from({ length: nDist + 1 }, (_, i) =>
+    distStart * Math.pow(distEnd / distStart, i / nDist),
+  );
+  const marks: number[] = [];
+  for (const dose of doses) {
+    if (dose.time > horizonH) continue;
+    if (dose.time - jumpEps > 0) marks.push(dose.time - jumpEps);
+    marks.push(dose.time);
+    for (const off of distOffsets) {
+      const t = dose.time + off;
+      if (t <= horizonH) marks.push(t);
+    }
+    if (params.infusionDuration !== undefined) {
+      const end = dose.time + params.infusionDuration;
+      if (end <= horizonH) marks.push(end);
+    }
+  }
+  return marks;
+}
+
+/**
+ * Build the chart-ready curve for a two-compartment compound (handoff §12). The
+ * 2-comp analogue of {@link buildCurve}: derives {@link TwoCompParams} (throwing,
+ * via `deriveParams2c`, for a nonlinear compound or the deferred oral route — the
+ * caller catches and shows the message), injects the infusion duration, sizes and
+ * densifies the grid, and evaluates the 2-comp superposition. Metabolites (IV
+ * bolus only, the extension scope) are driven by the parent's α/β modes.
+ * Variability band/slider are intentionally omitted — varying a single half-life
+ * is ill-defined across two eigenvalues (a §12 follow-on, like the 1-comp band).
+ */
+export function buildCurve2c(input: CurveInput): TwoCompartmentCurveResult {
+  const { compound, route, schedule, weightKg, samples = DEFAULT_SAMPLES } = input;
+  const { params: base, derived, warnings } = deriveParams2c(compound, route, { weightKg });
+
+  let disposition = base;
+  if (route === 'iv_infusion') {
+    const requested = input.infusionDuration;
+    const infusionDuration =
+      requested !== undefined && requested > 0 ? requested : DEFAULT_INFUSION_DURATION_H;
+    disposition = { ...base, infusionDuration };
+  }
+
+  const doses = buildSchedule(schedule);
+  const lastDoseTime = doses.reduce((latest, dose) => Math.max(latest, dose.time), 0);
+
+  // Metabolites (extension scope: IV-bolus parent only). Derive their disposition
+  // up front so a long-lived metabolite (keM < β) extends the horizon below.
+  const metaboliteDerivations =
+    route === 'iv_bolus' && compound.metabolites?.length
+      ? compound.metabolites.map((m) => ({
+          meta: m,
+          ...deriveMetaboliteDisposition(m, { weightKg }),
+        }))
+      : [];
+
+  const { beta } = twoCompRates(disposition);
+  const slowestRate = Math.min(beta, ...metaboliteDerivations.map((d) => d.params.keM));
+  const horizonH = curveHorizon2c(disposition, slowestRate, lastDoseTime);
+  const times = mergeGrid(
+    sampleGrid(horizonH, samples),
+    criticalTimes2c(disposition, doses, horizonH),
+  );
+
+  const concentrations = concentrationCurve2c(route, disposition, doses, times);
+  const points = times.map((t, i) => ({ t, c: concentrations[i] ?? 0 }));
+
+  const metabolites: MetaboliteCurve[] | undefined = metaboliteDerivations.length
+    ? metaboliteDerivations.map(({ meta, params: mp, derived: mDerived, warnings: mWarnings }) => {
+        const c = metabolite2cConcentrationCurve(disposition, mp, doses, times);
+        const mPoints = times.map((t, i) => ({ t, c: c[i] ?? 0 }));
+        return {
+          id: meta.id,
+          name: meta.name,
+          active: meta.active,
+          points: mPoints,
+          peak: findPeak(mPoints),
+          derived: mDerived,
+          warnings: mWarnings,
+        };
+      })
+    : undefined;
+
+  const { alpha } = twoCompRates(disposition);
+  return {
+    model: 'two_compartment_first_order',
+    points,
+    peak: findPeak(points),
+    metabolites,
+    params: disposition,
+    derived,
+    warnings,
+    distributionHalfLifeH: Math.LN2 / alpha,
+    terminalHalfLifeH: Math.LN2 / beta,
     horizonH,
   };
 }

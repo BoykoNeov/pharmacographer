@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CompoundSchema } from '../../src/data/schema.ts';
 import dataGuide from '../../docs/DATA_GUIDE.md?raw';
-import { baseRawCompound } from './_fixtures.ts';
+import { baseRawCompound, baseRawTwoCompCompound } from './_fixtures.ts';
 
 /**
  * The schema is a guardrail, not a formality (handoff §8): it must reject the
@@ -171,6 +171,49 @@ describe('MetaboliteSchema validation', () => {
     const m = validMetabolite();
     delete m.fractionFormed;
     raw.metabolites = [m];
+    expect(CompoundSchema.safeParse(raw).success).toBe(false);
+  });
+});
+
+/**
+ * Two-compartment compounds (handoff §12) must carry a `disposition2c` block iff
+ * the model is `two_compartment_first_order`, with its four parameters' sourceRefs
+ * resolving into the same bibliography as every other parameter.
+ */
+describe('Disposition2cSchema validation', () => {
+  it('accepts a valid two-compartment compound', () => {
+    expect(CompoundSchema.safeParse(baseRawTwoCompCompound()).success).toBe(true);
+  });
+
+  it('rejects a 2-comp compound missing its disposition2c block', () => {
+    const raw = baseRawTwoCompCompound();
+    delete raw.disposition2c;
+    const result = CompoundSchema.safeParse(raw);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => /disposition2c/.test(i.message))).toBe(true);
+    }
+  });
+
+  it('rejects a disposition2c block on a one-compartment compound (ignored block)', () => {
+    const raw = baseRawCompound();
+    raw.disposition2c = (baseRawTwoCompCompound() as { disposition2c: unknown }).disposition2c;
+    expect(CompoundSchema.safeParse(raw).success).toBe(false);
+  });
+
+  it('rejects a dangling sourceRef inside disposition2c', () => {
+    const raw = baseRawTwoCompCompound();
+    (raw.disposition2c as { clearance: { sourceRef: string } }).clearance.sourceRef = 'nonexistent';
+    const result = CompoundSchema.safeParse(raw);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => /sourceRef/.test(i.message))).toBe(true);
+    }
+  });
+
+  it('rejects an unknown key inside disposition2c (strictObject)', () => {
+    const raw = baseRawTwoCompCompound();
+    (raw.disposition2c as Record<string, unknown>).k12 = { value: 1 }; // not a stored field
     expect(CompoundSchema.safeParse(raw).success).toBe(false);
   });
 });

@@ -3,13 +3,17 @@ import {
   accumulationRatio,
   cavgSteadyState,
   clearance,
+  initialConcentration2c,
   singleDoseAuc,
+  singleDoseAuc2c,
   steadyStateIvBolus,
+  terminalRate2c,
   timeToPeak,
 } from '../../src/engine/pk.ts';
 import { concentrationCurve, recurringDoses } from '../../src/engine/dosing.ts';
 import { singleDoseConcentration } from '../../src/engine/models.ts';
-import type { PkParams } from '../../src/engine/types.ts';
+import { singleDose2cConcentration } from '../../src/engine/models2c.ts';
+import type { PkParams, TwoCompParams } from '../../src/engine/types.ts';
 
 /**
  * The closed forms are validated against numeric / simulated oracles, not each
@@ -142,5 +146,34 @@ describe('steadyStateIvBolus — closed forms vs superposition simulation', () =
 
   it('Cavg,ss equals the single-dose AUC spread over one interval', () => {
     expect(cavgSteadyState(params, dose, tau)).toBeCloseTo(singleDoseAuc(params, dose) / tau, 12);
+  });
+});
+
+describe('two-compartment closed forms (handoff §12)', () => {
+  const model: TwoCompParams = { vc: 10, cl: 5, q: 10, vp: 20 };
+  const dose = 100;
+
+  it('initialConcentration2c = D/Vc matches C(0) of the bolus curve', () => {
+    expect(initialConcentration2c(model, dose)).toBeCloseTo(
+      singleDose2cConcentration('iv_bolus', model, dose, 0),
+      12,
+    );
+    expect(initialConcentration2c(model, dose)).toBeCloseTo(dose / model.vc, 12);
+  });
+
+  it('singleDoseAuc2c = D/CL equals the numeric trapezoid AUC of the bolus curve', () => {
+    const curve = (t: number) => singleDose2cConcentration('iv_bolus', model, dose, t);
+    const terminalHalfLife = Math.LN2 / terminalRate2c(model);
+    const numeric = trapezoid(curve, 0, 30 * terminalHalfLife, 400_000);
+    expectRelClose(singleDoseAuc2c(model, dose), numeric, 1e-4);
+    expect(singleDoseAuc2c(model, dose)).toBeCloseTo(dose / model.cl, 12);
+  });
+
+  it('terminalRate2c (β) matches the terminal log-slope of the bolus curve', () => {
+    const beta = terminalRate2c(model);
+    const curve = (t: number) => singleDose2cConcentration('iv_bolus', model, dose, t);
+    const slope = (Math.log(curve(45)) - Math.log(curve(40))) / (45 - 40);
+    expect(-slope).toBeCloseTo(beta, 6);
+    expect(beta).toBeLessThan(model.cl / model.vc); // β < k10 (peripheral return slows terminal)
   });
 });

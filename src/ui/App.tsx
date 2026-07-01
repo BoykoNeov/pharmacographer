@@ -69,7 +69,16 @@ export function App() {
 
   const compound = useMemo(() => COMPOUNDS.find((c) => c.id === compoundId), [compoundId]);
   const options = useMemo(() => (compound ? routeOptions(compound) : []), [compound]);
-  const halfLifeRange = useMemo(() => (compound ? halfLifeRangeH(compound) : null), [compound]);
+  // The variability band/slider vary a single half-life — a one-compartment
+  // feature. A two-compartment compound has two eigenvalues, so there is no single
+  // half-life to slide; the slider shows its "no range" note instead (handoff §12).
+  const halfLifeRange = useMemo(
+    () =>
+      compound && compound.model === 'one_compartment_first_order'
+        ? halfLifeRangeH(compound)
+        : null,
+    [compound],
+  );
 
   // The dose amount is per-administration; the schedule repeats it. `count: 1`
   // in single mode makes single and recurring the same engine code path.
@@ -205,17 +214,23 @@ function describeSchedule(schedule: DoseSchedule, route: Route): string {
 
 /** "Show the model, not just the curve" (handoff §1) — a one-line summary. */
 function ModelCaption({ route, schedule, infusionDuration, curve, concUnit }: ModelCaptionProps) {
-  const { params, halfLifeH, peak } = curve;
-  const parts = [
-    'One-compartment model',
-    describeSchedule(schedule, route),
-    `ke = ${fmtNum(params.ke)} /h (t½ ${fmtNum(halfLifeH)} h)`,
-  ];
-  if (route === 'oral' && params.ka !== undefined) {
-    parts.push(`ka = ${fmtNum(params.ka)} /h`);
-  }
-  if (route === 'iv_infusion') {
-    parts.push(`infused over ${fmtNum(infusionDuration)} h`);
+  const { peak } = curve;
+  const parts: string[] = [];
+  if (curve.model === 'two_compartment_first_order') {
+    parts.push('Two-compartment model');
+    parts.push(describeSchedule(schedule, route));
+    parts.push(
+      `distribution t½ ${fmtNum(curve.distributionHalfLifeH)} h · terminal t½ ${fmtNum(curve.terminalHalfLifeH)} h`,
+    );
+    if (route === 'iv_infusion') parts.push(`infused over ${fmtNum(infusionDuration)} h`);
+  } else {
+    parts.push('One-compartment model');
+    parts.push(describeSchedule(schedule, route));
+    parts.push(`ke = ${fmtNum(curve.params.ke)} /h (t½ ${fmtNum(curve.halfLifeH)} h)`);
+    if (route === 'oral' && curve.params.ka !== undefined) {
+      parts.push(`ka = ${fmtNum(curve.params.ka)} /h`);
+    }
+    if (route === 'iv_infusion') parts.push(`infused over ${fmtNum(infusionDuration)} h`);
   }
   parts.push(`Cmax ${fmtNum(toDisplayConcentration(peak.c, concUnit))} ${concUnit} at Tmax ${fmtNum(peak.t)} h`);
   parts.push(`${REFERENCE_WEIGHT_KG} kg illustrative reference subject`);

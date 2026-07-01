@@ -10,7 +10,8 @@
  */
 
 import { FLIP_FLOP_REL_TOL } from './models.ts';
-import type { PkParams } from './types.ts';
+import { twoCompRates } from './models2c.ts';
+import type { PkParams, TwoCompParams } from './types.ts';
 
 /**
  * Clearance CL = ke·Vd (L/h). A derived identity in the one-compartment model,
@@ -74,6 +75,42 @@ export interface SteadyStateIvBolus {
   cmin: number;
   /** Interval-average over one τ, mg/L. */
   cavg: number;
+}
+
+// ── Two-compartment closed forms (handoff §12) ──────────────────────────────
+// Exact quantities for the multi-compartment model, used to annotate its curve
+// and as test oracles. All are strikingly simple because AUC and the terminal
+// slope are governed by the central clearance and the slow eigenvalue alone —
+// distribution only reshapes the early curve, not the total exposure.
+
+/**
+ * Central concentration at the instant of a 2-comp IV bolus, `C(0) = D/Vc`
+ * (mg/L). The whole dose starts in the central compartment, so the peak is set
+ * by the CENTRAL volume — smaller than the total (steady-state) Vd, so a 2-comp
+ * bolus peaks higher than a one-compartment collapse would predict.
+ */
+export function initialConcentration2c(params: TwoCompParams, dose: number): number {
+  return dose / params.vc;
+}
+
+/**
+ * Total exposure of a SINGLE 2-comp dose, AUC₀→∞ = D / CL (mg·h/L). Identical to
+ * the one-compartment result and independent of the distribution parameters
+ * (Q, Vp) and the route — a teaching point: distribution moves drug around, only
+ * clearance removes it.
+ */
+export function singleDoseAuc2c(params: TwoCompParams, dose: number): number {
+  return dose / params.cl;
+}
+
+/**
+ * Terminal (log-linear) elimination rate constant of a 2-comp model, β (1/h) —
+ * the smaller disposition eigenvalue. The late curve decays as `e^(−β·t)`, so the
+ * terminal half-life is `ln2/β`. β is always ≤ k10, i.e. the terminal phase is
+ * slower than pure central elimination because peripheral drug returns.
+ */
+export function terminalRate2c(params: TwoCompParams): number {
+  return twoCompRates(params).beta;
 }
 
 /**

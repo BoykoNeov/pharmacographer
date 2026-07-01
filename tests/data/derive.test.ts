@@ -3,13 +3,14 @@ import {
   KE_CROSSCHECK_REL_TOL,
   deriveMetaboliteParams,
   deriveParams,
+  deriveParams2c,
   kaFromTmax,
 } from '../../src/data/derive.ts';
 import type { Metabolite } from '../../src/data/schema.ts';
 import { parseCompound } from '../../src/data/loader.ts';
-import { timeToPeak } from '../../src/engine/pk.ts';
+import { singleDoseAuc2c, terminalRate2c, timeToPeak } from '../../src/engine/pk.ts';
 import { REFERENCE_WEIGHT_KG } from '../../src/engine/units.ts';
-import { baseRawCompound } from './_fixtures.ts';
+import { baseRawCompound, baseRawTwoCompCompound } from './_fixtures.ts';
 
 /**
  * Derivation is validated against analytic oracles, not against any shipped
@@ -241,6 +242,64 @@ describe('deriveMetaboliteParams — metabolite disposition', () => {
 
   it('throws when the parent ke is not positive', () => {
     expect(() => deriveMetaboliteParams(metaboliteFrom(), 0)).toThrow(/parentKe/);
+  });
+});
+
+describe('deriveParams2c — two-compartment (handoff §12)', () => {
+  it('resolves CL/Vc/Q/Vp from the disposition2c block (absolute units, no scaling)', () => {
+    const { params, derived } = deriveParams2c(parseCompound(baseRawTwoCompCompound()), 'iv_bolus');
+    expect(params).toEqual({ vc: 10, cl: 5, q: 10, vp: 20 });
+    expect(derived).toHaveLength(0); // all absolute — nothing scaled
+    // Cross-check against the engine closed forms: AUC = D/CL, terminal β < k10.
+    expect(singleDoseAuc2c(params, 100)).toBeCloseTo(100 / 5, 12);
+    expect(terminalRate2c(params)).toBeLessThan(params.cl / params.vc);
+  });
+
+  it('scales per-kg volumes and clearances against the reference subject', () => {
+    const raw = baseRawTwoCompCompound();
+    (raw.disposition2c as Record<string, unknown>).centralVd = {
+      value: 0.2,
+      unit: 'L/kg',
+      derived: false,
+      sourceRef: 'ref',
+    };
+    (raw.disposition2c as Record<string, unknown>).clearance = {
+      value: 0.1,
+      unit: 'L/h/kg',
+      derived: false,
+      sourceRef: 'ref',
+    };
+    const { params, derived } = deriveParams2c(parseCompound(raw), 'iv_bolus');
+    expect(params.vc).toBeCloseTo(0.2 * REFERENCE_WEIGHT_KG, 12); // 14 L
+    expect(params.cl).toBeCloseTo(0.1 * REFERENCE_WEIGHT_KG, 12); // 7 L/h
+    expect(derived.some((d) => d.parameter === 'vc' && /reference subject/.test(d.note))).toBe(true);
+    expect(derived.some((d) => d.parameter === 'cl' && /reference subject/.test(d.note))).toBe(true);
+  });
+
+  it('throws for a nonlinear 2-comp compound (the linearity gate still applies)', () => {
+    const raw = baseRawTwoCompCompound();
+    raw.linear = false;
+    (raw.flags as unknown) = { nonlinear: true };
+    expect(() => deriveParams2c(parseCompound(raw), 'iv_bolus')).toThrow(/nonlinear|linear/i);
+  });
+
+  it('throws for oral (a tri-exponential parent; deferred)', () => {
+    expect(() => deriveParams2c(parseCompound(baseRawTwoCompCompound()), 'oral')).toThrow(
+      /oral|deferred/i,
+    );
+  });
+
+  it('deriveParams rejects a 2-comp compound, pointing at deriveParams2c', () => {
+    expect(() => deriveParams(parseCompound(baseRawTwoCompCompound()), 'iv_bolus')).toThrow(
+      /two_compartment|deriveParams2c/i,
+    );
+  });
+
+  it('warns that an unavailable route is inferred, not measured', () => {
+    const raw = baseRawTwoCompCompound();
+    (raw.routes as { iv_bolus: { available: boolean } }).iv_bolus.available = false;
+    const { warnings } = deriveParams2c(parseCompound(raw), 'iv_bolus');
+    expect(warnings.some((w) => w.parameter === 'route' && /inferred/.test(w.message))).toBe(true);
   });
 });
 
