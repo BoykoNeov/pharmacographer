@@ -135,6 +135,64 @@ describe('buildCurve — schedule shapes the curve and the horizon', () => {
     expect(horizonH).toBeGreaterThanOrEqual(50);
   });
 
+  it('samples the EXACT peak of each IV bolus dose (no grid aliasing at the dose instant)', () => {
+    // An IV-bolus concentration jumps at each dose time, so the true peak lives
+    // exactly at t = dose.time. A uniform-only grid misses it and aliases the
+    // height (the "add 1 h, second peak changes size" bug). τ is deliberately
+    // OFF any uniform-grid node (horizon 50 h / 300 → 0.1667 h spacing; 13.37 is
+    // not a multiple) so this fails before the dose instant is injected.
+    const dose = 350;
+    const tau = 13.37;
+    const { points, params } = buildCurve({
+      compound,
+      route: 'iv_bolus',
+      schedule: { amount: dose, count: 2, interval: tau, adHoc: [] },
+    });
+    const c0 = dose / VD_ABS;
+    // Second peak, closed form: dose 1 has decayed for τ, dose 2 is fresh.
+    const expected = c0 * (1 + Math.exp(-params.ke * tau));
+    const atPeak = points.find((p) => p.t === tau);
+    expect(atPeak).toBeDefined();
+    expect(atPeak!.c).toBeCloseTo(expected, 10);
+  });
+
+  it('second-dose peak varies MONOTONICALLY as the interval grows (no aliasing flicker)', () => {
+    // The reported bug: nudging the interval by 1 h changed the second peak's
+    // height (and the auto axis) erratically. With the dose instant sampled, the
+    // global peak is the second dose = D/Vd·(1 + e^(−ke·τ)), strictly decreasing
+    // in τ. Sweep by 1 h and assert each peak is below the previous — the exact
+    // "flicker gone" invariant, not just "some point moved".
+    const peakAt = (tau: number) => {
+      const { points } = buildCurve({
+        compound,
+        route: 'iv_bolus',
+        schedule: { amount: 350, count: 2, interval: tau, adHoc: [] },
+      });
+      return Math.max(...points.map((p) => p.c));
+    };
+    // Offset off-grid (…+0.37): with horizon 100 h / 300 the uniform nodes are
+    // multiples of 0.3333 h, so integer τ would land ON a node and pass even
+    // WITHOUT the fix (vacuous). The fractional τ forces the uniform-only grid to
+    // alias — this sweep is non-monotonic pre-fix, monotonic post-fix.
+    let prev = Infinity;
+    for (let k = 30; k <= 40; k++) {
+      const peak = peakAt(k + 0.37);
+      expect(peak).toBeLessThan(prev);
+      prev = peak;
+    }
+  });
+
+  it('keeps the merged grid strictly ascending and free of duplicate times', () => {
+    const { points } = buildCurve({
+      compound,
+      route: 'iv_bolus',
+      schedule: { amount: 100, count: 3, interval: 7, adHoc: [{ time: 7, amount: 50 }] }, // ad-hoc coincides with a dose
+    });
+    for (let i = 1; i < points.length; i++) {
+      expect(points[i]!.t).toBeGreaterThan(points[i - 1]!.t);
+    }
+  });
+
   it('single mode does not extend the horizon for an unused interval/count', () => {
     const wide = buildCurve({
       compound,

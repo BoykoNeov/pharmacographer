@@ -259,6 +259,54 @@ function sampleGrid(horizonH: number, samples: number): number[] {
 }
 
 /**
+ * Times that MUST be sampled exactly, on top of the uniform grid. An IV-bolus
+ * concentration JUMPS at each dose instant, so the true peak lives exactly at
+ * `t = dose.time`; a uniform grid that misses it renders whatever the nearest
+ * sample decayed to, which aliases the peak height and makes the auto axis
+ * flicker as the schedule shifts under the grid (the "add 1 h, peak changes"
+ * bug). For each dose we sample:
+ *   - `dose.time` itself — pins the exact peak;
+ *   - a hair before it (`dose.time − ε`) — so the jump draws vertical instead of
+ *     as a diagonal ramp up from the previous uniform sample;
+ *   - for an infusion, `dose.time + infusionDuration` — the slope break at the
+ *     end of the infusion.
+ * Oral needs none of these (its peak is smooth); injecting the dose instants is
+ * harmless, so we don't special-case route beyond the infusion end.
+ */
+function criticalTimes(route: Route, params: PkParams, doses: DoseEvent[], horizonH: number): number[] {
+  // Small enough to look vertical, large enough to stay well clear of the
+  // dedupe threshold (so the pre-dose point is never merged into the dose time).
+  const jumpEps = horizonH * 1e-5;
+  const marks: number[] = [];
+  for (const dose of doses) {
+    if (dose.time > horizonH) continue;
+    if (dose.time - jumpEps > 0) marks.push(dose.time - jumpEps);
+    marks.push(dose.time);
+    if (route === 'iv_infusion' && params.infusionDuration !== undefined) {
+      const end = dose.time + params.infusionDuration;
+      if (end <= horizonH) marks.push(end);
+    }
+  }
+  return marks;
+}
+
+/**
+ * Merge the uniform grid with the {@link criticalTimes} marks into one ascending,
+ * de-duplicated grid. Recharts draws points in array order, so the result MUST be
+ * sorted (an unsorted merge zigzags the line) and free of duplicate x (a dose
+ * time landing on a uniform point). The dedupe threshold only removes true
+ * coincidences — it is far below `jumpEps`, so a pre-dose mark is always kept.
+ */
+function mergeGrid(uniform: number[], marks: number[]): number[] {
+  const all = [...uniform, ...marks].sort((a, b) => a - b);
+  const out: number[] = [];
+  for (const t of all) {
+    if (out.length === 0 || t - out[out.length - 1]! > 1e-9) out.push(t);
+  }
+  return out;
+}
+
+/**
  * Build the chart-ready curve for a dosing schedule. Derives the engine
  * parameters from the compound (throwing, via `deriveParams`, if the compound is
  * nonlinear or the oral route lacks absorption data — the caller catches and
@@ -301,7 +349,9 @@ export function buildCurve(input: CurveInput): CurveResult {
   // long-half-life tail isn't clipped mid-decay.
   const slowestKe = Math.min(mainKe, keSlow);
   const horizonH = curveHorizon(route, { ...disposition, ke: slowestKe }, lastDoseTime);
-  const times = sampleGrid(horizonH, samples);
+  // Uniform grid for the overall shape, plus the exact dose/infusion instants so
+  // discontinuous IV peaks aren't aliased (and the axis doesn't flicker).
+  const times = mergeGrid(sampleGrid(horizonH, samples), criticalTimes(route, params, doses, horizonH));
 
   const concentrations = concentrationCurve(route, params, doses, times);
   const points = times.map((t, i) => ({ t, c: concentrations[i] ?? 0 }));
