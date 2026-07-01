@@ -84,6 +84,31 @@ all pass.
 ## Build order
 
 Follow the phases in handoff §13 — engine + tests before UI. Current state:
+**Phase 7 data expansion done; charts + deploy deferred.**
+
+**Phase 7 in progress** (polish & expand, handoff §13/§14). The seed set grew
+from 3 → **8 compounds**: added `caffeine`, `ibuprofen`, `diphenhydramine`,
+`metoprolol`, `amoxicillin` (all FDA-label / primary-source curated, provenance
+per parameter, judgement calls in each `notes`). Adding a compound is still just
+dropping a JSON file — `loader.ts`'s `import.meta.glob` picks it up and the
+`loader.test.ts` integration guard derives every route of every bundled
+compound (now 154 tests). No `engine/`, `schema.ts`, or `derive.ts` changes —
+pure data. Curation carry-forwards worth remembering: (1) `npm test` proves
+*structure + derivation*, NOT numeric correctness — magnitudes were cross-checked
+by building the actual engine curve and comparing peak concentration to reported
+therapeutic Cmax (caught diphenhydramine's Vd: StatPearls' 17 L/kg under-predicts
+the measured 50 mg Cmax, so Blyden 1986's IV-derived 4.5 L/kg is used instead).
+(2) The apparent-volume convention (F=1, use V/F) and the "don't store clearance
+when t½ is derived from CL/Vd — it's a circular ke cross-check" rule (from
+cetirizine) both recur. Two §14 candidates were vetted and NOT shipped, rationale
+in `docs/DATA_GUIDE.md`: **omeprazole excluded** (`linear: false` — CYP2C19
+autoinhibition breaks superposition) and **lisinopril deferred** (neither FDA
+label nor EMA SmPC states a Vd; not guessed). **Deferred to a later session
+(user's call):** the three chart refinements — Cmax/Tmax markers, a concentration
+unit toggle (mg/L ↔ ng/mL ↔ µg/mL, handoff §15 #6), and semi-log decade ticks +
+band values in the tooltip — and the **static-site deploy** (vite `base` +
+GitHub Pages workflow). Those are the remaining Phase 7 items.
+
 **Phase 6 done** (schedules & variability). The engine already supported
 multi-dose (`recurringDoses` + linear superposition), so Phase 6 was **pure-UI**
 — no `engine/`, `schema.ts`, or `derive.ts` changes. `ui/curve.ts` grew a
