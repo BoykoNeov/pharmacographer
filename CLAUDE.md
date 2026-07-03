@@ -261,19 +261,42 @@ load-bearing gotcha: **every metabolite has `C(0)=0` (an oracle)**, so its t=0 s
 semi-log axis exactly like the main line (`isLog && !(c>0) ? null : c`) — else semi-log blanks/dives
 the metabolite; and metabolite positives are added to the log-domain `positives` (nordiazepam
 accumulates ABOVE the parent late, so it would overflow otherwise). Scope held to lines+legend+tooltip:
-the `provenance.ts`/`ProvenancePanel` metabolite rows remain a SEPARATE deferred item (the metabolite's
-per-parameter `derived`/source rows are still not surfaced in the honesty panel). Verified in the running
+the `provenance.ts`/`ProvenancePanel` metabolite rows were a SEPARATE item that has since LANDED (the
+metabolite's per-parameter `derived`/source rows are now surfaced in the honesty panel — see the
+ProvenancePanel metabolite-provenance rows note below). Verified in the running
 app (throwaway Playwright driver): diazepam/iv_bolus draws the solid-blue parent + dashed-orange
 nordiazepam with a top legend; tooltip shows both (nordiazepam 0.50 vs parent 0.031 mg/L at t=250 h —
 the late crossover); **semi-log renders both across the full decade range without blanking**; the
 metabolite line DROPS on iv_infusion (the `route==='iv_bolus'` gate) and is absent for a no-metabolite
 compound (caffeine — single line, no legend); no console errors.
 
-Deferred follow-on still open: the `provenance.ts`/`ProvenancePanel` metabolite rows (the metabolite's
-own `derived`/source provenance is still not surfaced), oral-PARENT metabolites (needs residue-form
+**ProvenancePanel metabolite-provenance rows — LANDED (pure-UI; both models; 317 tests).** The metabolite
+line's own numbers now come clean in the honesty panel, at parity with the parent rows. Two files: (1)
+**`ui/provenance.ts`** — new `metaboliteProvenanceEntries(compound, plotted)` returning one
+`MetaboliteProvenanceGroup` per PLOTTED metabolite (`{id, name, active, rows}`), each with its fraction-
+formed / Vd / half-life rows built by the SAME `makeRow`/`classify`/`resolveSource` machinery as the parent
+(measured-vs-curator-derived badge + citation + conditions), and the metabolite's axis-2 runtime derivations
+grouped under their input row via `metaboliteDerivationTargetKey` (`vdM`→Vd, `keM`→half-life — like the
+parent's `ke`, `keM` has no row of its own —, `fractionFormed`→fm). `provenanceEntries` is UNCHANGED (kept
+the flat `ProvenanceRow[]` API so the ~15 existing provenance tests stand). (2) **`ui/components/
+ProvenancePanel.tsx`** — a new optional `metabolites` prop; renders each group under a `— active
+metabolite`/`— metabolite` subheading (mirrors the chart legend wording) and folds the metabolite rows into
+`citedSources` so metabolite-only citations reach the bibliography. Design spine (advisor-reviewed): the panel
+keys off the BUILT `curve.value.metabolites` (not `compound.metabolites`), so it is route-truthful for free —
+metabolites compute only for `route==='iv_bolus'`, so an infusion draws no line AND shows no rows, and when
+oral-parent metabolites eventually widen the gate the rows follow with no change. Structural two-source join:
+the raw provenance-carrying `CompoundParameter`s come from `compound.metabolites` (by `id`), the axis-2
+`DerivedNote`s from the plotted `MetaboliteCurve` — so `provenance.ts` need not import the UI curve type
+(minimal `PlottedMetabolite = {id, derived}` input). The observable win: for diazepam/iv_bolus the panel now
+surfaces `iarc_monograph` (fm) and `chemm` (metabolite Vd) — sources that previously appeared NOWHERE.
+Verified via a throwaway Playwright driver (metabolite group renders with badges + derivations, IARC/CHEMM in
+Sources, group drops on iv_infusion; no console errors) and a `ProvenancePanel` render test with the real
+diazepam pair. App passes `curve.value.metabolites` to the panel.
+
+Deferred follow-on still open: oral-PARENT metabolites (needs residue-form
 parent modes; the metabolite gate is still `route==='iv_bolus'`), and oral 3-comp derivation
 (`deriveParams3c` throws on oral; the engine supports it via `oralPeakTime3c`, only the `kaFromTmax3c`
-inversion is unwired). **DONE:** the metabolite `<Line>` rows (above); the 3-comp DATA+UI wiring; the
+inversion is unwired). **DONE:** the ProvenancePanel metabolite-provenance rows (above); the metabolite `<Line>` rows; the 3-comp DATA+UI wiring; the
 `ModelAssumptionsNote` compartment caveat is now model-aware (`fix(ui)`, commit `6dc022a`) — a 2-comp
 compound gets a "Two compartments" bullet (central/peripheral split, α→β phases) instead of the
 contradictory hardcoded "One compartment"; branched on `compound.model`, verified in the running app.
@@ -296,8 +319,8 @@ infusion), formation driven by the plotted `mainKe` (slider reshapes the metabol
 preserves its AUC), and the horizon is sized on the slowest of parent/band/metabolite ke
 so a long-lived metabolite isn't clipped. **Since landed:** the React `<Line>` rows are now
 DRAWN (see the "Metabolite `<Line>` rows" note above) and a real demo compound shipped
-(diazepam→nordiazepam). **Still deferred:** the `provenance.ts`/`ProvenancePanel` metabolite
-rows (the metabolite's own per-parameter provenance is not yet surfaced in the honesty panel). **No real compound shipped** — the mono-exponential-parent assumption needs
+(diazepam→nordiazepam), and the `provenance.ts`/`ProvenancePanel` metabolite
+rows now surface the metabolite's own per-parameter provenance (see the ProvenancePanel note above). **No real compound shipped** — the mono-exponential-parent assumption needs
 a one-compartment IV parent, and every vetted pair is two-compartment (rejection log in
 `docs/DATA_GUIDE.md`): **diazepam→nordiazepam** (2-compartment + uncited fm),
 **procainamide→NAPA** (2-compartment + acetylator-dependent fm), **cefotaxime→desacetyl-**

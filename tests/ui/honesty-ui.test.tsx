@@ -1,6 +1,9 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { loadAllCompounds } from '../../src/data/loader.ts';
 import { App } from '../../src/ui/App.tsx';
+import { ProvenancePanel } from '../../src/ui/components/ProvenancePanel.tsx';
+import { buildCurve, type DoseSchedule } from '../../src/ui/curve.ts';
 
 /**
  * The honesty UI (Phase 5) is the product, not chrome — so it gets a render
@@ -27,5 +30,58 @@ describe('honesty UI (handoff §5, Phase 5)', () => {
     expect(html).toContain('What this model assumes');
     expect(html).toContain('illustrative reference subject');
     expect(html).toContain('not</em> a patient weight');
+  });
+});
+
+/**
+ * The metabolite provenance rows are the honesty layer for the dashed metabolite
+ * line — its formation fraction, own Vd, and own half-life must come clean too.
+ * Driven with the real diazepam→nordiazepam pair, whose metabolite parameters
+ * cite sources (IARC, CHEMM) that appear NOWHERE in the parent rows.
+ */
+describe('metabolite provenance rows (handoff §12)', () => {
+  const diazepam = loadAllCompounds().find((c) => c.id === 'diazepam');
+  const schedule: DoseSchedule = { amount: 10, count: 1, interval: 6, adHoc: [] };
+
+  it('has the diazepam→nordiazepam fixture available', () => {
+    expect(diazepam).toBeDefined();
+  });
+
+  const bolus = buildCurve({ compound: diazepam!, route: 'iv_bolus', schedule });
+  const bolusHtml = renderToStaticMarkup(
+    <ProvenancePanel
+      compound={diazepam!}
+      route="iv_bolus"
+      derived={bolus.derived}
+      metabolites={bolus.metabolites}
+    />,
+  );
+
+  it('shows the metabolite name, active tag, and its own disposition rows', () => {
+    // Key off the group class — the FDA parent source title also contains the
+    // words "active metabolite", so a bare text match would be a false positive.
+    expect(bolusHtml).toContain('prov__meta-group');
+    expect(bolusHtml).toContain('Nordiazepam');
+    expect(bolusHtml).toContain('— active metabolite</span>');
+    expect(bolusHtml).toContain('Fraction formed');
+  });
+
+  it('surfaces the metabolite-only sources in the bibliography', () => {
+    expect(bolusHtml).toContain('IARC'); // formation fraction source
+    expect(bolusHtml).toContain('CHEMM'); // metabolite Vd source
+  });
+
+  it('drops the metabolite rows on a route that draws no metabolite line', () => {
+    const infusion = buildCurve({ compound: diazepam!, route: 'iv_infusion', schedule });
+    const infusionHtml = renderToStaticMarkup(
+      <ProvenancePanel
+        compound={diazepam!}
+        route="iv_infusion"
+        derived={infusion.derived}
+        metabolites={infusion.metabolites}
+      />,
+    );
+    expect(infusionHtml).not.toContain('prov__meta-group');
+    expect(infusionHtml).not.toContain('Nordiazepam');
   });
 });

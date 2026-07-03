@@ -86,6 +86,7 @@ const ROW_LABELS: Record<string, string> = {
   F: 'Bioavailability (F)',
   ka: 'Absorption rate constant (ka)',
   tmax: 'Time to peak (Tmax)',
+  fractionFormed: 'Fraction formed (fm)',
 };
 
 /** Resolve a `sourceRef` against the compound's `sources` map and the sentinels. */
@@ -188,6 +189,92 @@ export function provenanceEntries(
   }
 
   return rows;
+}
+
+/**
+ * The minimal shape of a plotted metabolite curve that
+ * {@link metaboliteProvenanceEntries} needs: its `id` (to join back to the raw
+ * {@link Compound.metabolites} entry for the provenance-carrying parameters) and
+ * the axis-2 {@link DerivedNote}s the metabolite derivation computed. Structural
+ * on purpose — a `MetaboliteCurve` from `curve.ts` is assignable, so this module
+ * need not import the UI curve type.
+ */
+export interface PlottedMetabolite {
+  id: string;
+  derived: readonly DerivedNote[];
+}
+
+/** A metabolite's provenance rows, grouped under its name for the panel. */
+export interface MetaboliteProvenanceGroup {
+  /** Metabolite id (stable React key). */
+  id: string;
+  /** Human-facing name for the group heading. */
+  name: string;
+  /** Whether the metabolite is pharmacologically active (mirrors the chart legend). */
+  active: boolean;
+  /** The metabolite's own provenance rows: fraction formed, Vd, half-life. */
+  rows: ProvenanceRow[];
+}
+
+/**
+ * Which metabolite row a runtime {@link DerivedNote} (axis 2) belongs under. The
+ * metabolite derivation (`derive.ts` `deriveMetaboliteDisposition`) emits notes
+ * keyed `vdM` (per-kg Vd scaling), `keM` (`ke = ln2/t½`) and `fractionFormed`
+ * (percent → fraction). Like the parent's `ke`, the metabolite's `keM` has no row
+ * of its own, so it attaches to the half-life it was computed from.
+ */
+function metaboliteDerivationTargetKey(noteParameter: string): string | undefined {
+  switch (noteParameter) {
+    case 'vdM':
+      return 'vd';
+    case 'keM':
+      return 'halfLife';
+    case 'fractionFormed':
+      return 'fractionFormed';
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * The provenance rows for each metabolite that was actually PLOTTED for this
+ * curve, grouped by metabolite. Route-truthful in the same way as
+ * {@link provenanceEntries}: the caller passes the built metabolite curves (which
+ * exist only for an IV-bolus parent), so a route that draws no metabolite line
+ * shows no metabolite rows. Each group's rows carry the metabolite's OWN
+ * disposition — fraction formed, Vd, half-life — with the same measured-vs-derived
+ * badge and citation machinery as the parent, and the metabolite's runtime
+ * derivations grouped under their input row. The raw provenance-carrying
+ * parameters are read from `compound.metabolites` (joined by `id`); the axis-2
+ * notes come from the plotted curve.
+ */
+export function metaboliteProvenanceEntries(
+  compound: Compound,
+  plotted: readonly PlottedMetabolite[] = [],
+): MetaboliteProvenanceGroup[] {
+  const byId = new Map((compound.metabolites ?? []).map((m) => [m.id, m]));
+  const groups: MetaboliteProvenanceGroup[] = [];
+  for (const { id, derived } of plotted) {
+    const meta = byId.get(id);
+    if (!meta) continue; // plotted but not declared — shouldn't happen; skip defensively.
+
+    const rows: ProvenanceRow[] = [
+      makeRow('fractionFormed', meta.fractionFormed, compound),
+      makeRow('vd', meta.vd, compound),
+      makeRow('halfLife', meta.halfLife, compound),
+    ];
+
+    // Group axis-2 derivations under their axis-1 input row.
+    const byKey = new Map(rows.map((r) => [r.key, r]));
+    for (const note of derived) {
+      const key = metaboliteDerivationTargetKey(note.parameter);
+      if (key === undefined) continue;
+      byKey.get(key)?.derivations.push(note.note);
+    }
+
+    groups.push({ id: meta.id, name: meta.name, active: meta.active, rows });
+  }
+  return groups;
 }
 
 /** The distinct literature sources cited by `rows`, in first-seen order. */

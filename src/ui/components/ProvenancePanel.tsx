@@ -15,8 +15,10 @@ import type { Route } from '../../engine/types.ts';
 import { fmtNum } from '../curve.ts';
 import {
   citedSources,
+  metaboliteProvenanceEntries,
   PROVENANCE_LABELS,
   provenanceEntries,
+  type PlottedMetabolite,
   type Provenance,
   type ProvenanceRow,
   type ResolvedSource,
@@ -27,6 +29,12 @@ interface ProvenancePanelProps {
   route: Route;
   /** Runtime derivations from the curve build, grouped under their input row. */
   derived: DerivedNote[];
+  /**
+   * The metabolite curves actually plotted for this curve (IV-bolus parent only).
+   * Their own provenance rows are shown, grouped per metabolite. Undefined/empty
+   * when no metabolite line is drawn, so the panel stays in sync with the chart.
+   */
+  metabolites?: PlottedMetabolite[];
 }
 
 /** Format a value with its unit and, if present, the reported range. */
@@ -76,9 +84,12 @@ function ProvenanceRowItem({ row }: { row: ProvenanceRow }) {
   );
 }
 
-export function ProvenancePanel({ compound, route, derived }: ProvenancePanelProps) {
+export function ProvenancePanel({ compound, route, derived, metabolites = [] }: ProvenancePanelProps) {
   const rows = provenanceEntries(compound, route, derived);
-  const sources = citedSources(rows);
+  const metaboliteGroups = metaboliteProvenanceEntries(compound, metabolites);
+  // Bibliography spans parent AND metabolite rows, so metabolite-only citations
+  // (e.g. the formation-fraction and metabolite-Vd sources) are listed too.
+  const sources = citedSources([...rows, ...metaboliteGroups.flatMap((g) => g.rows)]);
 
   return (
     <section className="panel prov" aria-label="Provenance">
@@ -88,6 +99,22 @@ export function ProvenancePanel({ compound, route, derived }: ProvenancePanelPro
           <ProvenanceRowItem key={row.key} row={row} />
         ))}
       </ul>
+
+      {metaboliteGroups.map((group) => (
+        <div key={group.id} className="prov__meta-group">
+          <h3 className="prov__meta-title">
+            {group.name}{' '}
+            <span className="prov__meta-tag">
+              {group.active ? '— active metabolite' : '— metabolite'}
+            </span>
+          </h3>
+          <ul className="prov__rows">
+            {group.rows.map((row) => (
+              <ProvenanceRowItem key={`${group.id}-${row.key}`} row={row} />
+            ))}
+          </ul>
+        </div>
+      ))}
 
       {sources.length > 0 && (
         <>

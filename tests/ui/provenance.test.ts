@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { deriveParams } from '../../src/data/derive.ts';
+import { deriveMetaboliteParams, deriveParams } from '../../src/data/derive.ts';
 import { parseCompound } from '../../src/data/loader.ts';
 import {
   citedSources,
+  metaboliteProvenanceEntries,
   provenanceEntries,
   resolveSource,
 } from '../../src/ui/provenance.ts';
@@ -151,6 +152,85 @@ describe('provenanceEntries — axis-2 derivation grouping', () => {
     const rows = provenanceEntries(compound, 'oral', derived);
     const allNotes = rows.flatMap((r) => r.derivations).join(' ');
     expect(allNotes).not.toMatch(/F assumed/);
+  });
+});
+
+/**
+ * baseRawCompound + a single active metabolite. A distinct `metasrc` source
+ * cites the metabolite parameters so the bibliography test can prove a
+ * metabolite-only citation reaches the panel. Formation fraction is a PERCENT
+ * and Vd is per-kg so the derivation emits the `fractionFormed` and `vdM` notes.
+ */
+function metaboliteRawCompound(): Record<string, unknown> {
+  const raw = baseRawCompound();
+  (raw.sources as Record<string, unknown>).metasrc = { type: 'test', title: 'Metabolite source' };
+  raw.metabolites = [
+    {
+      id: 'testmeta',
+      name: 'Testmetabolite',
+      active: true,
+      fractionFormed: { value: 50, unit: 'percent', derived: false, sourceRef: 'metasrc' },
+      vd: { value: 0.5, unit: 'L/kg', derived: true, sourceRef: 'metasrc' },
+      halfLife: { value: 8, unit: 'h', derived: false, sourceRef: 'ref' },
+    },
+  ];
+  return raw;
+}
+
+describe('metaboliteProvenanceEntries', () => {
+  it('returns a group per plotted metabolite with fractionFormed, vd, half-life rows', () => {
+    const compound = parseCompound(metaboliteRawCompound());
+    const groups = metaboliteProvenanceEntries(compound, [{ id: 'testmeta', derived: [] }]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.name).toBe('Testmetabolite');
+    expect(groups[0]?.active).toBe(true);
+    expect(groups[0]?.rows.map((r) => r.key)).toEqual(['fractionFormed', 'vd', 'halfLife']);
+  });
+
+  it('is empty when no metabolite was plotted (route-truthful)', () => {
+    // A compound that declares a metabolite but whose curve drew none (e.g. an IV
+    // infusion) passes an empty plotted list — no metabolite rows appear.
+    const compound = parseCompound(metaboliteRawCompound());
+    expect(metaboliteProvenanceEntries(compound, [])).toEqual([]);
+    // …and a compound with no metabolites at all yields nothing regardless.
+    expect(metaboliteProvenanceEntries(parseCompound(baseRawCompound()), [])).toEqual([]);
+  });
+
+  it('classifies the metabolite rows (measured fm, curator-derived Vd)', () => {
+    const compound = parseCompound(metaboliteRawCompound());
+    const [group] = metaboliteProvenanceEntries(compound, [{ id: 'testmeta', derived: [] }]);
+    expect(group?.rows.find((r) => r.key === 'fractionFormed')?.provenance).toBe('measured');
+    expect(group?.rows.find((r) => r.key === 'vd')?.provenance).toBe('derived');
+  });
+
+  it('groups each metabolite derivation under its input row (keM under half-life)', () => {
+    // Drive a REAL derivation so this test breaks if derive.ts renames a note
+    // parameter (the 'vdM'/'keM'/'fractionFormed' strings are a silent contract).
+    const compound = parseCompound(metaboliteRawCompound());
+    const meta = compound.metabolites![0]!;
+    const { derived } = deriveMetaboliteParams(meta, 0.1 /* arbitrary positive parent ke */);
+    const [group] = metaboliteProvenanceEntries(compound, [{ id: 'testmeta', derived }]);
+    const rows = group!.rows;
+
+    // keM = ln2/t½ has no row of its own — it attaches to the half-life row.
+    expect(rows.find((r) => r.key === 'halfLife')?.derivations.some((n) => /ke = ln2/.test(n))).toBe(true);
+    // per-kg Vd scaling attaches to the vd row.
+    expect(rows.find((r) => r.key === 'vd')?.derivations.some((n) => /scaled/.test(n))).toBe(true);
+    // percent → fraction normalisation attaches to the fractionFormed row.
+    expect(rows.find((r) => r.key === 'fractionFormed')?.derivations.some((n) => /%/.test(n))).toBe(true);
+    // and keM never surfaces as a bare row.
+    expect(rows.map((r) => r.key)).not.toContain('keM');
+  });
+
+  it('lists a metabolite-only citation in the shared bibliography', () => {
+    const compound = parseCompound(metaboliteRawCompound());
+    const parentRows = provenanceEntries(compound, 'iv_bolus');
+    const groups = metaboliteProvenanceEntries(compound, [{ id: 'testmeta', derived: [] }]);
+    // The parent rows cite only `ref`; `metasrc` reaches the panel via the
+    // metabolite rows, exactly the source that was previously surfaced nowhere.
+    expect(citedSources(parentRows).map((c) => c.ref)).not.toContain('metasrc');
+    const cited = citedSources([...parentRows, ...groups.flatMap((g) => g.rows)]);
+    expect(cited.map((c) => c.ref)).toContain('metasrc');
   });
 });
 

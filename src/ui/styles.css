@@ -405,6 +405,24 @@ body {
   color: var(--text);
 }
 
+/* Per-metabolite provenance group (own disposition, grouped under its name). */
+.prov__meta-group {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #242833;
+}
+
+.prov__meta-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+}
+
+.prov__meta-tag {
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
 /* Measured-vs-derived badge. */
 .badge {
   flex: none;
