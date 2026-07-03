@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadAllCompounds, parseCompound } from '../../src/data/loader.ts';
-import { deriveParams, deriveParams2c } from '../../src/data/derive.ts';
+import { deriveParams, deriveParams2c, deriveParams3c } from '../../src/data/derive.ts';
 import type { Route } from '../../src/engine/types.ts';
 import { baseRawCompound } from './_fixtures.ts';
 
@@ -39,10 +39,21 @@ describe('loadAllCompounds — every bundled compound is valid and derivable', (
   for (const compound of compounds) {
     describe(compound.id, () => {
       const twoComp = compound.model === 'two_compartment_first_order';
+      const threeComp = compound.model === 'three_compartment_first_order';
       for (const route of routes) {
         const available = compound.routes[route]?.available;
         if (!available) continue;
         it(`derives engine params for the available ${route} route`, () => {
+          if (threeComp) {
+            // Model-aware dispatch (handoff §12, Stage B): a 3-comp compound resolves
+            // CL/Vc/Q2/Vp2/Q3/Vp3 (IV routes only — oral 3-comp derivation is deferred).
+            const { params } = deriveParams3c(compound, route);
+            for (const v of [params.vc, params.cl, params.q2, params.vp2, params.q3, params.vp3]) {
+              expect(Number.isFinite(v)).toBe(true);
+              expect(v).toBeGreaterThan(0);
+            }
+            return;
+          }
           if (twoComp) {
             // Model-aware dispatch (handoff §12): a 2-comp compound resolves CL/Vc/Q/Vp
             // (plus ka for oral — a tri-exponential parent).

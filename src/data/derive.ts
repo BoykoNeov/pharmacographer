@@ -26,6 +26,7 @@ import type {
   MetaboliteParams,
   PkParams,
   Route,
+  ThreeCompParams,
   TwoCompParams,
 } from '../engine/types.ts';
 import {
@@ -492,6 +493,97 @@ export function deriveParams2c(
     }
   }
 
+  return { params, derived, warnings };
+}
+
+/** Resolved three-compartment engine parameters plus the provenance of what was derived. */
+export interface DerivedParams3c {
+  /** Canonical-unit 3-comp parameters ready for `engine/models3c.ts`. */
+  params: ThreeCompParams;
+  /** What had to be computed (vs read), for the "measured vs derived" UI. */
+  derived: DerivedNote[];
+  /** Cautions: inferred route, per-kg scaling assumption, … */
+  warnings: DeriveWarning[];
+}
+
+/**
+ * Resolve the {@link ThreeCompParams} the engine's `engine/models3c.ts` needs for a
+ * `three_compartment_first_order` compound via `route` (handoff §12, Stage B). Reads
+ * the clinical `disposition3c` block (CL, Vc, Q2, Vp2, Q3, Vp3), scaling any per-kg
+ * volumes/clearances against the reference subject exactly as {@link deriveParams2c}
+ * does. Disposition is route-independent; the infusion DURATION is a dosing/UI input
+ * injected later.
+ *
+ * Covers the IV routes (bolus, infusion). ORAL (a four-exponential parent) is engine-
+ * capable (`engine/models3c.ts` `threeCompOralConcentration`) but its ka-from-Tmax
+ * inversion is not yet wired in this layer, so an oral request throws a clear message
+ * rather than returning a partial parameter set — the same deferral posture the first
+ * 3-comp compound (IV-only) needs (handoff §12).
+ *
+ * Throws if the compound is nonlinear, not three-compartment, missing its
+ * `disposition3c` block (schema-guaranteed, but guarded so the engine never sees a
+ * partial set), or an oral curve is requested.
+ */
+export function deriveParams3c(
+  compound: Compound,
+  route: Route,
+  options: DeriveOptions = {},
+): DerivedParams3c {
+  if (!compound.linear) {
+    throw new Error(
+      `deriveParams3c: "${compound.id}" is nonlinear (linear: false). Superposition is invalid for nonlinear PK; such compounds are excluded from v1 (handoff §8).`,
+    );
+  }
+  if (compound.model !== 'three_compartment_first_order') {
+    throw new Error(
+      `deriveParams3c: "${compound.id}" uses model "${compound.model}", not three_compartment_first_order. Use deriveParams / deriveParams2c for the one- and two-compartment models.`,
+    );
+  }
+  const d3 = compound.disposition3c;
+  if (!d3) {
+    throw new Error(
+      `deriveParams3c: "${compound.id}" is three-compartment but has no disposition3c block (CL, Vc, Q2, Vp2, Q3, Vp3).`,
+    );
+  }
+
+  const weightKg = options.weightKg ?? REFERENCE_WEIGHT_KG;
+  const derived: DerivedNote[] = [];
+  const warnings: DeriveWarning[] = [];
+
+  const vc = resolveVolumeParam(d3.centralVd, 'central Vd', 'vc', weightKg, derived);
+  const vp2 = resolveVolumeParam(d3.peripheralVd2, 'rapid peripheral Vd', 'vp2', weightKg, derived);
+  const vp3 = resolveVolumeParam(d3.peripheralVd3, 'slow peripheral Vd', 'vp3', weightKg, derived);
+  const cl = resolveClearanceParam(d3.clearance, 'clearance', 'cl', weightKg, derived);
+  const q2 = resolveClearanceParam(
+    d3.interCompartmentalClearance2,
+    'inter-compartmental clearance (Q2)',
+    'q2',
+    weightKg,
+    derived,
+  );
+  const q3 = resolveClearanceParam(
+    d3.interCompartmentalClearance3,
+    'inter-compartmental clearance (Q3)',
+    'q3',
+    weightKg,
+    derived,
+  );
+
+  const routeData = compound.routes[route];
+  if (!routeData?.available) {
+    warnings.push({
+      parameter: 'route',
+      message: `route "${route}" is not marked available for "${compound.id}"; this curve is inferred, not based on route-specific data`,
+    });
+  }
+
+  if (route === 'oral') {
+    throw new Error(
+      `deriveParams3c: oral absorption for the three-compartment model is not yet wired (deferred like the diazepam 2-comp oral case). "${compound.id}" supports IV routes only.`,
+    );
+  }
+
+  const params: ThreeCompParams = { vc, cl, q2, vp2, q3, vp3 };
   return { params, derived, warnings };
 }
 

@@ -134,6 +134,33 @@ const Disposition2cSchema = z.strictObject({
   peripheralVd: requiredParam(VolumeOfDistributionUnit),
 });
 
+/**
+ * Three-compartment disposition (handoff §12; the multi-compartment extension,
+ * Stage B). Same citable clinical form as {@link Disposition2cSchema} — clearances
+ * and volumes — but a central compartment exchanging with TWO peripheral ones, so
+ * the engine derives five micro-rate constants and the three eigenvalues α>β>γ
+ * (see `engine/models3c.ts`). Present only on a `three_compartment_first_order`
+ * compound; the route-independent {@link DispositionSchema} (terminal half-life +
+ * steady-state Vd) is still carried alongside for the caption and provenance rows.
+ * Field names map to engine `ThreeCompParams`: centralVd=Vc, clearance=CL,
+ * interCompartmentalClearance2/peripheralVd2 = Q2/Vp2 (rapid peripheral),
+ * interCompartmentalClearance3/peripheralVd3 = Q3/Vp3 (slow peripheral).
+ */
+const Disposition3cSchema = z.strictObject({
+  /** Total (central) clearance, CL — sets AUC = Dose/CL. */
+  clearance: requiredParam(ClearanceUnit),
+  /** Central volume of distribution, Vc — the concentration reference (C = A/Vc). */
+  centralVd: requiredParam(VolumeOfDistributionUnit),
+  /** Inter-compartmental clearance to the rapid peripheral compartment, Q2. */
+  interCompartmentalClearance2: requiredParam(ClearanceUnit),
+  /** Rapid peripheral volume of distribution, Vp2. */
+  peripheralVd2: requiredParam(VolumeOfDistributionUnit),
+  /** Inter-compartmental clearance to the slow (deep) peripheral compartment, Q3. */
+  interCompartmentalClearance3: requiredParam(ClearanceUnit),
+  /** Slow (deep) peripheral volume of distribution, Vp3. */
+  peripheralVd3: requiredParam(VolumeOfDistributionUnit),
+});
+
 /** Oral route: first-order absorption (needs ka, or a Tmax to derive it from). */
 const OralRouteSchema = z.strictObject({
   available: z.boolean(),
@@ -188,7 +215,11 @@ const MetaboliteSchema = z.strictObject({
  * is the v1 model; `two_compartment_first_order` adds a distribution phase and
  * requires the {@link Disposition2cSchema} block.
  */
-const ModelSchema = z.enum(['one_compartment_first_order', 'two_compartment_first_order']);
+const ModelSchema = z.enum([
+  'one_compartment_first_order',
+  'two_compartment_first_order',
+  'three_compartment_first_order',
+]);
 
 // ── Compound ───────────────────────────────────────────────────────────────
 
@@ -223,6 +254,8 @@ export const CompoundSchema = z
     disposition: DispositionSchema,
     /** Two-compartment parameters (§12) — required iff model is two-compartment. */
     disposition2c: Disposition2cSchema.optional(),
+    /** Three-compartment parameters (§12) — required iff model is three-compartment. */
+    disposition3c: Disposition3cSchema.optional(),
     routes: RoutesSchema,
 
     variability: z
@@ -279,6 +312,15 @@ export const CompoundSchema = z
       checkRef(d2.interCompartmentalClearance.sourceRef, 'disposition2c.interCompartmentalClearance');
       checkRef(d2.peripheralVd.sourceRef, 'disposition2c.peripheralVd');
     }
+    if (compound.disposition3c) {
+      const d3 = compound.disposition3c;
+      checkRef(d3.clearance.sourceRef, 'disposition3c.clearance');
+      checkRef(d3.centralVd.sourceRef, 'disposition3c.centralVd');
+      checkRef(d3.interCompartmentalClearance2.sourceRef, 'disposition3c.interCompartmentalClearance2');
+      checkRef(d3.peripheralVd2.sourceRef, 'disposition3c.peripheralVd2');
+      checkRef(d3.interCompartmentalClearance3.sourceRef, 'disposition3c.interCompartmentalClearance3');
+      checkRef(d3.peripheralVd3.sourceRef, 'disposition3c.peripheralVd3');
+    }
     for (const [routeName, route] of Object.entries(compound.routes)) {
       if (!route) continue;
       if ('F' in route && route.F) checkRef(route.F.sourceRef, `routes.${routeName}.F`);
@@ -308,6 +350,23 @@ export const CompoundSchema = z
         code: 'custom',
         message: `disposition2c is only valid for model "two_compartment_first_order", not "${compound.model}"`,
         path: ['disposition2c'],
+      });
+    }
+
+    const isThreeComp = compound.model === 'three_compartment_first_order';
+    if (isThreeComp && !compound.disposition3c) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          'model "three_compartment_first_order" requires a disposition3c block (CL, Vc, Q2, Vp2, Q3, Vp3)',
+        path: ['disposition3c'],
+      });
+    }
+    if (!isThreeComp && compound.disposition3c) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `disposition3c is only valid for model "three_compartment_first_order", not "${compound.model}"`,
+        path: ['disposition3c'],
       });
     }
 

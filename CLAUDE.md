@@ -88,10 +88,11 @@ Follow the phases in handoff §13 — engine + tests before UI. Current state:
 is the sole remaining Phase 7 item. Post-v1: the metabolites (§12) engine core
 landed as a spike; the **multi-compartment (2-compartment) §12 engine extension**
 landed AND is wired into the app (bolus/infusion/oral + metabolites); the first
-2-comp compound (diazepam→nordiazepam) shipped; and the **3-compartment (Stage B)
-engine extension** now landed as a pure-engine spike — cubic eigenvalues via
-bracketed bisection, RK4-cross-checked, NO compound/UI wiring yet (301 tests).
-See the per-milestone notes below.**
+2-comp compound (diazepam→nordiazepam) shipped; the **3-compartment (Stage B)
+engine extension** landed (cubic eigenvalues via bracketed bisection, RK4-cross-checked);
+and that 3-comp model is now **fully wired through data + UI with the first 3-comp compound
+shipped — remifentanil (Minto model), IV bolus + infusion (308 tests)**. See the per-milestone
+notes below.**
 
 **Multi-compartment (2-compartment) §12 engine extension — engine + glue + tests
 landed AND wired into the app (246 tests).** The linear 2-comp model (central +
@@ -204,10 +205,51 @@ self-consistent. **Scope held to a pure-engine spike** (like the metabolite / or
 compounds with citable single-population params are scarce (amiodarone/thiopental are nonlinear /
 unsourceable). The data+UI wiring waits for a real compound.
 
+**3-compartment DATA + UI wiring — LANDED, and the first 3-comp compound SHIPPED: remifentanil
+(Minto model), IV bolus + infusion, 308 tests.** A real citable compound finally justified wiring
+the Stage-B engine through the data/UI layers; it mirrors the 2-comp wiring almost line-for-line.
+(1) **`schema.ts`** — `three_compartment_first_order` in `ModelSchema` + optional `disposition3c`
+block (CL/Vc/Q2/Vp2/Q3/Vp3 full-provenance; field names `centralVd`,
+`interCompartmentalClearance2`/`peripheralVd2`, `interCompartmentalClearance3`/`peripheralVd3`),
+required iff the model is 3-comp and rejected on other models (superRefine + the six sourceRef
+cross-checks). (2) **`derive.ts`** — `deriveParams3c` (reuses `resolveVolumeParam`/
+`resolveClearanceParam`; IV-only — **oral 3-comp derivation THROWS a clear message**, deferred like
+diazepam's oral). (3) **`curve.ts`** — `ThreeCompartmentCurveResult` added to the `CurveResult`
+union; `buildCurve` dispatches 3-comp → `buildCurve3c` (horizon on terminal γ, `criticalTimes3c`
+densifies the fast α/β knees, α/β/γ half-lives for the caption). (4) **`App.tsx` `ModelCaption`** +
+**`ModelAssumptionsNote`** — 3-comp branches ("Three-compartment model", α/β/γ; "Three
+compartments" central + rapid + deep peripheral). The variability slider auto-excludes 3-comp (App
+computes `halfLifeRange` only for one-compartment). Provenance panel is model-agnostic (reads the
+base `disposition` + routes), so the six `disposition3c` params are NOT surfaced there — at parity
+with `disposition2c`. Tests: schema `Disposition3cSchema` block (6 cases), the loader integration
+guard's 3c branch, and the engine was smoke-tested on the REAL Minto regime FIRST (advisor call —
+widely-separated eigenvalues α≫β≫γ, the Cardano-fragile regime the bisection is built for) before
+any wiring. **CURATION (`compounds/remifentanil.json`, `docs/DATA_GUIDE.md`):** remifentanil is the
+clean 3-comp case — genuinely LINEAR (dose-independent CL/Vss; esterase metabolism, no saturable
+enzyme) and directly PARAMETERISED (Minto 1997 reports V1/V2/V3 + Cl1/Cl2/Cl3 outright, so unlike
+diazepam NOTHING is derived offline — all six read straight from the model). It is the FIRST compound
+in absolute L / L·min⁻¹ units (all prior used per-kg; `units.ts` L/min ×60 + absolute-L paths verified).
+Reference individual = the Minto covariate-centred point (age 40, LBM 55 kg → the equation intercepts
+V1=5.1, V2=9.82, V3=5.42 L; CL=2.6, Q2=2.05, Q3=0.076 L/min), adopted AS the 70 kg illustrative
+subject. `disposition.halfLife` carries the ENGINE-computed terminal γ (51 min; the three eigenvalues are
+α t½ 0.67 min / β t½ 6.5 min / γ t½ 51 min) — but the teachable point is AMPLITUDE, not just the
+values: for an IV bolus C(0) splits 88.9% α / 11.0% β / **0.09% γ** (γ≈k31, residue nearly vanishes;
+verified against the engine). So the terminal γ (~51 min) is a real eigenvalue but a sub-0.1%
+deep-compartment tail — NOT the observable terminal decline (the β ~6.5 min phase, which the quoted
+"~10–20 min terminal t½" tracks) and NOT what governs clinical offset (the ~3 min context-sensitive
+half-time). Reading a single "half-life" off this drug misleads three ways — the honesty thesis
+(an earlier draft overclaimed 51 min as "the honest terminal t½ / literature is truncated"; advisor
+caught it, reframed to the amplitude split). `disposition.vd` = ΣVi = 20.34 L (mammillary Vss; reported ~30 L cross-check doesn't move
+the shape). Routes: iv_infusion available (TCI is its real route), iv_bolus inferred (rigidity risk),
+no oral. Verified via throwaway UI-glue tests (C(0)=Dose/V1 exact, tri-phasic ordered, inferred-route
+warning on bolus only) — the metabolite `<Line>` deferral is unaffected (remifentanil has no
+metabolite). 
+
 Deferred follow-on still open: the metabolite `<Line>` rows (nordiazepam is COMPUTED end-to-end
 but not yet DRAWN, for both models), oral-PARENT metabolites (needs residue-form parent modes),
-and the 3-comp DATA+UI wiring (schema/derive/curve dispatch — deferred until a compound justifies
-it). **DONE:** the `ModelAssumptionsNote`
+and oral 3-comp derivation (`deriveParams3c` throws on oral; the engine supports it via
+`oralPeakTime3c`, only the `kaFromTmax3c` inversion is unwired). **DONE:** the 3-comp DATA+UI wiring
+(above); the `ModelAssumptionsNote`
 compartment caveat is now model-aware (`fix(ui)`, commit `6dc022a`) — a 2-comp compound gets a
 "Two compartments" bullet (central/peripheral split, α→β phases) instead of the contradictory
 hardcoded "One compartment"; branched on `compound.model`, verified in the running app.

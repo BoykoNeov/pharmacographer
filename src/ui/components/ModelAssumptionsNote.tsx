@@ -23,7 +23,16 @@ export function ModelAssumptionsNote({ model }: { model: Compound['model'] }) {
     <section className="panel assumptions" aria-label="Model assumptions">
       <h2 className="assumptions__title">What this model assumes</h2>
       <ul className="assumptions__list">
-        {model === 'two_compartment_first_order' ? (
+        {model === 'three_compartment_first_order' ? (
+          <li>
+            <strong>Three compartments.</strong> The body is split into a central
+            volume (blood plus fast-perfusing tissue, where concentration is
+            measured) and two peripheral volumes — a rapidly-equilibrating one and
+            a slow, deep one. The curve shows a steep early (α) distribution drop,
+            a middle (β) phase, then a slow terminal (γ) decline as drug returns
+            from the deep compartment.
+          </li>
+        ) : model === 'two_compartment_first_order' ? (
           <li>
             <strong>Two compartments.</strong> The body is split into a central
             volume (blood plus fast-perfusing tissue, where concentration is

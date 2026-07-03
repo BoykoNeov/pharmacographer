@@ -223,6 +223,13 @@ function ModelCaption({ route, schedule, infusionDuration, curve, concUnit }: Mo
       `distribution t½ ${fmtNum(curve.distributionHalfLifeH)} h · terminal t½ ${fmtNum(curve.terminalHalfLifeH)} h`,
     );
     if (route === 'iv_infusion') parts.push(`infused over ${fmtNum(infusionDuration)} h`);
+  } else if (curve.model === 'three_compartment_first_order') {
+    parts.push('Three-compartment model');
+    parts.push(describeSchedule(schedule, route));
+    parts.push(
+      `distribution t½ ${fmtNum(curve.distributionHalfLifeH)} h · intermediate t½ ${fmtNum(curve.intermediateHalfLifeH)} h · terminal t½ ${fmtNum(curve.terminalHalfLifeH)} h`,
+    );
+    if (route === 'iv_infusion') parts.push(`infused over ${fmtNum(infusionDuration)} h`);
   } else {
     parts.push('One-compartment model');
     parts.push(describeSchedule(schedule, route));

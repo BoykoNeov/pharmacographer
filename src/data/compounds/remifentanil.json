@@ -1,0 +1,93 @@
+{
+  "id": "remifentanil",
+  "schemaVersion": 1,
+  "names": { "inn": "Remifentanil", "brand": ["Ultiva"], "synonyms": ["Remifentanil"] },
+  "model": "three_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 51,
+      "unit": "min",
+      "derived": true,
+      "sourceRef": "minto_1997",
+      "conditions": "terminal (γ-phase) eigenvalue half-life = ln2/γ = 51.0 min, computed by the engine from the disposition3c micro-parameters (γ = 0.815/h; carried here for the caption/provenance rows, and the engine round-trips to it). IMPORTANT — do not read this as 'the' elimination half-life: the terminal γ mode carries only ~0.09% of the initial concentration (the IV-bolus disposition splits 88.9% α + 11.0% β + 0.09% γ by amplitude, because γ = 0.815/h nearly coincides with the deep back-rate k31 = 0.841/h). So 51 min is a very-low-amplitude, near-sub-assay deep-compartment tail, NOT the observable terminal decline (that is the β phase, ~6.5 min) and NOT what governs clinical offset (the ~3 min context-sensitive half-time). See notes."
+    },
+    "vd": {
+      "value": 20.34,
+      "unit": "L",
+      "derived": true,
+      "sourceRef": "minto_1997",
+      "conditions": "steady-state volume of distribution Vd(ss) = V1 + V2 + V3 = 5.1 + 9.82 + 5.42 = 20.34 L (the sum of the three Minto compartment volumes, which IS Vss for a mammillary model), for the reference individual — carried for the caption/provenance rows. Reported whole-blood Vd(ss) for remifentanil is often quoted higher (~30 L); that discrepancy is a between-study/assay difference and does NOT change the plotted curve, whose shape is set by the six disposition3c parameters (C(0) = Dose/V1). Already absolute litres (no per-kg scaling)."
+    }
+  },
+  "disposition3c": {
+    "clearance": {
+      "value": 2.6,
+      "unit": "L/min",
+      "derived": false,
+      "sourceRef": "minto_1997",
+      "conditions": "central (metabolic) clearance CL (Cl1) for the Minto reference individual (age 40, lean body mass 55 kg) — 2.6 L/min = 156 L/h. High extrahepatic clearance by non-specific blood/tissue esterases; sets AUC = Dose/CL."
+    },
+    "centralVd": {
+      "value": 5.1,
+      "unit": "L",
+      "derived": false,
+      "sourceRef": "minto_1997",
+      "conditions": "central volume V1 for the Minto reference individual (age 40, LBM 55 kg) — the concentration reference C(0) = Dose/V1. Read directly from the Minto 1997 covariate model at its centred reference point (the equation intercept); no offline derivation."
+    },
+    "interCompartmentalClearance2": {
+      "value": 2.05,
+      "unit": "L/min",
+      "derived": false,
+      "sourceRef": "minto_1997",
+      "conditions": "inter-compartmental clearance Q2 (Cl2) to the rapidly-equilibrating peripheral compartment, Minto reference individual — 2.05 L/min = 123 L/h. Drives the fast α distribution phase."
+    },
+    "peripheralVd2": {
+      "value": 9.82,
+      "unit": "L",
+      "derived": false,
+      "sourceRef": "minto_1997",
+      "conditions": "rapidly-equilibrating peripheral volume V2, Minto reference individual (age 40, LBM 55 kg)."
+    },
+    "interCompartmentalClearance3": {
+      "value": 0.076,
+      "unit": "L/min",
+      "derived": false,
+      "sourceRef": "minto_1997",
+      "conditions": "inter-compartmental clearance Q3 (Cl3) to the slow (deep) peripheral compartment, Minto reference individual — 0.076 L/min = 4.56 L/h. The small Q3 and its slow deep volume govern the long terminal γ phase."
+    },
+    "peripheralVd3": {
+      "value": 5.42,
+      "unit": "L",
+      "derived": false,
+      "sourceRef": "minto_1997",
+      "conditions": "slow (deep) peripheral volume V3 — fixed at 5.42 L in the Minto model (no covariate dependence), so it is identical for every reference individual."
+    }
+  },
+  "routes": {
+    "iv_infusion": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    },
+    "iv_bolus": {
+      "available": false,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "minto_1997": {
+      "type": "Journal article",
+      "title": "Minto CF, Schnider TW, Egan TD, et al. Influence of age and gender on the pharmacokinetics and pharmacodynamics of remifentanil. I. Model development. Anesthesiology. 1997;86(1):10–23 (three-compartment mammillary model; V1/V2/V3, Cl1/Cl2/Cl3 as covariate functions of age and lean body mass; reference values are the equation intercepts at age 40, LBM 55 kg)",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/9009935/",
+      "accessed": "2026-07-03"
+    },
+    "fda_label": {
+      "type": "FDA label",
+      "title": "ULTIVA (remifentanil hydrochloride) for injection — FDA Structured Product Label, clinical pharmacology (linear/dose-proportional pharmacokinetics; rapid metabolism by non-specific blood and tissue esterases to an essentially inactive acid metabolite; blood-brain equilibration ~1 min; context-sensitive half-time ~3–5 min independent of infusion duration)",
+      "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2017/020630s018lbl.pdf",
+      "accessed": "2026-07-03"
+    }
+  },
+  "notes": "FIRST real three-compartment compound (handoff §12, Stage B), and the first to exercise the absolute-litre / L-per-min disposition units (every prior compound used per-kg forms). Remifentanil is a µ-opioid agonist given by IV infusion in anaesthesia; it is modelled here purely to illustrate a tri-phasic (α/β/γ) disposition curve. EDUCATIONAL ILLUSTRATION ONLY — not a dosing or clinical tool.\n\nWHY REMIFENTANIL. It is the textbook clean case: (1) genuinely LINEAR — the FDA label and Minto 1997 both report dose-proportional exposure with dose-independent clearance and Vss, because elimination is by high-capacity non-specific esterases (no saturable enzyme, no autoinhibition); (2) directly PARAMETERISED as a three-compartment model — Minto 1997 reports V1/V2/V3 and Cl1/Cl2/Cl3 outright, so unlike diazepam (whose Q/Vp had to be back-computed offline) NOTHING here is derived — all six disposition3c values are read straight from the model; (3) IV-only, so there is no oral absorption to source (and oral 3-comp derivation is deferred anyway).\n\nREFERENCE INDIVIDUAL = THE ILLUSTRATIVE SUBJECT. The Minto parameters are covariate functions of age and lean body mass. Rather than pick a specific person (whose LBM depends on height and the choice of LBM formula), this file uses the model's OWN centred reference point — age 40, LBM 55 kg — at which each covariate equation collapses to its intercept: V1=5.1 L, V2=9.82 L, V3=5.42 L (fixed), Cl1=2.6, Cl2=2.05, Cl3=0.076 L/min. These intercepts are the canonical, unambiguous 'Minto reference' values and are directly citable. LBM 55 kg is consistent with a ~70 kg adult, so we adopt the Minto reference individual AS the project's 70 kg illustrative subject for this compound (our subject is otherwise specified only by weight; Minto needs a fuller covariate point, and this is the honest bridge). No per-kg scaling is applied — the values are already absolute litres / L·min⁻¹ for that individual.\n\nTHE THREE HALF-LIVES, BY AMPLITUDE — the teachable moment. The engine computes three eigenvalues: α t½ ≈ 0.67 min (distribution), β t½ ≈ 6.5 min (intermediate), γ t½ ≈ 51 min (terminal). But their AMPLITUDES are wildly unequal: for an IV bolus the initial concentration splits 88.9% into the α mode, 11.0% into β, and just 0.09% into the terminal γ mode (γ = 0.815/h sits almost exactly on the deep back-rate k31 = 0.841/h, so its residue nearly vanishes). Three distinct 'half-lives' coexist and NONE alone describes the drug: (a) the terminal γ (~51 min) is a real eigenvalue but a sub-0.1%, near-sub-assay deep-compartment tail — NOT 'the' terminal half-life a study would report; (b) the β phase (~6.5 min) carries essentially all of the observable terminal decline and is the region the commonly-quoted 'terminal half-life ~10–20 min' figures track; (c) neither governs clinical offset — that is the ~3 min CONTEXT-SENSITIVE half-time, a whole-system property no single eigenvalue captures. disposition.halfLife carries the engine's terminal γ (51 min) because that is definitionally the terminal (slowest) eigenvalue, but the whole point of shipping remifentanil is that reading it as 'the half-life' misleads three different ways at once — this project's epistemic-honesty thesis, now visible in the α/β/γ caption. (The 88.9/11.0/0.09% amplitude split is computed from the stored parameters, not cited.)\n\nVd(ss). disposition.vd is the sum V1+V2+V3 = 20.34 L (= Vss for a mammillary model), carried only for the caption/provenance rows. Reported blood Vd(ss) is sometimes quoted nearer ~30 L (assay/population differences); that does not affect the plotted curve, whose shape is fixed by the six disposition3c parameters and whose initial concentration is Dose/V1.\n\nROUTES. iv_infusion is marked available — continuous infusion (and TCI) is remifentanil's real clinical route and the setting the Minto model was built for. iv_bolus is offered as inferred (available:false): a rapid bolus is not standard (it risks opioid-induced muscle/chest-wall rigidity) and is shown only to illustrate the instantaneous-input curve shape. Oral is not offered (remifentanil is not given orally, and oral 3-comp derivation is deferred).\n\nDOSE SCALE. Clinical remifentanil doses are in MICROGRAMS (a bolus is tens of µg; infusions are µg·kg⁻¹·min⁻¹). The plotter's generic milligram dose field and the linear curve still illustrate the correct SHAPE and the α/β/γ structure; the concentration-unit toggle (µg/mL, ng/mL) puts the y-axis in familiar territory. The absolute numbers are illustrative, per the standing disclaimer."
+}

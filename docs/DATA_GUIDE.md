@@ -111,6 +111,39 @@ structure (now representable) but on a citable single-value `fm` (procainamide's
 acetylator-bimodal; cefotaxime's ~33% is citable, so it is the next candidate once its
 2-comp micro-parameters are sourced or derived the way diazepam's were).
 
+### Three-compartment compounds — remifentanil shipped
+
+The 3-compartment model (§12, Stage B) is now wired through data + UI, with the first
+compound shipped: **remifentanil (`compounds/remifentanil.json`), the Minto 1997 model,
+IV bolus + infusion.** It is the clean 3-comp case and worth studying as a template:
+
+- **Genuinely linear + directly parameterised.** Remifentanil's clearance and Vss are
+  dose-independent (esterase metabolism — no saturable enzyme), and Minto 1997 reports
+  V1/V2/V3 and Cl1/Cl2/Cl3 outright. So, unlike diazepam (whose Q/Vp were back-computed
+  offline), **nothing is derived** — all six `disposition3c` parameters are read straight
+  from the model. It is also the first compound stored in **absolute litres and L/min**
+  rather than per-kg forms.
+- **Reference individual = the illustrative subject.** The Minto parameters are covariate
+  functions of age and lean body mass. Rather than pick a specific person, the file uses
+  the model's own centred reference point (age 40, LBM 55 kg), at which each equation
+  collapses to its intercept — the canonical, unambiguous "Minto reference" values —
+  adopted as the project's 70 kg illustrative subject.
+- **The three half-lives, by amplitude — the teachable moment.** The engine finds
+  α t½ ~0.67 min, β t½ ~6.5 min, γ t½ ~51 min, but for an IV bolus the initial
+  concentration splits **88.9% / 11.0% / 0.09%** across them (γ ≈ the deep back-rate
+  k31, so its residue nearly vanishes). So the terminal γ (~51 min) is a real eigenvalue
+  but a sub-0.1% deep-compartment tail — *not* the observable terminal decline; the β
+  phase (~6.5 min) carries that and is what the commonly-quoted "~10–20 min terminal
+  half-life" tracks; and neither governs clinical offset, which is the ~3 min
+  **context-sensitive half-time**. `disposition.halfLife` carries the terminal γ
+  (definitionally the terminal eigenvalue), but the lesson is that reading a single
+  "half-life" off this drug misleads three different ways — this project's honesty thesis.
+  (The amplitude split is computed from the stored parameters, not cited.)
+- **Routes.** IV infusion is marked available (continuous/TCI is its real clinical route);
+  IV bolus is offered as inferred (a rapid bolus risks chest-wall rigidity); oral is not
+  offered (remifentanil is not given orally, and oral 3-comp derivation is deferred — the
+  engine supports it, only the ka-from-Tmax inversion is unwired).
+
 ## The schema (one JSON file per compound)
 
 Each parameter is an object carrying provenance. Disposition parameters (Vd, t½,

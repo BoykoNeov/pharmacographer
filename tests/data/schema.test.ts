@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CompoundSchema } from '../../src/data/schema.ts';
 import dataGuide from '../../docs/DATA_GUIDE.md?raw';
-import { baseRawCompound, baseRawTwoCompCompound } from './_fixtures.ts';
+import { baseRawCompound, baseRawThreeCompCompound, baseRawTwoCompCompound } from './_fixtures.ts';
 
 /**
  * The schema is a guardrail, not a formality (handoff §8): it must reject the
@@ -214,6 +214,55 @@ describe('Disposition2cSchema validation', () => {
   it('rejects an unknown key inside disposition2c (strictObject)', () => {
     const raw = baseRawTwoCompCompound();
     (raw.disposition2c as Record<string, unknown>).k12 = { value: 1 }; // not a stored field
+    expect(CompoundSchema.safeParse(raw).success).toBe(false);
+  });
+});
+
+/**
+ * Three-compartment compounds (handoff §12, Stage B) must carry a `disposition3c`
+ * block iff the model is `three_compartment_first_order`, with its six parameters'
+ * sourceRefs resolving into the same bibliography as every other parameter.
+ */
+describe('Disposition3cSchema validation', () => {
+  it('accepts a valid three-compartment compound', () => {
+    expect(CompoundSchema.safeParse(baseRawThreeCompCompound()).success).toBe(true);
+  });
+
+  it('rejects a 3-comp compound missing its disposition3c block', () => {
+    const raw = baseRawThreeCompCompound();
+    delete raw.disposition3c;
+    const result = CompoundSchema.safeParse(raw);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => /disposition3c/.test(i.message))).toBe(true);
+    }
+  });
+
+  it('rejects a disposition3c block on a one-compartment compound (ignored block)', () => {
+    const raw = baseRawCompound();
+    raw.disposition3c = (baseRawThreeCompCompound() as { disposition3c: unknown }).disposition3c;
+    expect(CompoundSchema.safeParse(raw).success).toBe(false);
+  });
+
+  it('rejects a disposition2c block on a three-compartment compound', () => {
+    const raw = baseRawThreeCompCompound();
+    raw.disposition2c = (baseRawTwoCompCompound() as { disposition2c: unknown }).disposition2c;
+    expect(CompoundSchema.safeParse(raw).success).toBe(false);
+  });
+
+  it('rejects a dangling sourceRef inside disposition3c', () => {
+    const raw = baseRawThreeCompCompound();
+    (raw.disposition3c as { clearance: { sourceRef: string } }).clearance.sourceRef = 'nonexistent';
+    const result = CompoundSchema.safeParse(raw);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => /sourceRef/.test(i.message))).toBe(true);
+    }
+  });
+
+  it('rejects an unknown key inside disposition3c (strictObject)', () => {
+    const raw = baseRawThreeCompCompound();
+    (raw.disposition3c as Record<string, unknown>).k12 = { value: 1 }; // not a stored field
     expect(CompoundSchema.safeParse(raw).success).toBe(false);
   });
 });
