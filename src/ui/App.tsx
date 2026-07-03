@@ -183,7 +183,7 @@ export function App() {
           {curve.ok && compound && (
             <aside className="honesty" aria-label="Provenance and assumptions">
               <ProvenancePanel compound={compound} route={route} derived={curve.value.derived} />
-              <ModelAssumptionsNote />
+              <ModelAssumptionsNote model={compound.model} />
             </aside>
           )}
         </main>
