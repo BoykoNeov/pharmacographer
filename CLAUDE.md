@@ -245,14 +245,38 @@ no oral. Verified via throwaway UI-glue tests (C(0)=Dose/V1 exact, tri-phasic or
 warning on bolus only) — the metabolite `<Line>` deferral is unaffected (remifentanil has no
 metabolite). 
 
-Deferred follow-on still open: the metabolite `<Line>` rows (nordiazepam is COMPUTED end-to-end
-but not yet DRAWN, for both models), oral-PARENT metabolites (needs residue-form parent modes),
-and oral 3-comp derivation (`deriveParams3c` throws on oral; the engine supports it via
-`oralPeakTime3c`, only the `kaFromTmax3c` inversion is unwired). **DONE:** the 3-comp DATA+UI wiring
-(above); the `ModelAssumptionsNote`
-compartment caveat is now model-aware (`fix(ui)`, commit `6dc022a`) — a 2-comp compound gets a
-"Two compartments" bullet (central/peripheral split, α→β phases) instead of the contradictory
-hardcoded "One compartment"; branched on `compound.model`, verified in the running app.
+**Metabolite `<Line>` rows — LANDED (pure-UI; both models; 308 tests unchanged).** The metabolite
+curves were already COMPUTED end-to-end (`buildCurve`/`buildCurve2c` populate `metabolites:
+MetaboliteCurve[]` on `CurveResultBase`); they are now DRAWN. Two files: (1) **`ui/App.tsx`** passes
+`curve.value.metabolites` + `parentName={compound.names.inn}` to the chart, and folds each
+metabolite's `warnings` into the shared `WarningsStrip` (dormant for diazepam — fm 55% is in range —
+but honest plumbing so a metabolite caution is never dropped). (2) **`ui/components/ConcentrationChart.tsx`**
+— a dashed `<Line>` per metabolite (hue cycled from `METABOLITE_COLORS`, distinct from the parent
+blue and the yellow Cmax marker), a top `<Legend>` (only when metabolites present) naming the parent
+and each metabolite as "… — active metabolite"/"… — metabolite", and tooltip rows for each. Design
+spine (advisor-reviewed): the chart is **model-agnostic** — it consumes the identical `MetaboliteCurve[]`
+whichever path built it, so "both models" falls out with NO `model` branch. Metabolites zip to `points`
+by INDEX (both build paths evaluate them over the same `times` array — no merge-on-`t`). The
+load-bearing gotcha: **every metabolite has `C(0)=0` (an oracle)**, so its t=0 sample is nulled on the
+semi-log axis exactly like the main line (`isLog && !(c>0) ? null : c`) — else semi-log blanks/dives
+the metabolite; and metabolite positives are added to the log-domain `positives` (nordiazepam
+accumulates ABOVE the parent late, so it would overflow otherwise). Scope held to lines+legend+tooltip:
+the `provenance.ts`/`ProvenancePanel` metabolite rows remain a SEPARATE deferred item (the metabolite's
+per-parameter `derived`/source rows are still not surfaced in the honesty panel). Verified in the running
+app (throwaway Playwright driver): diazepam/iv_bolus draws the solid-blue parent + dashed-orange
+nordiazepam with a top legend; tooltip shows both (nordiazepam 0.50 vs parent 0.031 mg/L at t=250 h —
+the late crossover); **semi-log renders both across the full decade range without blanking**; the
+metabolite line DROPS on iv_infusion (the `route==='iv_bolus'` gate) and is absent for a no-metabolite
+compound (caffeine — single line, no legend); no console errors.
+
+Deferred follow-on still open: the `provenance.ts`/`ProvenancePanel` metabolite rows (the metabolite's
+own `derived`/source provenance is still not surfaced), oral-PARENT metabolites (needs residue-form
+parent modes; the metabolite gate is still `route==='iv_bolus'`), and oral 3-comp derivation
+(`deriveParams3c` throws on oral; the engine supports it via `oralPeakTime3c`, only the `kaFromTmax3c`
+inversion is unwired). **DONE:** the metabolite `<Line>` rows (above); the 3-comp DATA+UI wiring; the
+`ModelAssumptionsNote` compartment caveat is now model-aware (`fix(ui)`, commit `6dc022a`) — a 2-comp
+compound gets a "Two compartments" bullet (central/peripheral split, α→β phases) instead of the
+contradictory hardcoded "One compartment"; branched on `compound.model`, verified in the running app.
 
 **Metabolites spike — engine core landed, UI + real compound deferred.** The §12
 metabolites extension was de-risked end-to-end through the data layer (192 tests).
@@ -270,9 +294,10 @@ fm normalisation). (5) **`ui/curve.ts`** `buildCurve` returns `metabolites: Meta
 — **only for `route === 'iv_bolus'`** (the mono-exponential-parent gate; also excludes
 infusion), formation driven by the plotted `mainKe` (slider reshapes the metabolite but
 preserves its AUC), and the horizon is sized on the slowest of parent/band/metabolite ke
-so a long-lived metabolite isn't clipped. **Deferred (not done):** the React `<Line>` +
-`provenance.ts`/`ProvenancePanel` metabolite rows (needs visual verification), and a real
-demo compound. **No real compound shipped** — the mono-exponential-parent assumption needs
+so a long-lived metabolite isn't clipped. **Since landed:** the React `<Line>` rows are now
+DRAWN (see the "Metabolite `<Line>` rows" note above) and a real demo compound shipped
+(diazepam→nordiazepam). **Still deferred:** the `provenance.ts`/`ProvenancePanel` metabolite
+rows (the metabolite's own per-parameter provenance is not yet surfaced in the honesty panel). **No real compound shipped** — the mono-exponential-parent assumption needs
 a one-compartment IV parent, and every vetted pair is two-compartment (rejection log in
 `docs/DATA_GUIDE.md`): **diazepam→nordiazepam** (2-compartment + uncited fm),
 **procainamide→NAPA** (2-compartment + acetylator-dependent fm), **cefotaxime→desacetyl-**

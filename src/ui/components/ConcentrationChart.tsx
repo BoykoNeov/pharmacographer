@@ -21,6 +21,7 @@ import {
   ComposedChart,
   CartesianGrid,
   Label,
+  Legend,
   Line,
   ReferenceDot,
   ResponsiveContainer,
@@ -35,9 +36,20 @@ import {
   type BandPoint,
   type ConcentrationDisplayUnit,
   type CurvePoint,
+  type MetaboliteCurve,
 } from '../curve.ts';
 
 type YScale = 'linear' | 'log';
+
+/** The parent (main) line colour — the accent used across the app. */
+const PARENT_COLOR = '#5b9dd9';
+
+/**
+ * Distinct hues for metabolite lines, cycled by index. Chosen to stand clear of
+ * the parent blue and the yellow Cmax marker; metabolite lines are also dashed,
+ * so the legend — not the colour alone — carries "this is a computed metabolite".
+ */
+const METABOLITE_COLORS = ['#e0794f', '#9b8cf5', '#4fbf9f', '#d95b9d'];
 
 interface ConcentrationChartProps {
   points: CurvePoint[];
@@ -46,6 +58,16 @@ interface ConcentrationChartProps {
    * Absent when the compound reports no half-life range.
    */
   band?: BandPoint[];
+  /**
+   * Metabolite curves to overlay (handoff §12). Each is drawn as its own dashed
+   * line sharing the parent's time grid (evaluated over the same `times` in
+   * `buildCurve`, so they zip to `points` by index). Present only for an IV-bolus
+   * parent that declares metabolites; model-agnostic (both 1- and 2-comp paths
+   * populate identical {@link MetaboliteCurve}s).
+   */
+  metabolites?: MetaboliteCurve[];
+  /** Parent compound display name — the legend label for the main line. */
+  parentName: string;
   /** Right edge of the time axis, h. */
   horizonH: number;
   /** The model-predicted peak (Cmax at Tmax) of the main curve, marked on the plot. */
@@ -75,6 +97,15 @@ interface ChartDatum {
   band?: [number, number];
   /** The true, unclamped band for the tooltip — honest even where the Area floors. */
   bandRaw?: [number, number];
+  /** True (unclamped) metabolite concentrations by id, for the tooltip. */
+  mRaw?: Record<string, number>;
+  /**
+   * Metabolite series columns, keyed `m_<id>`. Log-nulled like the main `c` so a
+   * metabolite's C(0) = 0 (an oracle for every metabolite) breaks the line on the
+   * semi-log axis instead of blanking or diving it. Template-literal index
+   * signature so these dynamic keys don't loosen the typed fields above.
+   */
+  [metaboliteKey: `m_${string}`]: number | null;
 }
 
 /**
@@ -88,16 +119,35 @@ function ConcTooltip(props: {
   active?: boolean;
   payload?: { payload: ChartDatum }[];
   concUnit: ConcentrationDisplayUnit;
+  /** Metabolites to add rows for, with the colour of their line. */
+  metabolites: { id: string; name: string; color: string }[];
+  /** Parent display name for its concentration row (when metabolites are shown). */
+  parentName: string;
 }) {
-  const { active, payload, concUnit } = props;
+  const { active, payload, concUnit, metabolites, parentName } = props;
   if (!active || !payload || payload.length === 0) return null;
+  // Recharts hands one payload entry per series, but they all share the same
+  // `.payload` datum — read metabolite columns off it by known key, never by
+  // iterating `payload` (which mixes parent and metabolite entries).
   const datum = payload[0]?.payload;
   if (!datum) return null;
   const fmt = (v: number) => `${fmtNum(toDisplayConcentration(v, concUnit))} ${concUnit}`;
+  const hasMetabolites = metabolites.length > 0;
   return (
     <div style={TOOLTIP_STYLE}>
       <div>t = {fmtNum(datum.t, 3)} h</div>
-      <div>Concentration: {datum.c == null ? '—' : fmt(datum.c)}</div>
+      <div>
+        {hasMetabolites ? `${parentName}: ` : 'Concentration: '}
+        {datum.c == null ? '—' : fmt(datum.c)}
+      </div>
+      {metabolites.map((m) => {
+        const value = datum.mRaw?.[m.id];
+        return (
+          <div key={m.id} style={{ color: m.color }}>
+            {m.name}: {value == null ? '—' : fmt(value)}
+          </div>
+        );
+      })}
       {datum.bandRaw && (
         <>
           <div style={{ color: '#9aa0a6' }}>Short t½ (fast elim.): {fmt(datum.bandRaw[0])}</div>
@@ -111,6 +161,8 @@ function ConcTooltip(props: {
 export function ConcentrationChart({
   points,
   band,
+  metabolites,
+  parentName,
   horizonH,
   peak,
   concUnit,
@@ -120,10 +172,20 @@ export function ConcentrationChart({
   const [showPeak, setShowPeak] = useState(true);
   const isLog = yScale === 'log';
 
-  // The log axis spans every plotted series, band included.
+  const metas = metabolites ?? [];
+  // Pair each metabolite with a stable line colour (cycled) once, so the line,
+  // legend, and tooltip all agree.
+  const metaSeries = metas.map((m, i) => ({
+    ...m,
+    color: METABOLITE_COLORS[i % METABOLITE_COLORS.length]!,
+  }));
+
+  // The log axis spans every plotted series — band and metabolites included, or a
+  // metabolite that accumulates above the parent (e.g. nordiazepam) overflows.
   const positives = [
     ...points.map((p) => p.c),
     ...(band ?? []).flatMap((b) => [b.cLow, b.cHigh]),
+    ...metas.flatMap((m) => m.points.map((p) => p.c)),
   ].filter((c) => c > 0);
   const minPositive = positives.length > 0 ? Math.min(...positives) : 1e-6;
   const maxPositive = positives.length > 0 ? Math.max(...positives) : 1;
@@ -147,12 +209,25 @@ export function ConcentrationChart({
   const clampLog = (value: number): number => (isLog && !(value > 0) ? minPositive : value);
   const data: ChartDatum[] = points.map((point, i) => {
     const b = band?.[i];
-    return {
+    const row: ChartDatum = {
       t: point.t,
       c: isLog && !(point.c > 0) ? null : point.c,
       band: b ? [clampLog(b.cLow), clampLog(b.cHigh)] : undefined,
       bandRaw: b ? [b.cLow, b.cHigh] : undefined,
     };
+    if (metaSeries.length > 0) {
+      const mRaw: Record<string, number> = {};
+      for (const m of metaSeries) {
+        // Metabolites share the parent grid (same `times`), so index-align — no
+        // merge on `t`. C(0) = 0 (a metabolite oracle) is nulled on the log axis
+        // exactly like the main line so semi-log breaks the line, not the axis.
+        const raw = m.points[i]?.c ?? 0;
+        mRaw[m.id] = raw;
+        row[`m_${m.id}`] = isLog && !(raw > 0) ? null : raw;
+      }
+      row.mRaw = mRaw;
+    }
+    return row;
   });
 
   return (
@@ -238,28 +313,58 @@ export function ConcentrationChart({
                 style={{ textAnchor: 'middle' }}
               />
             </YAxis>
-            <Tooltip content={<ConcTooltip concUnit={concUnit} />} />
+            <Tooltip
+              content={
+                <ConcTooltip
+                  concUnit={concUnit}
+                  metabolites={metaSeries}
+                  parentName={parentName}
+                />
+              }
+            />
+            {metaSeries.length > 0 && (
+              <Legend verticalAlign="top" height={28} iconType="plainline" />
+            )}
             {band && (
               <Area
                 type="monotone"
                 dataKey="band"
                 stroke="none"
-                fill="#5b9dd9"
+                fill={PARENT_COLOR}
                 fillOpacity={0.18}
                 isAnimationActive={false}
                 activeDot={false}
                 tooltipType="none"
+                legendType="none"
               />
             )}
             <Line
               type="monotone"
               dataKey="c"
-              stroke="#5b9dd9"
+              name={parentName}
+              stroke={PARENT_COLOR}
               strokeWidth={2}
               dot={false}
               isAnimationActive={false}
               connectNulls={false}
             />
+            {/* Metabolites: computed (handoff §12), drawn dashed and hued to read
+                as secondary; the legend names each so the dashing isn't the only
+                signal. Rendered after the parent so the parent stays the headline. */}
+            {metaSeries.map((m) => (
+              <Line
+                key={m.id}
+                type="monotone"
+                dataKey={`m_${m.id}`}
+                name={`${m.name}${m.active ? ' — active metabolite' : ' — metabolite'}`}
+                stroke={m.color}
+                strokeWidth={1.75}
+                strokeDasharray="6 4"
+                dot={false}
+                isAnimationActive={false}
+                connectNulls={false}
+              />
+            ))}
             {showPeak && peak.c > 0 && (
               <ReferenceDot
                 x={peak.t}

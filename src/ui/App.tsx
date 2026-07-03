@@ -158,6 +158,8 @@ export function App() {
                 <ConcentrationChart
                   points={curve.value.points}
                   band={curve.value.band}
+                  metabolites={curve.value.metabolites}
+                  parentName={compound?.names.inn ?? 'Parent'}
                   horizonH={curve.value.horizonH}
                   peak={curve.value.peak}
                   concUnit={concUnit}
@@ -171,7 +173,15 @@ export function App() {
                   concUnit={concUnit}
                 />
                 <PeakNote route={route} schedule={schedule} />
-                <WarningsStrip warnings={curve.value.warnings} />
+                {/* Metabolite derivation cautions are folded in alongside the
+                    parent's — currently dormant (diazepam's fm is in range) but
+                    honest plumbing so a metabolite warning is never dropped. */}
+                <WarningsStrip
+                  warnings={[
+                    ...curve.value.warnings,
+                    ...(curve.value.metabolites?.flatMap((m) => m.warnings) ?? []),
+                  ]}
+                />
               </>
             ) : (
               <div className="chart-error" role="alert">
