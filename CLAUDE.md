@@ -86,8 +86,12 @@ all pass.
 Follow the phases in handoff §13 — engine + tests before UI. Current state:
 **Phase 7 data expansion + all three chart refinements done; static-site deploy
 is the sole remaining Phase 7 item. Post-v1: the metabolites (§12) engine core
-landed as a spike, and the **multi-compartment (2-compartment) §12 engine
-extension** now landed (engine + glue + tests; see below).**
+landed as a spike; the **multi-compartment (2-compartment) §12 engine extension**
+landed AND is wired into the app (bolus/infusion/oral + metabolites); the first
+2-comp compound (diazepam→nordiazepam) shipped; and the **3-compartment (Stage B)
+engine extension** now landed as a pure-engine spike — cubic eigenvalues via
+bracketed bisection, RK4-cross-checked, NO compound/UI wiring yet (301 tests).
+See the per-milestone notes below.**
 
 **Multi-compartment (2-compartment) §12 engine extension — engine + glue + tests
 landed AND wired into the app (246 tests).** The linear 2-comp model (central +
@@ -164,9 +168,46 @@ compound): picker offers Oral, curve renders as a proper tri-exponential (absorp
 tail), Cmax marker lands at the target Tmax, derived-ka provenance row shows. **Metabolite-from-
 oral-parent stays deferred** (the metabolite gate is still `route==='iv_bolus'`).
 
+**Three-compartment parent — Stage B LANDED (engine + tests; NO compound shipped; 301 tests).**
+The mode-based spine paid off: the ONLY new disposition code is `models3c.ts` computing three
+`ExpMode`s; bolus/infusion/oral all fall out of the shared `modes.ts` drivers unchanged, and
+the metabolite core already takes arbitrary modes. Where 2-comp eigenvalues are a QUADRATIC, the
+three eigenvalues α > β > γ are the roots of the characteristic **CUBIC** `p(λ)=λ³−a₂λ²+a₁λ−a₀`.
+**Solved by bracketed bisection, NOT Cardano/trig** (advisor call): the closed-form trig solution's
+fragility (arccos drifting outside [−1,1]→NaN, cancellation at the widely-separated PK regime
+α≫β≫γ) lands exactly where the oracles can't see it, and numeric roots violate nothing since
+correctness rests on analytic ORACLES (AUC=D/CL, C(0)=D/Vc, terminal=−γ). The key: `p'(λ)` is a
+QUADRATIC (closed form) whose two roots strictly separate the three cubic roots, so each sits in a
+guaranteed-sign-change bracket and bisects out ORDERED (auto α/β/γ) — reusing `oralPeakTime2c`'s
+200-iter idiom. Landed: (1) **`engine/types.ts`** — `ThreeCompParams` (CL/Vc/Q2/Vp2/Q3/Vp3 + oral/
+infusion). (2) **`engine/models3c.ts`** — `threeCompRates` (micro-constants k10/k12/k21/k13/k31 +
+cubic bisection via the derivative-quadratic brackets), `threeCompModes` (residue coefficients
+`g_λ=(k21−λ)(k31−λ)/[Vc·Π_{μ≠λ}(μ−λ)]`, whose Σ=1/Vc by a Lagrange divided-difference identity ⇒
+C(0)=D/Vc; degeneracy guard DROPS a coinciding mode since its numerator also →0 at every physical
+collapse edge, same defensive posture as 2-comp's α≈β fallback), route dispatch + `oralPeakTime3c`
++ `concentrationCurve3c`. `models.ts`/`models2c.ts` UNTOUCHED. (3) **`engine/metabolite.ts`** —
+`singleDose3cMetaboliteConcentration` + `metabolite3cConcentrationCurve` (drive the existing
+mode-core off `threeCompModes`). Import DAG stays acyclic (models3c→models+modes;
+metabolite→modes+models2c+models3c). Oracles (collapse written FIRST): **Q3→0 reproduces the 2-comp
+curve AND 2-comp metabolite exactly (12-digit) for every route; Q2,Q3→0 reproduces the 1-comp curve
+AND 1-comp metabolite exactly** (the double-zero-root degeneracy the guard must drop cleanly); plus
+C(0)=D/Vc, Σg=1/Vc, AUC=D/CL, terminal=−γ, infusion continuity/plateau, oral peak, superposition.
+**Critical de-risking catch (2nd advisor pass):** the Vieta / "root of the cubic" tests are
+CIRCULAR (they confirm the solver found roots of the polynomial we wrote, not that it's the true
+characteristic one), AUC pins only a₀, and the collapse tests zero out a₁'s coupling terms — so a₁
+(the coefficient carrying the 3-comp coupling) was UNVERIFIED. Fixed with an independent **RK4
+integration of the defining compartment ODEs** matching `A1(t)/Vc` to the analytic curve
+(bypasses all coefficient algebra); mutation-tested (flipping a₁'s `e2·e3` sign makes ONLY the RK4
+check fail while the circular tests pass) — so the cubic is genuinely de-risked, not just
+self-consistent. **Scope held to a pure-engine spike** (like the metabolite / oral-2c spikes): NO
+`schema.ts`/`derive.ts`/`ModelCaption`/`ModelAssumptionsNote` wiring, NO compound — 3-comp linear
+compounds with citable single-population params are scarce (amiodarone/thiopental are nonlinear /
+unsourceable). The data+UI wiring waits for a real compound.
+
 Deferred follow-on still open: the metabolite `<Line>` rows (nordiazepam is COMPUTED end-to-end
 but not yet DRAWN, for both models), oral-PARENT metabolites (needs residue-form parent modes),
-and **3-compartment** (Stage B — cubic eigenvalue solve). **DONE:** the `ModelAssumptionsNote`
+and the 3-comp DATA+UI wiring (schema/derive/curve dispatch — deferred until a compound justifies
+it). **DONE:** the `ModelAssumptionsNote`
 compartment caveat is now model-aware (`fix(ui)`, commit `6dc022a`) — a 2-comp compound gets a
 "Two compartments" bullet (central/peripheral split, α→β phases) instead of the contradictory
 hardcoded "One compartment"; branched on `compound.model`, verified in the running app.

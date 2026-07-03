@@ -60,6 +60,44 @@ export interface TwoCompParams {
 }
 
 /**
+ * Resolved three-compartment disposition (handoff §12; the multi-compartment
+ * extension, Stage B). A linear mammillary model: a central compartment (where
+ * drug is measured and eliminated) exchanging with TWO peripheral compartments
+ * that do not communicate with each other. Like {@link TwoCompParams} it is
+ * parameterised in the most *citable* clinical form — clearances and volumes —
+ * from which the engine derives the micro-rate constants
+ *
+ *   k10 = CL/Vc,  k12 = Q2/Vc,  k21 = Q2/Vp2,  k13 = Q3/Vc,  k31 = Q3/Vp3
+ *
+ * and the THREE disposition eigenvalues α > β > γ (the roots of a cubic, all
+ * real and positive for physical parameters) internally (see {@link ./models3c.ts}).
+ * The central concentration is a sum of three exponential {@link ExpMode}s, driven
+ * by the same model-independent route spine ({@link ./modes.ts}) as the one- and
+ * two-compartment models. As either peripheral clearance vanishes it collapses
+ * to the two-compartment model, and with both gone to one compartment.
+ */
+export interface ThreeCompParams {
+  /** Central volume of distribution, L — the concentration reference (C = A_central / Vc). */
+  vc: number;
+  /** Total (central) clearance, L/h — `= k10·Vc`; sets AUC = Dose/CL. */
+  cl: number;
+  /** Inter-compartmental clearance to peripheral 1, L/h — `= k12·Vc = k21·Vp2`. */
+  q2: number;
+  /** First peripheral volume of distribution, L. */
+  vp2: number;
+  /** Inter-compartmental clearance to peripheral 2, L/h — `= k13·Vc = k31·Vp3`. */
+  q3: number;
+  /** Second peripheral volume of distribution, L. */
+  vp3: number;
+  /** Absorption rate constant, 1/h. Oral (first-order absorption) only. */
+  ka?: number;
+  /** Bioavailable fraction in [0, 1]. Extravascular routes (oral); 1 for IV. */
+  F?: number;
+  /** Infusion duration, h. `iv_infusion` only. */
+  infusionDuration?: number;
+}
+
+/**
  * One exponential mode of a linear disposition's central concentration for a
  * given dose: contributes `coef · e^(−rate·t)` mg/L. A one-compartment curve is
  * a single mode (`coef = D/Vd`, `rate = ke`); a two-compartment IV-bolus curve

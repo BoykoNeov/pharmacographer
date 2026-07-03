@@ -38,11 +38,13 @@
 
 import { batemanMode } from './modes.ts';
 import { twoCompModes } from './models2c.ts';
+import { threeCompModes } from './models3c.ts';
 import type {
   DoseEvent,
   ExpMode,
   MetaboliteDisposition,
   MetaboliteParams,
+  ThreeCompParams,
   TwoCompParams,
 } from './types.ts';
 
@@ -116,6 +118,26 @@ export function singleDose2cMetaboliteConcentration(
 }
 
 /**
+ * Metabolite concentration (mg/L) contributed by a SINGLE three-compartment
+ * IV-bolus parent dose of `dose` mg, `tau` hours after that dose. Builds the
+ * parent's α/β/γ modes from {@link threeCompModes} and drives the metabolite with
+ * them via {@link metaboliteConcentrationFromModes} (amplitude carries the parent
+ * clearance `parent.cl`). The result is a four-exponential curve (α, β, γ, k_m);
+ * as with the two-compartment case its total exposure is still `fm·D/(k_m·Vd_m)`,
+ * independent of the parent's distribution. Collapses exactly to
+ * {@link singleDose2cMetaboliteConcentration} as the parent's Q3 → 0.
+ */
+export function singleDose3cMetaboliteConcentration(
+  parent: ThreeCompParams,
+  meta: MetaboliteDisposition,
+  dose: number,
+  tau: number,
+): number {
+  if (tau < 0) return 0;
+  return metaboliteConcentrationFromModes(threeCompModes(parent, dose), parent.cl, meta, tau);
+}
+
+/**
  * Total metabolite concentration (mg/L) at each grid time, as the linear
  * superposition of the metabolite contribution of every scheduled parent dose
  * (one-compartment parent). Mirrors `dosing.ts`'s `concentrationCurve`: each
@@ -129,7 +151,8 @@ export function metaboliteConcentrationCurve(
 ): number[] {
   return timeGrid.map((t) =>
     schedule.reduce(
-      (total, dose) => total + singleDoseMetaboliteConcentration(params, dose.amount, t - dose.time),
+      (total, dose) =>
+        total + singleDoseMetaboliteConcentration(params, dose.amount, t - dose.time),
       0,
     ),
   );
@@ -150,6 +173,26 @@ export function metabolite2cConcentrationCurve(
     schedule.reduce(
       (total, dose) =>
         total + singleDose2cMetaboliteConcentration(parent, meta, dose.amount, t - dose.time),
+      0,
+    ),
+  );
+}
+
+/**
+ * Total metabolite concentration (mg/L) at each grid time for a three-compartment
+ * IV-bolus parent — the {@link concentrationCurve3c} analogue for metabolites.
+ * Superposes {@link singleDose3cMetaboliteConcentration} over the schedule.
+ */
+export function metabolite3cConcentrationCurve(
+  parent: ThreeCompParams,
+  meta: MetaboliteDisposition,
+  schedule: DoseEvent[],
+  timeGrid: number[],
+): number[] {
+  return timeGrid.map((t) =>
+    schedule.reduce(
+      (total, dose) =>
+        total + singleDose3cMetaboliteConcentration(parent, meta, dose.amount, t - dose.time),
       0,
     ),
   );
