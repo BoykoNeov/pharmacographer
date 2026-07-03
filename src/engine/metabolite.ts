@@ -36,7 +36,7 @@
  * No React, no DOM, no data/JSON imports, no I/O — see CLAUDE.md / handoff §4.
  */
 
-import { FLIP_FLOP_REL_TOL } from './models.ts';
+import { batemanMode } from './modes.ts';
 import { twoCompModes } from './models2c.ts';
 import type {
   DoseEvent,
@@ -46,36 +46,11 @@ import type {
   TwoCompParams,
 } from './types.ts';
 
-/**
- * One parent mode's contribution to the metabolite AMOUNT at elapsed time `tau`:
- * a first-order compartment (rate `elimRate`) driven by an exponentially-decaying
- * input `amplitude·e^(−inputRate·tau)` from a zero start. The closed form is a
- * Bateman function
- *
- *   amplitude / (elimRate − inputRate) · ( e^(−inputRate·tau) − e^(−elimRate·tau) )
- *
- * which is 0 at `tau = 0` and 0/0 when `inputRate ≈ elimRate`; the analytic limit
- * `amplitude·tau·e^(−elimRate·tau)` is used there (same relative tolerance as the
- * oral Bateman flip-flop branch in `models.ts`). `amplitude` is a formation flux
- * amplitude (mg/h) — divide the summed amount by the metabolite Vd for a
- * concentration.
- */
-export function batemanMode(
-  amplitude: number,
-  inputRate: number,
-  elimRate: number,
-  tau: number,
-): number {
-  if (Math.abs(inputRate - elimRate) <= FLIP_FLOP_REL_TOL * Math.max(inputRate, elimRate)) {
-    // Equal-rates limit — avoids the 0/0 singularity of the Bateman function.
-    return amplitude * tau * Math.exp(-elimRate * tau);
-  }
-  const diff = Math.exp(-inputRate * tau) - Math.exp(-elimRate * tau);
-  // At tau = 0 the difference is exactly 0; return +0 (not the −0 a negative
-  // prefactor would produce) so callers can `=== 0` the dose instant cleanly.
-  if (diff === 0) return 0;
-  return (amplitude / (elimRate - inputRate)) * diff;
-}
+// `batemanMode` — one first-order compartment driven by an exponentially-decaying
+// input from a zero start — now lives in `modes.ts`, the shared mode-driver spine
+// (it is also what the oral routes convolve to). Re-exported here because the
+// metabolite tests and callers import it from this module by name.
+export { batemanMode };
 
 /**
  * Metabolite concentration (mg/L) from a set of parent central-concentration

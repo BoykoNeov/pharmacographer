@@ -5,9 +5,11 @@ import {
   deriveParams,
   deriveParams2c,
   kaFromTmax,
+  kaFromTmax2c,
 } from '../../src/data/derive.ts';
 import type { Metabolite } from '../../src/data/schema.ts';
 import { parseCompound } from '../../src/data/loader.ts';
+import { oralPeakTime2c } from '../../src/engine/models2c.ts';
 import { singleDoseAuc2c, terminalRate2c, timeToPeak } from '../../src/engine/pk.ts';
 import { REFERENCE_WEIGHT_KG } from '../../src/engine/units.ts';
 import { baseRawCompound, baseRawTwoCompCompound } from './_fixtures.ts';
@@ -103,6 +105,27 @@ describe('kaFromTmax — inversion of the oral Tmax relationship', () => {
   it('returns ka = ke at the boundary Tmax = 1/ke', () => {
     const ke = 0.3;
     expect(kaFromTmax(1 / ke, ke)).toBeCloseTo(ke, 8);
+  });
+});
+
+describe('kaFromTmax2c — two-compartment Tmax inversion (no closed form)', () => {
+  const model = { vc: 10, cl: 5, q: 10, vp: 20 } as const; // α ≈ 1.866/h, β ≈ 0.134/h
+
+  it('recovers a ka whose 2-comp oral curve peaks at the target Tmax', () => {
+    for (const tmax of [0.5, 1.5, 4]) {
+      const ka = kaFromTmax2c(tmax, model);
+      expect(ka).toBeGreaterThan(0);
+      expect(oralPeakTime2c({ ...model, ka })).toBeCloseTo(tmax, 6);
+    }
+  });
+
+  it('collapses to the one-compartment kaFromTmax when Q → 0', () => {
+    const vc = 12;
+    const ke = 0.25;
+    const collapsed = { vc, cl: ke * vc, q: 0, vp: 30 }; // k10 = ke, no distribution
+    for (const tmax of [1, 3, 6]) {
+      expect(kaFromTmax2c(tmax, collapsed)).toBeCloseTo(kaFromTmax(tmax, ke), 6);
+    }
   });
 });
 
@@ -283,10 +306,52 @@ describe('deriveParams2c — two-compartment (handoff §12)', () => {
     expect(() => deriveParams2c(parseCompound(raw), 'iv_bolus')).toThrow(/nonlinear|linear/i);
   });
 
-  it('throws for oral (a tri-exponential parent; deferred)', () => {
-    expect(() => deriveParams2c(parseCompound(baseRawTwoCompCompound()), 'oral')).toThrow(
-      /oral|deferred/i,
-    );
+  it('estimates ka from Tmax and round-trips through the 2-comp peak solve', () => {
+    const raw = baseRawTwoCompCompound();
+    (raw.routes as Record<string, unknown>).oral = {
+      available: true,
+      F: { value: 1, unit: 'fraction', derived: false, sourceRef: 'definition' },
+      tmax: { value: 1.5, unit: 'h', derived: false, sourceRef: 'ref' },
+    };
+    const { params, derived } = deriveParams2c(parseCompound(raw), 'oral');
+    expect(params.ka).toBeDefined();
+    expect(params.F).toBe(1);
+    // The whole point: deriving ka from Tmax = 1.5 h must reproduce Tmax = 1.5 h.
+    expect(oralPeakTime2c(params)).toBeCloseTo(1.5, 6);
+    expect(derived.some((d) => d.parameter === 'ka' && /Tmax/.test(d.note))).toBe(true);
+  });
+
+  it('uses a measured ka directly (converting its unit) without deriving', () => {
+    const raw = baseRawTwoCompCompound();
+    (raw.routes as Record<string, unknown>).oral = {
+      available: true,
+      ka: { value: 60, unit: '1/day', derived: false, sourceRef: 'ref' }, // 60/day = 2.5/h
+    };
+    const { params, derived } = deriveParams2c(parseCompound(raw), 'oral');
+    expect(params.ka).toBeCloseTo(2.5, 12);
+    expect(derived.some((d) => d.parameter === 'ka')).toBe(false);
+  });
+
+  it('throws when the oral route has neither ka nor tmax', () => {
+    const raw = baseRawTwoCompCompound();
+    (raw.routes as Record<string, unknown>).oral = { available: true };
+    expect(() => deriveParams2c(parseCompound(raw), 'oral')).toThrow(/ka|tmax|absorption/i);
+  });
+
+  it('warns about flip-flop kinetics when the estimated ka falls below β', () => {
+    // A very late Tmax forces slow absorption (ka < terminal β ≈ 0.134/h for the
+    // fixture) — the 2-comp analogue of the one-compartment flip-flop warning.
+    const raw = baseRawTwoCompCompound();
+    (raw.routes as Record<string, unknown>).oral = {
+      available: true,
+      tmax: { value: 40, unit: 'h', derived: false, sourceRef: 'ref' },
+    };
+    const { params, warnings } = deriveParams2c(parseCompound(raw), 'oral');
+    expect(params.ka!).toBeLessThan(terminalRate2c(params));
+    expect(warnings.some((w) => w.parameter === 'ka' && /flip-flop/.test(w.message))).toBe(true);
+    // F was not provided ⇒ assumed 1, with its own warning + derived note.
+    expect(params.F).toBe(1);
+    expect(warnings.some((w) => w.parameter === 'F')).toBe(true);
   });
 
   it('deriveParams rejects a 2-comp compound, pointing at deriveParams2c', () => {

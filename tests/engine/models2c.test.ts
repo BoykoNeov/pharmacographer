@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   concentrationCurve2c,
+  oralPeakTime2c,
   singleDose2cConcentration,
   twoCompModes,
   twoCompRates,
@@ -129,9 +130,55 @@ describe('iv_infusion (two-compartment)', () => {
   });
 });
 
-describe('oral is deferred for the two-compartment model', () => {
-  it('throws a clear "deferred" error', () => {
-    expect(() => singleDose2cConcentration('oral', model, 100, 1)).toThrow(/oral|deferred/i);
+describe('oral (two-compartment, tri-exponential)', () => {
+  const dose = 100;
+  // ka between β and α, well clear of both — a clean tri-exponential curve.
+  const oralModel: TwoCompParams = { ...model, ka: 1.5, F: 1 };
+  const curve = (tau: number) => singleDose2cConcentration('oral', oralModel, dose, tau);
+
+  it('C(0) = 0 (nothing absorbed yet)', () => {
+    expect(curve(0)).toBe(0);
+  });
+
+  it('numeric AUC₀→∞ ≈ F·D / CL (absorption reshapes, not the area)', () => {
+    const { beta } = twoCompRates(oralModel);
+    const auc = trapezoid(curve, 40 * (Math.LN2 / beta), 800_000);
+    expectRelClose(auc, (oralModel.F! * dose) / oralModel.cl, 1e-3);
+  });
+
+  it('terminal log-slope → −min(ka, β) = −β (elimination-rate-limited here)', () => {
+    const { beta } = twoCompRates(oralModel);
+    const t1 = 40;
+    const t2 = 45;
+    const slope = (Math.log(curve(t2)) - Math.log(curve(t1))) / (t2 - t1);
+    expect(slope).toBeCloseTo(-beta, 6);
+  });
+
+  it('bioavailability F scales the whole curve linearly', () => {
+    const half: TwoCompParams = { ...oralModel, F: 0.5 };
+    for (const tau of [0.5, 1, 2, 5, 12]) {
+      expect(singleDose2cConcentration('oral', half, dose, tau)).toBeCloseTo(0.5 * curve(tau), 12);
+    }
+  });
+
+  it('oralPeakTime2c locates the curve maximum (dC/dt = 0)', () => {
+    const tmax = oralPeakTime2c(oralModel);
+    expect(tmax).toBeGreaterThan(0);
+    const cPeak = curve(tmax);
+    const eps = 1e-3;
+    expect(cPeak).toBeGreaterThanOrEqual(curve(tmax - eps));
+    expect(cPeak).toBeGreaterThanOrEqual(curve(tmax + eps));
+  });
+
+  it('throws a clear error when ka is missing', () => {
+    expect(() => singleDose2cConcentration('oral', model, dose, 1)).toThrow(
+      /oral.*absorption rate constant|ka/i,
+    );
+    expect(() => oralPeakTime2c(model)).toThrow(/ka/i);
+  });
+
+  it('contributes nothing before administration (tau < 0 → 0)', () => {
+    expect(curve(-1)).toBe(0);
   });
 });
 
@@ -172,6 +219,19 @@ describe('collapse to one compartment (Q → 0)', () => {
     for (const tau of grid) {
       expect(singleDose2cConcentration('iv_infusion', twoC, dose, tau)).toBeCloseTo(
         singleDoseConcentration('iv_infusion', oneC, dose, tau),
+        12,
+      );
+    }
+  });
+
+  it('oral matches the one-compartment oral Bateman exactly', () => {
+    const ka = 0.9;
+    const F = 0.8;
+    const twoC: TwoCompParams = { ...collapsed, ka, F };
+    const oneC: PkParams = { ...oneComp, ka, F };
+    for (const tau of grid) {
+      expect(singleDose2cConcentration('oral', twoC, dose, tau)).toBeCloseTo(
+        singleDoseConcentration('oral', oneC, dose, tau),
         12,
       );
     }

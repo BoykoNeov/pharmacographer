@@ -19,6 +19,8 @@
  */
 
 import { FLIP_FLOP_REL_TOL } from '../engine/models.ts';
+import { batemanModeDerivative } from '../engine/modes.ts';
+import { twoCompModes, twoCompRates } from '../engine/models2c.ts';
 import type {
   MetaboliteDisposition,
   MetaboliteParams,
@@ -138,6 +140,53 @@ export function kaFromTmax(tmax: number, ke: number): number {
     // Decreasing: value too large ⇒ ka too small ⇒ raise the floor.
     if (value > tmax) lo = mid;
     else hi = mid;
+  }
+  return 0.5 * (lo + hi);
+}
+
+/**
+ * Invert the oral Tmax relationship for the TWO-COMPARTMENT model — find the
+ * absorption constant `ka` whose tri-exponential oral curve peaks at `tmax`
+ * (canonical h), given the disposition `params` (CL/Vc/Q/Vp fix α, β and the
+ * per-unit-dose modes `g_λ`, all independent of `ka`).
+ *
+ * There is no closed form (unlike the one-compartment `kaFromTmax`), but the peak
+ * condition `C′(tmax; ka) = 0` is a SINGLE equation in `ka` — no nested inner
+ * peak-search. `C′(tmax; ka)` is the sum over the disposition modes of
+ * {@link batemanModeDerivative} (with amplitude `ka·g_λ`; the `F·D` scale drops
+ * out of the root) and is strictly decreasing in `ka`: a larger `ka` peaks earlier,
+ * so at the fixed instant `tmax` the curve is already past its peak (slope < 0),
+ * while a smaller `ka` peaks later (slope > 0 at `tmax`). We bracket that sign
+ * change and bisect. This is the exact inverse of `models2c.ts`'s
+ * {@link oralPeakTime2c}, so a `ka` recovered here round-trips back to `tmax`.
+ */
+export function kaFromTmax2c(tmax: number, params: TwoCompParams): number {
+  if (!(tmax > 0)) throw new Error('kaFromTmax2c: Tmax must be positive');
+  const unitModes = twoCompModes(params, 1); // g_λ — independent of ka
+  // Slope of the oral curve at `tmax` for a candidate `ka` (up to the positive
+  // F·D scale, which cannot move the root); monotone decreasing in `ka`.
+  const slopeAtTmax = (ka: number): number =>
+    unitModes.reduce((s, { coef: g, rate }) => s + batemanModeDerivative(ka * g, ka, rate, tmax), 0);
+
+  // Bracket [lo, hi] so slopeAtTmax(lo) > 0 (ka too small) and slopeAtTmax(hi) < 0
+  // (ka too large). Expand outward from a unit seed until both signs hold.
+  let lo = 1;
+  while (slopeAtTmax(lo) <= 0) {
+    lo /= 2;
+    if (lo < 1e-12) throw new Error('kaFromTmax2c: failed to bracket (ka too small)');
+  }
+  let hi = lo;
+  while (slopeAtTmax(hi) >= 0) {
+    hi *= 2;
+    if (hi > 1e12) throw new Error('kaFromTmax2c: failed to bracket (ka too large)');
+  }
+
+  for (let i = 0; i < 200; i++) {
+    const mid = 0.5 * (lo + hi);
+    // Decreasing: slope still positive ⇒ ka too small ⇒ raise the floor.
+    if (slopeAtTmax(mid) > 0) lo = mid;
+    else hi = mid;
+    if (hi - lo <= 1e-12 * hi) break;
   }
   return 0.5 * (lo + hi);
 }
@@ -344,12 +393,14 @@ function resolveClearanceParam(
  * clinical `disposition2c` block (CL, Vc, Q, Vp), scaling per-kg volumes and
  * clearances against the reference subject. Disposition is route-independent; as
  * with {@link deriveParams} the infusion DURATION is a dosing/UI input, injected
- * later. `oral` is deferred for the 2-comp model (a tri-exponential parent) and
- * throws.
+ * later, and absorption (ka, F) is filled only for `oral` — where a reported Tmax
+ * is inverted through {@link kaFromTmax2c} (the tri-exponential analogue of the
+ * one-compartment `kaFromTmax`).
  *
- * Throws if the compound is nonlinear, not two-compartment, or missing its
+ * Throws if the compound is nonlinear, not two-compartment, missing its
  * `disposition2c` block (the last is schema-guaranteed, but guarded here so the
- * engine never sees a partial parameter set).
+ * engine never sees a partial parameter set), or an oral curve is requested with
+ * neither `ka` nor `tmax`.
  */
 export function deriveParams2c(
   compound: Compound,
@@ -370,11 +421,6 @@ export function deriveParams2c(
   if (!d2) {
     throw new Error(
       `deriveParams2c: "${compound.id}" is two-compartment but has no disposition2c block (CL, Vc, Q, Vp).`,
-    );
-  }
-  if (route === 'oral') {
-    throw new Error(
-      `deriveParams2c: oral is not supported by the two-compartment model yet (a tri-exponential parent; deferred — handoff §12).`,
     );
   }
 
@@ -402,6 +448,50 @@ export function deriveParams2c(
   }
 
   const params: TwoCompParams = { vc, cl, q, vp };
+
+  // ── Absorption (oral only) — a tri-exponential parent (α, β, ka) ───────────
+  if (route === 'oral') {
+    const oral = compound.routes.oral;
+
+    // Bioavailable fraction F.
+    if (oral?.F && oral.F.value !== null) {
+      params.F = oral.F.unit === 'percent' ? oral.F.value / 100 : oral.F.value;
+    } else {
+      params.F = 1;
+      warnings.push({
+        parameter: 'F',
+        message: 'oral bioavailability F not provided; assuming F = 1, which overestimates exposure for an incompletely absorbed drug',
+      });
+      derived.push({ parameter: 'F', note: 'F assumed 1 (no value provided)' });
+    }
+
+    // Absorption rate constant ka — measured, or inverted from a reported Tmax
+    // through the two-compartment peak solve (no closed form).
+    if (oral?.ka && oral.ka.value !== null) {
+      params.ka = rateConstant.toCanonical(oral.ka.value, oral.ka.unit);
+    } else if (oral?.tmax && oral.tmax.value !== null) {
+      const tmaxH = time.toCanonical(oral.tmax.value, oral.tmax.unit);
+      const ka = kaFromTmax2c(tmaxH, params);
+      params.ka = ka;
+      derived.push({
+        parameter: 'ka',
+        note: `ka = ${fmt(ka)} 1/h estimated from Tmax ${fmt(oral.tmax.value)} ${oral.tmax.unit} and the α/β disposition`,
+      });
+      // Flip-flop: absorption slower than the terminal disposition (ka < β).
+      const { beta } = twoCompRates(params);
+      if (ka < beta) {
+        warnings.push({
+          parameter: 'ka',
+          message: `estimated ka (${fmt(ka)}/h) is below the terminal rate β (${fmt(beta)}/h) — flip-flop kinetics where absorption, not elimination, is rate-limiting`,
+        });
+      }
+    } else {
+      throw new Error(
+        `deriveParams2c: oral route for "${compound.id}" needs either ka or tmax to determine absorption`,
+      );
+    }
+  }
+
   return { params, derived, warnings };
 }
 

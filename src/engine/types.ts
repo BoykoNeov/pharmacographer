@@ -38,9 +38,9 @@ export interface PkParams {
  * eigenvalues α, β internally (see {@link ./models2c.ts}).
  *
  * The whole system is linear, so superposition over a dose schedule stays valid
- * (same mechanism as `dosing.ts`). Spike scope for this extension is the IV
- * routes (bolus + infusion); an oral 2-comp parent (a tri-exponential curve) is
- * deferred.
+ * (same mechanism as `dosing.ts`). Routes covered are IV bolus, IV infusion, and
+ * oral (first-order absorption ⇒ a tri-exponential curve: the two disposition
+ * modes α, β plus the absorption mode ka). A 3-compartment parent is deferred.
  */
 export interface TwoCompParams {
   /** Central volume of distribution, L — the concentration reference (C = A_central / Vc). */
@@ -51,6 +51,10 @@ export interface TwoCompParams {
   q: number;
   /** Peripheral volume of distribution, L. */
   vp: number;
+  /** Absorption rate constant, 1/h. Oral (first-order absorption) only. */
+  ka?: number;
+  /** Bioavailable fraction in [0, 1]. Extravascular routes (oral); 1 for IV. */
+  F?: number;
   /** Infusion duration, h. `iv_infusion` only. */
   infusionDuration?: number;
 }

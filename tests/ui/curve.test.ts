@@ -487,10 +487,49 @@ describe('buildCurve2c — two-compartment parent', () => {
     }
   });
 
-  it('throws for the deferred oral route (caller shows the message)', () => {
+  it('throws for oral without absorption data (caller shows the message)', () => {
+    // The base fixture declares no oral route ⇒ no ka/tmax to absorb from.
     expect(() => buildCurve2c({ compound: twoComp, route: 'oral', schedule: single(100) })).toThrow(
-      /oral|deferred/i,
+      /oral|ka|tmax|absorption/i,
     );
+  });
+});
+
+describe('buildCurve2c — two-compartment oral (tri-exponential)', () => {
+  /** The 2-comp fixture with an available oral route (F = 0.9, Tmax = 1.5 h). */
+  function oral2cCompound() {
+    const raw = baseRawTwoCompCompound();
+    (raw.routes as Record<string, unknown>).oral = {
+      available: true,
+      F: { value: 0.9, unit: 'fraction', derived: false, sourceRef: 'definition' },
+      tmax: { value: 1.5, unit: 'h', derived: false, sourceRef: 'ref' },
+    };
+    return parseCompound(raw);
+  }
+
+  it('starts at C(0) = 0 and peaks near the reported Tmax', () => {
+    const { points, peak } = buildCurve2c({
+      compound: oral2cCompound(),
+      route: 'oral',
+      schedule: single(100),
+    });
+    expect(points[0]!.t).toBe(0);
+    expect(points[0]!.c).toBe(0);
+    // The exact Bateman peak instant is pinned into the grid, so the marked Tmax
+    // lands on the reported 1.5 h (round-tripped through kaFromTmax2c).
+    expect(peak.t).toBeCloseTo(1.5, 3);
+    expect(peak.c).toBeGreaterThan(0);
+  });
+
+  it('the grid stays strictly ascending and free of duplicate times', () => {
+    const { points } = buildCurve2c({
+      compound: oral2cCompound(),
+      route: 'oral',
+      schedule: single(100),
+    });
+    for (let i = 1; i < points.length; i++) {
+      expect(points[i]!.t).toBeGreaterThan(points[i - 1]!.t);
+    }
   });
 });
 

@@ -42,15 +42,18 @@ describe('loadAllCompounds — every bundled compound is valid and derivable', (
       for (const route of routes) {
         const available = compound.routes[route]?.available;
         if (!available) continue;
-        // Oral is deferred for the two-compartment model (a tri-exponential parent).
-        if (twoComp && route === 'oral') continue;
         it(`derives engine params for the available ${route} route`, () => {
           if (twoComp) {
-            // Model-aware dispatch (handoff §12): a 2-comp compound resolves CL/Vc/Q/Vp.
+            // Model-aware dispatch (handoff §12): a 2-comp compound resolves CL/Vc/Q/Vp
+            // (plus ka for oral — a tri-exponential parent).
             const { params } = deriveParams2c(compound, route);
             for (const v of [params.vc, params.cl, params.q, params.vp]) {
               expect(Number.isFinite(v)).toBe(true);
               expect(v).toBeGreaterThan(0);
+            }
+            if (route === 'oral') {
+              expect(params.ka).toBeDefined();
+              expect(params.ka! > 0).toBe(true);
             }
             return;
           }

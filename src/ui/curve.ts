@@ -17,7 +17,7 @@
 import { concentrationCurve, recurringDoses } from '../engine/dosing.ts';
 import { metabolite2cConcentrationCurve, metaboliteConcentrationCurve } from '../engine/metabolite.ts';
 import { FLIP_FLOP_REL_TOL } from '../engine/models.ts';
-import { concentrationCurve2c, twoCompRates } from '../engine/models2c.ts';
+import { concentrationCurve2c, oralPeakTime2c, twoCompRates } from '../engine/models2c.ts';
 import type { DoseEvent, PkParams, Route, TwoCompParams } from '../engine/types.ts';
 import { REFERENCE_WEIGHT_KG, concentration, time } from '../engine/units.ts';
 import {
@@ -526,24 +526,29 @@ export function buildCurve(input: CurveInput): CurveResult {
 // ── Two-compartment glue (handoff §12) ──────────────────────────────────────
 // The parallel build path for `two_compartment_first_order` compounds, reached
 // via `buildCurve`'s model dispatch. Kept a separate function (not folded into
-// the 1-comp body) because its disposition is α/β modes, not ke/ka, and it needs
-// distribution-phase grid densification. Returns a {@link TwoCompartmentCurveResult}
-// so the UI narrows on `model` for the caption. (The metabolite `<Line>` rows and
-// a real 2-comp compound remain deferred, as with the metabolites spike.)
+// the 1-comp body) because its disposition is α/β modes (plus an oral absorption
+// mode), not a single ke, and it needs early-phase grid densification. Returns a
+// {@link TwoCompartmentCurveResult} so the UI narrows on `model` for the caption.
+// (The metabolite `<Line>` rows remain deferred, as with the metabolites spike.)
 
 /**
  * Pick a 2-comp time horizon (h): the last dose plus ~5 TERMINAL (β) half-lives,
- * extended for an infusion to cover the infusion plus its decay. Sized on the
- * `slowestRate` (the smallest of β and any metabolite's kₘ) so a long-lived
- * metabolite isn't clipped mid-decay — the 2-comp analogue of {@link curveHorizon}.
+ * extended for an infusion to cover the infusion plus its decay, and for oral so
+ * the absorption phase (~3 ka half-lives) plays out. Sized on the `slowestRate`
+ * (the smallest of β and any metabolite's kₘ) so a long-lived metabolite isn't
+ * clipped mid-decay — the 2-comp analogue of {@link curveHorizon}.
  */
 function curveHorizon2c(
+  route: Route,
   params: TwoCompParams,
   slowestRate: number,
   lastDoseTime: number,
 ): number {
   const terminalHalfLife = Math.LN2 / slowestRate;
   let tail = 5 * terminalHalfLife;
+  if (route === 'oral' && params.ka !== undefined && params.ka > 0) {
+    tail += 3 * (Math.LN2 / params.ka);
+  }
   if (params.infusionDuration !== undefined) {
     tail = Math.max(tail, params.infusionDuration + 5 * terminalHalfLife);
   }
@@ -552,24 +557,36 @@ function curveHorizon2c(
 
 /**
  * Critical sample times for a 2-comp curve. On top of the {@link criticalTimes}
- * concerns (the IV-bolus jump at each dose, the infusion end), this DENSIFIES the
- * fast distribution (α) phase: the horizon is sized on the slow terminal β, so a
- * uniform grid gives the α phase — the very feature that motivates 2-comp — only
- * a handful of points and aliases it into a straight line. We add log-spaced
- * marks over the first few α half-lives after each dose so the distribution knee
- * renders truthfully.
+ * concerns (the IV-bolus jump at each dose, the infusion end, the oral peak), this
+ * DENSIFIES the fast early phase: the horizon is sized on the slow terminal β, so
+ * a uniform grid gives the α distribution phase — the very feature that motivates
+ * 2-comp — only a handful of points and aliases it into a straight line. We add
+ * log-spaced marks over the first few half-lives of the FASTEST early rate after
+ * each dose (α, or the absorption ka when it is faster still, for oral) so the
+ * knee renders truthfully; for oral we also pin the exact Bateman peak instant so
+ * the marked Cmax/Tmax lands on the true peak.
  */
-function criticalTimes2c(params: TwoCompParams, doses: DoseEvent[], horizonH: number): number[] {
+function criticalTimes2c(
+  route: Route,
+  params: TwoCompParams,
+  doses: DoseEvent[],
+  horizonH: number,
+): number[] {
   const { alpha } = twoCompRates(params);
   const jumpEps = horizonH * 1e-5;
-  const alphaHalfLife = Math.LN2 / alpha;
-  const distEnd = Math.min(horizonH, 6 * alphaHalfLife);
+  // Densify over the fastest early phase — α, or a faster absorption ka (oral).
+  const fastRate =
+    route === 'oral' && params.ka !== undefined && params.ka > 0 ? Math.max(alpha, params.ka) : alpha;
+  const fastHalfLife = Math.LN2 / fastRate;
+  const distEnd = Math.min(horizonH, 6 * fastHalfLife);
   const distStart = distEnd * 1e-3;
   const nDist = 40;
-  // Geometric offsets spanning the distribution phase (dense near t = 0).
+  // Geometric offsets spanning the early phase (dense near t = 0).
   const distOffsets = Array.from({ length: nDist + 1 }, (_, i) =>
     distStart * Math.pow(distEnd / distStart, i / nDist),
   );
+  const oralPeakOffset =
+    route === 'oral' && params.ka !== undefined && params.ka > 0 ? oralPeakTime2c(params) : undefined;
   const marks: number[] = [];
   for (const dose of doses) {
     if (dose.time > horizonH) continue;
@@ -578,6 +595,10 @@ function criticalTimes2c(params: TwoCompParams, doses: DoseEvent[], horizonH: nu
     for (const off of distOffsets) {
       const t = dose.time + off;
       if (t <= horizonH) marks.push(t);
+    }
+    if (oralPeakOffset !== undefined) {
+      const peakT = dose.time + oralPeakOffset;
+      if (peakT <= horizonH) marks.push(peakT);
     }
     if (params.infusionDuration !== undefined) {
       const end = dose.time + params.infusionDuration;
@@ -590,10 +611,11 @@ function criticalTimes2c(params: TwoCompParams, doses: DoseEvent[], horizonH: nu
 /**
  * Build the chart-ready curve for a two-compartment compound (handoff §12). The
  * 2-comp analogue of {@link buildCurve}: derives {@link TwoCompParams} (throwing,
- * via `deriveParams2c`, for a nonlinear compound or the deferred oral route — the
- * caller catches and shows the message), injects the infusion duration, sizes and
- * densifies the grid, and evaluates the 2-comp superposition. Metabolites (IV
- * bolus only, the extension scope) are driven by the parent's α/β modes.
+ * via `deriveParams2c`, for a nonlinear compound or an oral route lacking
+ * absorption data — the caller catches and shows the message), injects the
+ * infusion duration and oral absorption (ka/F), sizes and densifies the grid, and
+ * evaluates the 2-comp superposition (IV bolus, IV infusion, or oral). Metabolites
+ * (IV bolus only, the extension scope) are driven by the parent's α/β modes.
  * Variability band/slider are intentionally omitted — varying a single half-life
  * is ill-defined across two eigenvalues (a §12 follow-on, like the 1-comp band).
  */
@@ -624,10 +646,10 @@ export function buildCurve2c(input: CurveInput): TwoCompartmentCurveResult {
 
   const { beta } = twoCompRates(disposition);
   const slowestRate = Math.min(beta, ...metaboliteDerivations.map((d) => d.params.keM));
-  const horizonH = curveHorizon2c(disposition, slowestRate, lastDoseTime);
+  const horizonH = curveHorizon2c(route, disposition, slowestRate, lastDoseTime);
   const times = mergeGrid(
     sampleGrid(horizonH, samples),
-    criticalTimes2c(disposition, doses, horizonH),
+    criticalTimes2c(route, disposition, doses, horizonH),
   );
 
   const concentrations = concentrationCurve2c(route, disposition, doses, times);

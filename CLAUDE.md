@@ -140,10 +140,35 @@ young-end value; Klotz reports V1 only as an age regression). Keep all inputs to
 population (young healthy adult). The `fm` blocker (uncited in the old
 rejection log) was resolved by the IARC monograph's ~50–60% N-demethylation figure
 (Bertilsson et al. 1990); the metabolite Vd is derived from CL_m/t½_m (not measured).
-Oral omitted (2-comp oral deferred, and omitting it stops the picker offering a route
-`buildCurve2c` throws on). Deferred follow-on still open: the metabolite `<Line>` rows
-(nordiazepam is COMPUTED end-to-end but not yet DRAWN, for both models), oral 2-comp
-(tri-exponential parent → 3-mode metabolite), and 3-compartment.
+Oral omitted for diazepam (no defensible young-adult Tmax curated; omitting it stops the
+picker offering a route with no sourced absorption input).
+
+**Oral 2-compartment parent — Stage A LANDED (engine + glue + tests; NO compound shipped).**
+The tri-exponential oral parent (the two disposition modes α, β plus the absorption mode
+ka) now works end-to-end. The mode drivers were extracted into a shared spine so a route is
+model-independent: (1) **`engine/modes.ts`** (new) — `batemanMode` (moved down from
+`metabolite.ts`, re-exported there to keep its import name) + `batemanModeDerivative` +
+`sumModes` + `infusionConcentrationFromModes` + `oralConcentrationFromModes`; the oral curve
+is the convolution of first-order absorption with the disposition impulse response = one
+`batemanMode` per mode: `C(t)=Σ batemanMode(ka·F·D·g_λ, ka, λ, t)`, inheriting the `ka≈λ`
+flip-flop guard for free. Import DAG stays cycle-free (models→{}; modes→models;
+models2c→models+modes; metabolite→modes+models2c). (2) **`models2c.ts`** — `twoCompOralConcentration`
++ `oralPeakTime2c` (numeric `dC/dt=0` root; no closed form). (3) **`derive.ts`** —
+`kaFromTmax2c` (inverts a reported Tmax to ka via the 2-comp peak solve; flip-flop `ka<β`
+warning + F-assumed-1 warning). (4) **`curve.ts`** — `buildCurve2c` oral branch: horizon adds
+~3 ka half-lives, `criticalTimes2c` densifies over the faster of α/ka and pins the exact
+Bateman peak. Oracles: `C(0)=0`, oral `AUC=F·D/CL`, terminal slope `−min(ka,β)`, F linear
+scaling, `kaFromTmax2c`↔`oralPeakTime2c` round-trip, and **collapse-to-1c** (oral matches the
+one-compartment oral Bateman 12-digit). Verified in the running app (throwaway 2-comp oral
+compound): picker offers Oral, curve renders as a proper tri-exponential (absorption→α knee→β
+tail), Cmax marker lands at the target Tmax, derived-ka provenance row shows. **Metabolite-from-
+oral-parent stays deferred** (the metabolite gate is still `route==='iv_bolus'`).
+
+Deferred follow-on still open: the metabolite `<Line>` rows (nordiazepam is COMPUTED end-to-end
+but not yet DRAWN, for both models), oral-PARENT metabolites (needs residue-form parent modes),
+**3-compartment** (Stage B — cubic eigenvalue solve), and the **`ModelAssumptionsNote` "One
+compartment" caveat is not model-aware** — it renders under a 2-comp curve that visibly
+contradicts it (pre-existing since diazepam shipped; make it branch on `model`).
 
 **Metabolites spike — engine core landed, UI + real compound deferred.** The §12
 metabolites extension was de-risked end-to-end through the data layer (192 tests).
