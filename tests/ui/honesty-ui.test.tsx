@@ -1,9 +1,10 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { loadAllCompounds } from '../../src/data/loader.ts';
+import { loadAllCompounds, parseCompound } from '../../src/data/loader.ts';
 import { App } from '../../src/ui/App.tsx';
 import { ProvenancePanel } from '../../src/ui/components/ProvenancePanel.tsx';
 import { buildCurve, type DoseSchedule } from '../../src/ui/curve.ts';
+import { baseRawCompound } from '../data/_fixtures.ts';
 
 /**
  * The honesty UI (Phase 5) is the product, not chrome — so it gets a render
@@ -83,5 +84,47 @@ describe('metabolite provenance rows (handoff §12)', () => {
     );
     expect(infusionHtml).not.toContain('prov__meta-group');
     expect(infusionHtml).not.toContain('Nordiazepam');
+  });
+});
+
+/**
+ * The panel's INACTIVE-metabolite wording branch ("— metabolite", no "active"
+ * qualifier). No shipped compound has an inactive metabolite (nordiazepam is
+ * active), so a synthetic fixture drives it. This covers the panel branch; the
+ * chart legend's identical branch is covered by the shared `metaboliteTag`
+ * helper's own unit test (Recharts renders empty under static markup).
+ */
+describe('metabolite provenance rows — inactive metabolite', () => {
+  function inactiveMetaboliteCompound() {
+    const raw = baseRawCompound();
+    (raw.sources as Record<string, unknown>).metasrc = { type: 'test', title: 'Metabolite source' };
+    raw.metabolites = [
+      {
+        id: 'inactivemeta',
+        name: 'Inactivemetabolite',
+        active: false,
+        fractionFormed: { value: 50, unit: 'percent', derived: false, sourceRef: 'metasrc' },
+        vd: { value: 0.5, unit: 'L/kg', derived: true, sourceRef: 'metasrc' },
+        halfLife: { value: 8, unit: 'h', derived: false, sourceRef: 'ref' },
+      },
+    ];
+    return parseCompound(raw);
+  }
+
+  const html = renderToStaticMarkup(
+    <ProvenancePanel
+      compound={inactiveMetaboliteCompound()}
+      route="iv_bolus"
+      derived={[]}
+      metabolites={[{ id: 'inactivemeta', derived: [] }]}
+    />,
+  );
+
+  it('renders the "— metabolite" tag with no "active" qualifier', () => {
+    // Match the closing </span> like the active test — a bare text match could
+    // catch an unrelated "metabolite". The whole point is the absence of "active".
+    expect(html).toContain('Inactivemetabolite');
+    expect(html).toContain('— metabolite</span>');
+    expect(html).not.toContain('active metabolite');
   });
 });

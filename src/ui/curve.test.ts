@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { buildCurve } from './curve.ts';
+import { buildCurve, metaboliteTag } from './curve.ts';
 import { loadAllCompounds } from '../data/loader.ts';
 import { REFERENCE_WEIGHT_KG } from '../engine/units.ts';
 import type { Compound } from '../data/schema.ts';
@@ -58,5 +58,23 @@ describe('buildCurve peak (Cmax/Tmax)', () => {
     // Accumulation ⇒ the multi-dose peak is higher and occurs later than the first.
     expect(course.c).toBeGreaterThan(singlePeak.c);
     expect(course.t).toBeGreaterThan(singlePeak.t);
+  });
+});
+
+/**
+ * `metaboliteTag` is the single source of truth for the "— (active) metabolite"
+ * wording shared by the chart legend and the provenance panel, so the two can
+ * never drift. It pins BOTH branches — the inactive branch in particular is not
+ * reachable by any render test (no inactive metabolite ships, and the chart
+ * legend renders empty under jsdom's static markup), so this is its only cover.
+ */
+describe('metaboliteTag', () => {
+  it('labels an active metabolite', () => {
+    expect(metaboliteTag(true)).toBe('— active metabolite');
+  });
+
+  it('labels an inactive metabolite without the "active" qualifier', () => {
+    expect(metaboliteTag(false)).toBe('— metabolite');
+    expect(metaboliteTag(false)).not.toContain('active');
   });
 });

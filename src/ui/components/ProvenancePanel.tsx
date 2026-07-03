@@ -12,7 +12,7 @@
 import type { DerivedNote } from '../../data/derive.ts';
 import type { Compound, CompoundParameter } from '../../data/schema.ts';
 import type { Route } from '../../engine/types.ts';
-import { fmtNum } from '../curve.ts';
+import { fmtNum, metaboliteTag } from '../curve.ts';
 import {
   citedSources,
   metaboliteProvenanceEntries,
@@ -104,9 +104,7 @@ export function ProvenancePanel({ compound, route, derived, metabolites = [] }: 
         <div key={group.id} className="prov__meta-group">
           <h3 className="prov__meta-title">
             {group.name}{' '}
-            <span className="prov__meta-tag">
-              {group.active ? '— active metabolite' : '— metabolite'}
-            </span>
+            <span className="prov__meta-tag">{metaboliteTag(group.active)}</span>
           </h3>
           <ul className="prov__rows">
             {group.rows.map((row) => (

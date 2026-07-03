@@ -32,6 +32,7 @@ import {
 import {
   CONCENTRATION_UNITS,
   fmtNum,
+  metaboliteTag,
   toDisplayConcentration,
   type BandPoint,
   type ConcentrationDisplayUnit,
@@ -356,7 +357,7 @@ export function ConcentrationChart({
                 key={m.id}
                 type="monotone"
                 dataKey={`m_${m.id}`}
-                name={`${m.name}${m.active ? ' — active metabolite' : ' — metabolite'}`}
+                name={`${m.name} ${metaboliteTag(m.active)}`}
                 stroke={m.color}
                 strokeWidth={1.75}
                 strokeDasharray="6 4"

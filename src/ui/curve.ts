@@ -221,6 +221,17 @@ export interface MetaboliteCurve {
   warnings: DeriveWarning[];
 }
 
+/**
+ * The em-dash suffix that labels a metabolite by its pharmacological status —
+ * the SINGLE source of truth shared by the chart legend and the provenance panel
+ * so the two wordings can never drift (they were previously duplicated string
+ * literals). Returns the tag alone (no name, no leading space); callers prepend
+ * the metabolite name.
+ */
+export function metaboliteTag(active: boolean): string {
+  return active ? '— active metabolite' : '— metabolite';
+}
+
 /** Fields common to every chart result, whatever the disposition model. */
 interface CurveResultBase {
   /** Sampled concentration-time curve, mg/L vs h. */
