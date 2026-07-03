@@ -166,9 +166,10 @@ oral-parent stays deferred** (the metabolite gate is still `route==='iv_bolus'`)
 
 Deferred follow-on still open: the metabolite `<Line>` rows (nordiazepam is COMPUTED end-to-end
 but not yet DRAWN, for both models), oral-PARENT metabolites (needs residue-form parent modes),
-**3-compartment** (Stage B — cubic eigenvalue solve), and the **`ModelAssumptionsNote` "One
-compartment" caveat is not model-aware** — it renders under a 2-comp curve that visibly
-contradicts it (pre-existing since diazepam shipped; make it branch on `model`).
+and **3-compartment** (Stage B — cubic eigenvalue solve). **DONE:** the `ModelAssumptionsNote`
+compartment caveat is now model-aware (`fix(ui)`, commit `6dc022a`) — a 2-comp compound gets a
+"Two compartments" bullet (central/peripheral split, α→β phases) instead of the contradictory
+hardcoded "One compartment"; branched on `compound.model`, verified in the running app.
 
 **Metabolites spike — engine core landed, UI + real compound deferred.** The §12
 metabolites extension was de-risked end-to-end through the data layer (192 tests).
