@@ -4,15 +4,18 @@ import {
   deriveMetaboliteParams,
   deriveParams,
   deriveParams2c,
+  deriveParams3c,
   kaFromTmax,
   kaFromTmax2c,
+  kaFromTmax3c,
 } from '../../src/data/derive.ts';
 import type { Metabolite } from '../../src/data/schema.ts';
 import { parseCompound } from '../../src/data/loader.ts';
 import { oralPeakTime2c } from '../../src/engine/models2c.ts';
+import { oralPeakTime3c, threeCompRates } from '../../src/engine/models3c.ts';
 import { singleDoseAuc2c, terminalRate2c, timeToPeak } from '../../src/engine/pk.ts';
 import { REFERENCE_WEIGHT_KG } from '../../src/engine/units.ts';
-import { baseRawCompound, baseRawTwoCompCompound } from './_fixtures.ts';
+import { baseRawCompound, baseRawThreeCompCompound, baseRawTwoCompCompound } from './_fixtures.ts';
 
 /**
  * Derivation is validated against analytic oracles, not against any shipped
@@ -125,6 +128,29 @@ describe('kaFromTmax2c — two-compartment Tmax inversion (no closed form)', () 
     const collapsed = { vc, cl: ke * vc, q: 0, vp: 30 }; // k10 = ke, no distribution
     for (const tmax of [1, 3, 6]) {
       expect(kaFromTmax2c(tmax, collapsed)).toBeCloseTo(kaFromTmax(tmax, ke), 6);
+    }
+  });
+});
+
+describe('kaFromTmax3c — three-compartment Tmax inversion (no closed form)', () => {
+  const model = { vc: 10, cl: 5, q2: 10, vp2: 20, q3: 2, vp3: 40 } as const;
+
+  it('collapses to the two-compartment kaFromTmax2c when Q3 → 0', () => {
+    // The natural collapse edge is one level down: with the deep peripheral shut
+    // off (Q3 = 0), the 3-comp inversion must reproduce the already-pinned 2-comp one.
+    // Same central + first peripheral (Q2/Vp2 map to the 2-comp Q/Vp).
+    const twoComp = { vc: 10, cl: 5, q: 10, vp: 20 } as const;
+    const collapsed = { vc: 10, cl: 5, q2: 10, vp2: 20, q3: 0, vp3: 40 } as const;
+    for (const tmax of [0.5, 1.5, 4]) {
+      expect(kaFromTmax3c(tmax, collapsed)).toBeCloseTo(kaFromTmax2c(tmax, twoComp), 6);
+    }
+  });
+
+  it('recovers a ka whose 3-comp oral curve peaks at the target Tmax', () => {
+    for (const tmax of [0.5, 1.5, 4]) {
+      const ka = kaFromTmax3c(tmax, model);
+      expect(ka).toBeGreaterThan(0);
+      expect(oralPeakTime3c({ ...model, ka })).toBeCloseTo(tmax, 6);
     }
   });
 });
@@ -365,6 +391,64 @@ describe('deriveParams2c — two-compartment (handoff §12)', () => {
     (raw.routes as { iv_bolus: { available: boolean } }).iv_bolus.available = false;
     const { warnings } = deriveParams2c(parseCompound(raw), 'iv_bolus');
     expect(warnings.some((w) => w.parameter === 'route' && /inferred/.test(w.message))).toBe(true);
+  });
+});
+
+describe('deriveParams3c — three-compartment oral absorption (handoff §12, Stage B)', () => {
+  it('estimates ka from Tmax and round-trips through the 3-comp peak solve', () => {
+    const raw = baseRawThreeCompCompound();
+    (raw.routes as Record<string, unknown>).oral = {
+      available: true,
+      F: { value: 1, unit: 'fraction', derived: false, sourceRef: 'definition' },
+      tmax: { value: 1.5, unit: 'h', derived: false, sourceRef: 'ref' },
+    };
+    const { params, derived } = deriveParams3c(parseCompound(raw), 'oral');
+    expect(params.ka).toBeDefined();
+    expect(params.F).toBe(1);
+    // Deriving ka from Tmax = 1.5 h must reproduce Tmax = 1.5 h.
+    expect(oralPeakTime3c(params)).toBeCloseTo(1.5, 6);
+    expect(derived.some((d) => d.parameter === 'ka' && /Tmax/.test(d.note))).toBe(true);
+  });
+
+  it('uses a measured ka directly (converting its unit) without deriving', () => {
+    const raw = baseRawThreeCompCompound();
+    (raw.routes as Record<string, unknown>).oral = {
+      available: true,
+      ka: { value: 60, unit: '1/day', derived: false, sourceRef: 'ref' }, // 60/day = 2.5/h
+    };
+    const { params, derived } = deriveParams3c(parseCompound(raw), 'oral');
+    expect(params.ka).toBeCloseTo(2.5, 12);
+    expect(derived.some((d) => d.parameter === 'ka')).toBe(false);
+  });
+
+  it('throws when the oral route has neither ka nor tmax', () => {
+    const raw = baseRawThreeCompCompound();
+    (raw.routes as Record<string, unknown>).oral = { available: true };
+    expect(() => deriveParams3c(parseCompound(raw), 'oral')).toThrow(/ka|tmax|absorption/i);
+  });
+
+  it('assumes F = 1 with a warning when bioavailability is not provided', () => {
+    const raw = baseRawThreeCompCompound();
+    (raw.routes as Record<string, unknown>).oral = {
+      available: true,
+      tmax: { value: 1, unit: 'h', derived: false, sourceRef: 'ref' },
+    };
+    const { params, warnings } = deriveParams3c(parseCompound(raw), 'oral');
+    expect(params.F).toBe(1);
+    expect(warnings.some((w) => w.parameter === 'F')).toBe(true);
+  });
+
+  it('warns about flip-flop kinetics when the estimated ka falls below γ', () => {
+    // A very late Tmax forces slow absorption (ka < terminal γ) — the 3-comp
+    // analogue of the one- and two-compartment flip-flop warnings.
+    const raw = baseRawThreeCompCompound();
+    (raw.routes as Record<string, unknown>).oral = {
+      available: true,
+      tmax: { value: 60, unit: 'h', derived: false, sourceRef: 'ref' },
+    };
+    const { params, warnings } = deriveParams3c(parseCompound(raw), 'oral');
+    expect(params.ka!).toBeLessThan(threeCompRates(params).gamma);
+    expect(warnings.some((w) => w.parameter === 'ka' && /flip-flop/.test(w.message))).toBe(true);
   });
 });
 

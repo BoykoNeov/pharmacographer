@@ -3,12 +3,17 @@ import { parseCompound } from '../../src/data/loader.ts';
 import {
   buildCurve,
   buildCurve2c,
+  buildCurve3c,
   buildSchedule,
   halfLifeRangeH,
   type DoseSchedule,
 } from '../../src/ui/curve.ts';
 import { singleDoseAuc2c } from '../../src/engine/pk.ts';
-import { baseRawCompound, baseRawTwoCompCompound } from '../data/_fixtures.ts';
+import {
+  baseRawCompound,
+  baseRawThreeCompCompound,
+  baseRawTwoCompCompound,
+} from '../data/_fixtures.ts';
 
 /**
  * The UI ↔ engine glue. The superposition MATH is proven in the engine tests
@@ -574,5 +579,54 @@ describe('buildCurve2c — two-compartment metabolite (IV bolus only)', () => {
       schedule: single(100),
     });
     expect(withMeta.horizonH).toBeGreaterThan(parentOnly.horizonH);
+  });
+});
+
+describe('buildCurve3c — three-compartment oral (four-exponential)', () => {
+  /** The 3-comp fixture with an available oral route (F = 0.9, Tmax = 1.5 h). */
+  function oral3cCompound() {
+    const raw = baseRawThreeCompCompound();
+    (raw.routes as Record<string, unknown>).oral = {
+      available: true,
+      F: { value: 0.9, unit: 'fraction', derived: false, sourceRef: 'definition' },
+      tmax: { value: 1.5, unit: 'h', derived: false, sourceRef: 'ref' },
+    };
+    return parseCompound(raw);
+  }
+
+  it('starts at C(0) = 0 and pins the marked peak on the reported Tmax', () => {
+    const { points, peak } = buildCurve3c({
+      compound: oral3cCompound(),
+      route: 'oral',
+      schedule: single(100),
+    });
+    expect(points[0]!.t).toBe(0);
+    expect(points[0]!.c).toBe(0);
+    // The exact Bateman peak instant is pinned into the grid, so the marked Tmax
+    // lands on the reported 1.5 h (round-tripped through kaFromTmax3c/oralPeakTime3c).
+    expect(peak.t).toBeCloseTo(1.5, 3);
+    expect(peak.c).toBeGreaterThan(0);
+  });
+
+  it('the grid stays strictly ascending and free of duplicate times', () => {
+    const { points } = buildCurve3c({
+      compound: oral3cCompound(),
+      route: 'oral',
+      schedule: single(100),
+    });
+    for (let i = 1; i < points.length; i++) {
+      expect(points[i]!.t).toBeGreaterThan(points[i - 1]!.t);
+    }
+  });
+
+  it('throws for oral without absorption data (caller shows the message)', () => {
+    // The base fixture declares no oral route ⇒ no ka/tmax to absorb from.
+    expect(() =>
+      buildCurve3c({
+        compound: parseCompound(baseRawThreeCompCompound()),
+        route: 'oral',
+        schedule: single(100),
+      }),
+    ).toThrow(/oral|ka|tmax|absorption/i);
   });
 });

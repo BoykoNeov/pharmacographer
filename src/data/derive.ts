@@ -21,6 +21,7 @@
 import { FLIP_FLOP_REL_TOL } from '../engine/models.ts';
 import { batemanModeDerivative } from '../engine/modes.ts';
 import { twoCompModes, twoCompRates } from '../engine/models2c.ts';
+import { threeCompModes, threeCompRates } from '../engine/models3c.ts';
 import type {
   MetaboliteDisposition,
   MetaboliteParams,
@@ -180,6 +181,51 @@ export function kaFromTmax2c(tmax: number, params: TwoCompParams): number {
   while (slopeAtTmax(hi) >= 0) {
     hi *= 2;
     if (hi > 1e12) throw new Error('kaFromTmax2c: failed to bracket (ka too large)');
+  }
+
+  for (let i = 0; i < 200; i++) {
+    const mid = 0.5 * (lo + hi);
+    // Decreasing: slope still positive ⇒ ka too small ⇒ raise the floor.
+    if (slopeAtTmax(mid) > 0) lo = mid;
+    else hi = mid;
+    if (hi - lo <= 1e-12 * hi) break;
+  }
+  return 0.5 * (lo + hi);
+}
+
+/**
+ * Invert the oral Tmax relationship for the THREE-COMPARTMENT model — find the
+ * absorption constant `ka` whose four-exponential oral curve peaks at `tmax`
+ * (canonical h), given the disposition `params` (CL/Vc/Q2/Vp2/Q3/Vp3 fix α, β, γ
+ * and the per-unit-dose modes `g_λ`, all independent of `ka`). The three-compartment
+ * analogue of {@link kaFromTmax2c} — structurally identical, only the mode set grows
+ * from two to three: the peak condition `C′(tmax; ka) = 0` is a SINGLE equation in
+ * `ka`, `C′(tmax; ka)` is the sum over the disposition modes of
+ * {@link batemanModeDerivative} (amplitude `ka·g_λ`; the `F·D` scale drops out), and
+ * it is strictly decreasing in `ka` (a larger `ka` peaks earlier, so at the fixed
+ * instant `tmax` the slope is already negative). We bracket that sign change and
+ * bisect. This is the exact inverse of `models3c.ts`'s {@link oralPeakTime3c}, so a
+ * `ka` recovered here round-trips back to `tmax`.
+ */
+export function kaFromTmax3c(tmax: number, params: ThreeCompParams): number {
+  if (!(tmax > 0)) throw new Error('kaFromTmax3c: Tmax must be positive');
+  const unitModes = threeCompModes(params, 1); // g_λ — independent of ka
+  // Slope of the oral curve at `tmax` for a candidate `ka` (up to the positive
+  // F·D scale, which cannot move the root); monotone decreasing in `ka`.
+  const slopeAtTmax = (ka: number): number =>
+    unitModes.reduce((s, { coef: g, rate }) => s + batemanModeDerivative(ka * g, ka, rate, tmax), 0);
+
+  // Bracket [lo, hi] so slopeAtTmax(lo) > 0 (ka too small) and slopeAtTmax(hi) < 0
+  // (ka too large). Expand outward from a unit seed until both signs hold.
+  let lo = 1;
+  while (slopeAtTmax(lo) <= 0) {
+    lo /= 2;
+    if (lo < 1e-12) throw new Error('kaFromTmax3c: failed to bracket (ka too small)');
+  }
+  let hi = lo;
+  while (slopeAtTmax(hi) >= 0) {
+    hi *= 2;
+    if (hi > 1e12) throw new Error('kaFromTmax3c: failed to bracket (ka too large)');
   }
 
   for (let i = 0; i < 200; i++) {
@@ -514,15 +560,15 @@ export interface DerivedParams3c {
  * does. Disposition is route-independent; the infusion DURATION is a dosing/UI input
  * injected later.
  *
- * Covers the IV routes (bolus, infusion). ORAL (a four-exponential parent) is engine-
- * capable (`engine/models3c.ts` `threeCompOralConcentration`) but its ka-from-Tmax
- * inversion is not yet wired in this layer, so an oral request throws a clear message
- * rather than returning a partial parameter set — the same deferral posture the first
- * 3-comp compound (IV-only) needs (handoff §12).
+ * Covers all three routes (IV bolus, IV infusion, oral). ORAL is a four-exponential
+ * parent (α, β, γ plus the absorption mode ka); as with {@link deriveParams2c} a
+ * reported Tmax is inverted through {@link kaFromTmax3c} (the four-exponential analogue
+ * of the two-compartment peak solve). No shipped 3-comp compound currently declares an
+ * oral Tmax, so this is engine capability rather than a user-facing route today.
  *
  * Throws if the compound is nonlinear, not three-compartment, missing its
  * `disposition3c` block (schema-guaranteed, but guarded so the engine never sees a
- * partial set), or an oral curve is requested.
+ * partial set), or an oral curve is requested with neither `ka` nor `tmax`.
  */
 export function deriveParams3c(
   compound: Compound,
@@ -577,13 +623,54 @@ export function deriveParams3c(
     });
   }
 
+  const params: ThreeCompParams = { vc, cl, q2, vp2, q3, vp3 };
+
+  // ── Absorption (oral only) — a four-exponential parent (α, β, γ, ka) ────────
   if (route === 'oral') {
-    throw new Error(
-      `deriveParams3c: oral absorption for the three-compartment model is not yet wired (deferred like the diazepam 2-comp oral case). "${compound.id}" supports IV routes only.`,
-    );
+    const oral = compound.routes.oral;
+
+    // Bioavailable fraction F.
+    if (oral?.F && oral.F.value !== null) {
+      params.F = oral.F.unit === 'percent' ? oral.F.value / 100 : oral.F.value;
+    } else {
+      params.F = 1;
+      warnings.push({
+        parameter: 'F',
+        message: 'oral bioavailability F not provided; assuming F = 1, which overestimates exposure for an incompletely absorbed drug',
+      });
+      derived.push({ parameter: 'F', note: 'F assumed 1 (no value provided)' });
+    }
+
+    // Absorption rate constant ka — measured, or inverted from a reported Tmax
+    // through the three-compartment peak solve (no closed form).
+    if (oral?.ka && oral.ka.value !== null) {
+      params.ka = rateConstant.toCanonical(oral.ka.value, oral.ka.unit);
+    } else if (oral?.tmax && oral.tmax.value !== null) {
+      const tmaxH = time.toCanonical(oral.tmax.value, oral.tmax.unit);
+      const ka = kaFromTmax3c(tmaxH, params);
+      params.ka = ka;
+      derived.push({
+        parameter: 'ka',
+        note: `ka = ${fmt(ka)} 1/h estimated from Tmax ${fmt(oral.tmax.value)} ${oral.tmax.unit} and the α/β/γ disposition`,
+      });
+      // Flip-flop: absorption slower than the terminal disposition (ka < γ) — the
+      // 3-comp analogue of the 2-comp ka < β check; γ is the smallest eigenvalue,
+      // so the oral terminal slope is −min(ka, γ) and ka < γ is exactly when
+      // absorption, not elimination, governs the terminal decline.
+      const { gamma } = threeCompRates(params);
+      if (ka < gamma) {
+        warnings.push({
+          parameter: 'ka',
+          message: `estimated ka (${fmt(ka)}/h) is below the terminal rate γ (${fmt(gamma)}/h) — flip-flop kinetics where absorption, not elimination, is rate-limiting`,
+        });
+      }
+    } else {
+      throw new Error(
+        `deriveParams3c: oral route for "${compound.id}" needs either ka or tmax to determine absorption`,
+      );
+    }
   }
 
-  const params: ThreeCompParams = { vc, cl, q2, vp2, q3, vp3 };
   return { params, derived, warnings };
 }
 

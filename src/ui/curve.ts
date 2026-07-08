@@ -18,7 +18,7 @@ import { concentrationCurve, recurringDoses } from '../engine/dosing.ts';
 import { metabolite2cConcentrationCurve, metaboliteConcentrationCurve } from '../engine/metabolite.ts';
 import { FLIP_FLOP_REL_TOL } from '../engine/models.ts';
 import { concentrationCurve2c, oralPeakTime2c, twoCompRates } from '../engine/models2c.ts';
-import { concentrationCurve3c, threeCompRates } from '../engine/models3c.ts';
+import { concentrationCurve3c, oralPeakTime3c, threeCompRates } from '../engine/models3c.ts';
 import type { DoseEvent, PkParams, Route, ThreeCompParams, TwoCompParams } from '../engine/types.ts';
 import { REFERENCE_WEIGHT_KG, concentration, time } from '../engine/units.ts';
 import {
@@ -723,24 +723,30 @@ export function buildCurve2c(input: CurveInput): TwoCompartmentCurveResult {
 // The parallel build path for `three_compartment_first_order` compounds, reached
 // via `buildCurve`'s model dispatch. Like the 2-comp path its disposition is a set
 // of exponential modes (α, β, γ) rather than a single ke, and it needs early-phase
-// grid densification. IV routes only (bolus, infusion) — oral 3-comp derivation is
-// deferred (`deriveParams3c` throws on oral). Returns a {@link ThreeCompartmentCurveResult}
-// so the UI narrows on `model` for the caption. Metabolites and the variability band
-// are intentionally omitted (as in the 2-comp path).
+// grid densification. Covers all three routes (IV bolus, IV infusion, and oral — a
+// four-exponential parent whose ka comes from `deriveParams3c`/`kaFromTmax3c`), though
+// no shipped 3-comp compound declares an oral Tmax yet, so oral is engine capability
+// rather than a live route today. Returns a {@link ThreeCompartmentCurveResult} so the
+// UI narrows on `model` for the caption. Metabolites and the variability band are
+// intentionally omitted (as in the 2-comp path).
 
 /**
  * Pick a 3-comp time horizon (h): the last dose plus ~5 TERMINAL (γ) half-lives,
- * extended for an infusion to cover the infusion plus its decay. The 3-comp analogue
- * of {@link curveHorizon2c}; sized on the slow terminal γ so the long tail isn't
- * clipped.
+ * extended for an infusion to cover the infusion plus its decay, and for oral so the
+ * absorption phase (~3 ka half-lives) plays out. The 3-comp analogue of
+ * {@link curveHorizon2c}; sized on the slow terminal γ so the long tail isn't clipped.
  */
 function curveHorizon3c(
+  route: Route,
   params: ThreeCompParams,
   terminalRate: number,
   lastDoseTime: number,
 ): number {
   const terminalHalfLife = Math.LN2 / terminalRate;
   let tail = 5 * terminalHalfLife;
+  if (route === 'oral' && params.ka !== undefined && params.ka > 0) {
+    tail += 3 * (Math.LN2 / params.ka);
+  }
   if (params.infusionDuration !== undefined) {
     tail = Math.max(tail, params.infusionDuration + 5 * terminalHalfLife);
   }
@@ -748,29 +754,36 @@ function curveHorizon3c(
 }
 
 /**
- * Critical sample times for a 3-comp IV curve. Like {@link criticalTimes2c} it pins
- * the IV-bolus jump at each dose and the infusion end, and DENSIFIES the fast early
- * phase — but the horizon is sized on the slow terminal γ, so without densification
- * the α distribution and β intermediate phases (which span only the first few minutes
- * for a drug like remifentanil) alias into a straight vertical drop. We log-space
- * marks over the first few half-lives of the FASTEST rate (α) after each dose so both
- * early knees render truthfully. (Oral 3-comp is deferred, so there is no absorption
- * peak to pin here.)
+ * Critical sample times for a 3-comp curve. Like {@link criticalTimes2c} it pins the
+ * IV-bolus jump at each dose, the infusion end, and (for oral) the exact Bateman peak,
+ * and DENSIFIES the fast early phase — the horizon is sized on the slow terminal γ, so
+ * without densification the α distribution and β intermediate phases (which span only
+ * the first few minutes for a drug like remifentanil) alias into a straight vertical
+ * drop. We log-space marks over the first few half-lives of the FASTEST early rate after
+ * each dose (α, or the absorption ka when it is faster still, for oral) so both early
+ * knees render truthfully; for oral we also pin the exact {@link oralPeakTime3c} instant
+ * so the marked Cmax/Tmax lands on the true peak.
  */
 function criticalTimes3c(
+  route: Route,
   params: ThreeCompParams,
   doses: DoseEvent[],
   horizonH: number,
 ): number[] {
   const { alpha } = threeCompRates(params);
   const jumpEps = horizonH * 1e-5;
-  const fastHalfLife = Math.LN2 / alpha;
+  // Densify over the fastest early phase — α, or a faster absorption ka (oral).
+  const fastRate =
+    route === 'oral' && params.ka !== undefined && params.ka > 0 ? Math.max(alpha, params.ka) : alpha;
+  const fastHalfLife = Math.LN2 / fastRate;
   const distEnd = Math.min(horizonH, 6 * fastHalfLife);
   const distStart = distEnd * 1e-3;
   const nDist = 40;
   const distOffsets = Array.from({ length: nDist + 1 }, (_, i) =>
     distStart * Math.pow(distEnd / distStart, i / nDist),
   );
+  const oralPeakOffset =
+    route === 'oral' && params.ka !== undefined && params.ka > 0 ? oralPeakTime3c(params) : undefined;
   const marks: number[] = [];
   for (const dose of doses) {
     if (dose.time > horizonH) continue;
@@ -779,6 +792,10 @@ function criticalTimes3c(
     for (const off of distOffsets) {
       const t = dose.time + off;
       if (t <= horizonH) marks.push(t);
+    }
+    if (oralPeakOffset !== undefined) {
+      const peakT = dose.time + oralPeakOffset;
+      if (peakT <= horizonH) marks.push(peakT);
     }
     if (params.infusionDuration !== undefined) {
       const end = dose.time + params.infusionDuration;
@@ -791,10 +808,11 @@ function criticalTimes3c(
 /**
  * Build the chart-ready curve for a three-compartment compound (handoff §12,
  * Stage B). The 3-comp analogue of {@link buildCurve2c}: derives {@link ThreeCompParams}
- * (throwing, via `deriveParams3c`, for a nonlinear compound or an oral route — the
- * caller catches and shows the message), injects the infusion duration, sizes and
- * densifies the grid on the α/γ eigenvalues, and evaluates the 3-comp superposition
- * (IV bolus or IV infusion). Returns α/β/γ half-lives for the caption.
+ * (throwing, via `deriveParams3c`, for a nonlinear compound or an oral route lacking
+ * absorption data — the caller catches and shows the message), injects the infusion
+ * duration and oral absorption (ka/F), sizes and densifies the grid on the α/γ
+ * eigenvalues, and evaluates the 3-comp superposition (IV bolus, IV infusion, or oral).
+ * Returns α/β/γ half-lives for the caption.
  */
 export function buildCurve3c(input: CurveInput): ThreeCompartmentCurveResult {
   const { compound, route, schedule, weightKg, samples = DEFAULT_SAMPLES } = input;
@@ -812,10 +830,10 @@ export function buildCurve3c(input: CurveInput): ThreeCompartmentCurveResult {
   const lastDoseTime = doses.reduce((latest, dose) => Math.max(latest, dose.time), 0);
 
   const { alpha, beta, gamma } = threeCompRates(disposition);
-  const horizonH = curveHorizon3c(disposition, gamma, lastDoseTime);
+  const horizonH = curveHorizon3c(route, disposition, gamma, lastDoseTime);
   const times = mergeGrid(
     sampleGrid(horizonH, samples),
-    criticalTimes3c(disposition, doses, horizonH),
+    criticalTimes3c(route, disposition, doses, horizonH),
   );
 
   const concentrations = concentrationCurve3c(route, disposition, doses, times);
