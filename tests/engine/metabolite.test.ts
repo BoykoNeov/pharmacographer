@@ -3,14 +3,20 @@ import {
   batemanMode,
   metabolite2cConcentrationCurve,
   metaboliteConcentrationCurve,
+  oralMetaboliteConcentrationCurve,
+  oralMetaboliteConcentrationFromModes,
   singleDose2cMetaboliteConcentration,
   singleDoseMetaboliteConcentration,
 } from '../../src/engine/metabolite.ts';
+import { oralConcentrationFromModes } from '../../src/engine/modes.ts';
 import { FLIP_FLOP_REL_TOL } from '../../src/engine/models.ts';
-import { twoCompRates } from '../../src/engine/models2c.ts';
+import { twoCompModes, twoCompRates } from '../../src/engine/models2c.ts';
+import { threeCompModes } from '../../src/engine/models3c.ts';
 import type {
+  ExpMode,
   MetaboliteDisposition,
   MetaboliteParams,
+  ThreeCompParams,
   TwoCompParams,
 } from '../../src/engine/types.ts';
 
@@ -272,6 +278,152 @@ describe('two-compartment metabolite superposition', () => {
 
   it('an empty schedule yields all zeros', () => {
     expect(metabolite2cConcentrationCurve(parent, meta, [], [0, 1, 2])).toEqual([0, 0, 0]);
+  });
+});
+
+/**
+ * ORAL parent → metabolite (the residue-form generalisation). An oral parent's
+ * central concentration is a sum of Bateman terms, re-expressed as plain exponential
+ * modes over {ka, λ…}; those feed the same metabolite core the IV cases use. Oracles:
+ * `C_m(0) = 0`; total exposure `AUC_m = fm·F·D/(k_m·Vd_m)` (CL and the (λ−ka) factors
+ * cancel — only F remains); an independent RK4 integration of the defining ODE
+ * `dA_m/dt = fm·CL·C_p(t) − k_m·A_m` (driving C_p from the engine's oral parent curve)
+ * matches the analytic curve — the check that catches residue-coefficient SIGN errors
+ * the scalar AUC cannot; collapse ka→∞ reproduces the IV-bolus metabolite and Q→0
+ * reproduces the lower-compartment oral metabolite; superposition; and the refusal at
+ * ka ≈ λ. Engine capability only — no shipped compound has an oral parent with a
+ * metabolite (diazepam is IV-only), so these params are synthetic.
+ */
+describe('oral parent → metabolite (residue form)', () => {
+  /** The one-compartment disposition as a single per-unit-dose mode (g = 1/Vd at ke). */
+  const oneCompModes = (vd: number, ke: number): ExpMode[] => [{ coef: 1 / vd, rate: ke }];
+
+  const meta: MetaboliteDisposition = { vdM: 30, keM: 0.15, fractionFormed: 0.5 };
+  const dose = 250;
+
+  it('C_m(0) = 0 and nothing before the dose (tau < 0 → 0)', () => {
+    const modes = twoCompModes({ vc: 10, cl: 5, q: 10, vp: 20 }, 1);
+    expect(oralMetaboliteConcentrationFromModes(modes, 5, 1.2, 0.9, meta, dose, 0)).toBe(0);
+    expect(oralMetaboliteConcentrationFromModes(modes, 5, 1.2, 0.9, meta, dose, -1)).toBe(0);
+  });
+
+  it('AUC_0→∞ ≈ fm·F·D/(k_m·Vd_m) for a 1-, 2- and 3-compartment oral parent', () => {
+    const F = 0.8;
+    const ka = 1.1;
+    const expected = (meta.fractionFormed * F * dose) / (meta.keM * meta.vdM);
+    const cases: { label: string; modes: ExpMode[]; cl: number }[] = [
+      { label: '1c', modes: oneCompModes(15, 0.4), cl: 0.4 * 15 },
+      { label: '2c', modes: twoCompModes({ vc: 10, cl: 5, q: 10, vp: 20 }, 1), cl: 5 },
+      {
+        label: '3c',
+        modes: threeCompModes({ vc: 10, cl: 5, q2: 10, vp2: 20, q3: 2, vp3: 40 }, 1),
+        cl: 5,
+      },
+    ];
+    for (const { modes, cl } of cases) {
+      const curve = (tau: number) =>
+        oralMetaboliteConcentrationFromModes(modes, cl, ka, F, meta, dose, tau);
+      // Size the horizon on the SLOWEST exponential in play — the metabolite k_m or a
+      // slower disposition eigenvalue (the 3-comp γ here is < k_m), else its tail is
+      // truncated and the numeric AUC falls short.
+      const slowestRate = Math.min(meta.keM, ...modes.map((m) => m.rate).filter((r) => r > 0));
+      const auc = trapezoid(curve, 40 * (Math.LN2 / slowestRate), 400_000);
+      expectRelClose(auc, expected, 1e-3);
+    }
+  });
+
+  it('matches an independent RK4 integration of dA_m/dt = fm·CL·C_p(t) − k_m·A_m', () => {
+    // De-risks the residue-coefficient SIGN (the AUC pins only a scalar): integrate the
+    // defining ODE with C_p driven by the engine's own oral parent curve, compare to the
+    // analytic metabolite. A flipped residue sign integrates to the same AUC but fails here.
+    const parent: TwoCompParams = { vc: 12, cl: 4, q: 8, vp: 30 };
+    const modes = twoCompModes(parent, 1);
+    const F = 0.75;
+    const ka = 0.9;
+    const cp = (t: number) => oralConcentrationFromModes(modes, ka, F, dose, t);
+    const rk4AmountAt = (target: number, steps: number): number => {
+      const h = target / steps;
+      let a = 0;
+      const deriv = (t: number, av: number) => meta.fractionFormed * parent.cl * cp(t) - meta.keM * av;
+      for (let i = 0; i < steps; i++) {
+        const t = i * h;
+        const k1 = deriv(t, a);
+        const k2 = deriv(t + h / 2, a + (h / 2) * k1);
+        const k3 = deriv(t + h / 2, a + (h / 2) * k2);
+        const k4 = deriv(t + h, a + h * k3);
+        a += (h / 6) * (k1 + 2 * k2 + 2 * k3 + k4);
+      }
+      return a;
+    };
+    for (const target of [2, 6, 15, 40]) {
+      const analytic = oralMetaboliteConcentrationFromModes(modes, parent.cl, ka, F, meta, dose, target);
+      const rk4 = rk4AmountAt(target, 40_000) / meta.vdM;
+      expectRelClose(rk4, analytic, 1e-4);
+    }
+  });
+
+  it('collapses to the IV-bolus metabolite as ka → ∞ (instant absorption, F = 1)', () => {
+    const parent: TwoCompParams = { vc: 10, cl: 5, q: 10, vp: 20 };
+    const modes = twoCompModes(parent, 1);
+    const bigKa = 1e6; // absorption effectively instantaneous
+    for (const tau of [0.5, 2, 5, 12, 30]) {
+      const oral = oralMetaboliteConcentrationFromModes(modes, parent.cl, bigKa, 1, meta, dose, tau);
+      const ivBolus = singleDose2cMetaboliteConcentration(parent, meta, dose, tau);
+      expectRelClose(oral, ivBolus, 1e-4);
+    }
+  });
+
+  it('3-comp oral metabolite collapses to the 2-comp oral metabolite as Q3 → 0', () => {
+    const F = 0.85;
+    const ka = 1.3;
+    const twoComp = twoCompModes({ vc: 10, cl: 5, q: 10, vp: 20 }, 1);
+    const collapsed: ThreeCompParams = { vc: 10, cl: 5, q2: 10, vp2: 20, q3: 0, vp3: 40 };
+    const threeComp = threeCompModes(collapsed, 1);
+    for (const tau of [0.5, 2, 5, 12, 30]) {
+      expect(
+        oralMetaboliteConcentrationFromModes(threeComp, 5, ka, F, meta, dose, tau),
+      ).toBeCloseTo(oralMetaboliteConcentrationFromModes(twoComp, 5, ka, F, meta, dose, tau), 9);
+    }
+  });
+
+  it('2-comp oral metabolite collapses to the 1-comp oral metabolite as Q → 0', () => {
+    const F = 0.85;
+    const ka = 1.3;
+    const vd = 15;
+    const ke = 0.4;
+    const oneComp = oneCompModes(vd, ke);
+    const twoComp = twoCompModes({ vc: vd, cl: ke * vd, q: 0, vp: 25 }, 1);
+    for (const tau of [0.5, 2, 5, 12, 30]) {
+      expect(
+        oralMetaboliteConcentrationFromModes(twoComp, ke * vd, ka, F, meta, dose, tau),
+      ).toBeCloseTo(oralMetaboliteConcentrationFromModes(oneComp, ke * vd, ka, F, meta, dose, tau), 9);
+    }
+  });
+
+  it('superposition: a single-dose schedule reproduces the single-dose curve', () => {
+    const modes = twoCompModes({ vc: 10, cl: 5, q: 10, vp: 20 }, 1);
+    const grid = [0, 1, 2, 4, 8, 16, 32];
+    const viaCurve = oralMetaboliteConcentrationCurve(modes, 5, 1.1, 0.9, meta, [{ time: 0, amount: dose }], grid);
+    for (let i = 0; i < grid.length; i++) {
+      expect(viaCurve[i]).toBeCloseTo(
+        oralMetaboliteConcentrationFromModes(modes, 5, 1.1, 0.9, meta, dose, grid[i]!),
+        12,
+      );
+    }
+  });
+
+  it('an empty schedule yields all zeros', () => {
+    const modes = twoCompModes({ vc: 10, cl: 5, q: 10, vp: 20 }, 1);
+    expect(oralMetaboliteConcentrationCurve(modes, 5, 1.1, 0.9, meta, [], [0, 1, 2])).toEqual([0, 0, 0]);
+  });
+
+  it('refuses when the absorption rate coincides with a disposition eigenvalue (ka ≈ λ)', () => {
+    // Set ka exactly to the 1-comp disposition rate ke — the removable double pole.
+    const ke = 0.4;
+    const modes = oneCompModes(15, ke);
+    expect(() => oralMetaboliteConcentrationFromModes(modes, ke * 15, ke, 0.9, meta, dose, 5)).toThrow(
+      /coincid|eigenvalue|absorption rate/i,
+    );
   });
 });
 

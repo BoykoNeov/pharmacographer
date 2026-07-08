@@ -378,7 +378,7 @@ describe('buildCurve — metabolites (IV-bolus parent)', () => {
     expect(cFull).toBeCloseTo(2 * cHalf, 10);
   });
 
-  it('does NOT plot a metabolite for a non-IV-bolus route (spike scope)', () => {
+  it('plots a metabolite for an ORAL parent, and starts it at C_m(0) = 0', () => {
     const raw = baseRawCompound();
     (raw.routes as Record<string, unknown>).oral = {
       available: true,
@@ -395,9 +395,19 @@ describe('buildCurve — metabolites (IV-bolus parent)', () => {
       },
     ];
     const oralWithMetabolite = parseCompound(raw);
-    expect(build1c({ compound: oralWithMetabolite, route: 'oral', schedule: single(350) }).metabolites).toBeUndefined();
-    // …but the same compound DOES plot it via IV bolus.
+    // Oral parent now plots the metabolite (residue-form generalisation).
+    const oral = build1c({ compound: oralWithMetabolite, route: 'oral', schedule: single(350) });
+    expect(oral.metabolites).toHaveLength(1);
+    expect(oral.metabolites![0]!.points[0]!.c).toBe(0);
+    expect(oral.metabolites![0]!.peak.c).toBeGreaterThan(0);
+    // …and so does IV bolus.
     expect(build1c({ compound: oralWithMetabolite, route: 'iv_bolus', schedule: single(350) }).metabolites).toHaveLength(1);
+  });
+
+  it('does NOT plot a metabolite for an IV infusion (zero-order input still deferred)', () => {
+    expect(
+      build1c({ compound: metaboliteCompound(), route: 'iv_infusion', schedule: single(350) }).metabolites,
+    ).toBeUndefined();
   });
 
   it('omits metabolites entirely for a parent-only compound', () => {
@@ -538,9 +548,9 @@ describe('buildCurve2c — two-compartment oral (tri-exponential)', () => {
   });
 });
 
-describe('buildCurve2c — two-compartment metabolite (IV bolus only)', () => {
+describe('buildCurve2c — two-compartment metabolite (IV bolus and oral)', () => {
   /** The 2-comp fixture with one metabolite (fm = 0.4, its own Vd + t½). */
-  function withMetabolite() {
+  function withMetabolite(withOral = false) {
     const raw = baseRawTwoCompCompound();
     raw.metabolites = [
       {
@@ -552,6 +562,13 @@ describe('buildCurve2c — two-compartment metabolite (IV bolus only)', () => {
         halfLife: { value: 12, unit: 'h', derived: false, sourceRef: 'ref' },
       },
     ];
+    if (withOral) {
+      (raw.routes as Record<string, unknown>).oral = {
+        available: true,
+        F: { value: 0.9, unit: 'fraction', derived: false, sourceRef: 'definition' },
+        tmax: { value: 1.5, unit: 'h', derived: false, sourceRef: 'ref' },
+      };
+    }
     return parseCompound(raw);
   }
 
@@ -564,6 +581,24 @@ describe('buildCurve2c — two-compartment metabolite (IV bolus only)', () => {
     expect(metabolites).toHaveLength(1);
     expect(metabolites![0]!.points[0]!.c).toBe(0);
     expect(metabolites![0]!.peak.c).toBeGreaterThan(0);
+  });
+
+  it('plots the metabolite line via an ORAL parent too (residue form), C_m(0) = 0', () => {
+    const { metabolites } = buildCurve2c({
+      compound: withMetabolite(true),
+      route: 'oral',
+      schedule: single(100),
+    });
+    expect(metabolites).toHaveLength(1);
+    expect(metabolites![0]!.points[0]!.c).toBe(0);
+    expect(metabolites![0]!.peak.c).toBeGreaterThan(0);
+    expect(metabolites![0]!.peak.t).toBeGreaterThan(0); // forms after absorption
+  });
+
+  it('does NOT plot the metabolite for an IV infusion (still deferred)', () => {
+    expect(
+      buildCurve2c({ compound: withMetabolite(), route: 'iv_infusion', schedule: single(100) }).metabolites,
+    ).toBeUndefined();
   });
 
   it('a long-lived metabolite extends the horizon beyond the parent terminal', () => {
@@ -628,5 +663,32 @@ describe('buildCurve3c — three-compartment oral (four-exponential)', () => {
         schedule: single(100),
       }),
     ).toThrow(/oral|ka|tmax|absorption/i);
+  });
+
+  it('drives a metabolite off the oral 3-comp parent (residue form), C_m(0) = 0', () => {
+    const raw = baseRawThreeCompCompound();
+    (raw.routes as Record<string, unknown>).oral = {
+      available: true,
+      F: { value: 0.9, unit: 'fraction', derived: false, sourceRef: 'definition' },
+      tmax: { value: 1.5, unit: 'h', derived: false, sourceRef: 'ref' },
+    };
+    raw.metabolites = [
+      {
+        id: 'testmeta3c',
+        name: 'Testmeta3C',
+        active: false,
+        fractionFormed: { value: 0.3, unit: 'fraction', derived: false, sourceRef: 'ref' },
+        vd: { value: 40, unit: 'L', derived: false, sourceRef: 'ref' },
+        halfLife: { value: 20, unit: 'h', derived: false, sourceRef: 'ref' },
+      },
+    ];
+    const { metabolites } = buildCurve3c({
+      compound: parseCompound(raw),
+      route: 'oral',
+      schedule: single(100),
+    });
+    expect(metabolites).toHaveLength(1);
+    expect(metabolites![0]!.points[0]!.c).toBe(0);
+    expect(metabolites![0]!.peak.c).toBeGreaterThan(0);
   });
 });
