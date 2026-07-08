@@ -91,8 +91,13 @@ landed AND is wired into the app (bolus/infusion/oral + metabolites); the first
 2-comp compound (diazepam→nordiazepam) shipped; the **3-compartment (Stage B)
 engine extension** landed (cubic eigenvalues via bracketed bisection, RK4-cross-checked);
 and that 3-comp model is now **fully wired through data + UI with the first 3-comp compound
-shipped — remifentanil (Minto model), IV bolus + infusion (308 tests)**. See the per-milestone
-notes below.**
+shipped — remifentanil (Minto model), IV bolus + infusion (308 tests)**. Since then: **oral 3-comp
+ka-from-Tmax derivation landed** (`kaFromTmax3c`; oral wired through `deriveParams3c`/`buildCurve3c`),
+and **oral-PARENT metabolites landed** via residue-form parent modes — the metabolite gate is now
+`iv_bolus || oral` across all three models (343 tests). Both are engine-capability-only (no shipped
+compound exercises them — remifentanil/diazepam are IV-only). See the per-milestone notes below. The
+**static-site deploy remains the sole open Phase 7 item**; open post-v1 deferrals: IV-infusion-parent
+metabolites (zero-order input) and the flip-flop oral horizon.**
 
 **Multi-compartment (2-compartment) §12 engine extension — engine + glue + tests
 landed AND wired into the app (246 tests).** The linear 2-comp model (central +
@@ -167,7 +172,8 @@ scaling, `kaFromTmax2c`↔`oralPeakTime2c` round-trip, and **collapse-to-1c** (o
 one-compartment oral Bateman 12-digit). Verified in the running app (throwaway 2-comp oral
 compound): picker offers Oral, curve renders as a proper tri-exponential (absorption→α knee→β
 tail), Cmax marker lands at the target Tmax, derived-ka provenance row shows. **Metabolite-from-
-oral-parent stays deferred** (the metabolite gate is still `route==='iv_bolus'`).
+oral-parent has since LANDED** (residue-form parent modes; the gate is now `iv_bolus || oral` — see
+the oral-parent metabolites note below).
 
 **Three-compartment parent — Stage B LANDED (engine + tests; NO compound shipped; 301 tests).**
 The mode-based spine paid off: the ONLY new disposition code is `models3c.ts` computing three
@@ -293,10 +299,50 @@ Verified via a throwaway Playwright driver (metabolite group renders with badges
 Sources, group drops on iv_infusion; no console errors) and a `ProvenancePanel` render test with the real
 diazepam pair. App passes `curve.value.metabolites` to the panel.
 
-Deferred follow-on still open: oral-PARENT metabolites (needs residue-form
-parent modes; the metabolite gate is still `route==='iv_bolus'`), and oral 3-comp derivation
-(`deriveParams3c` throws on oral; the engine supports it via `oralPeakTime3c`, only the `kaFromTmax3c`
-inversion is unwired). **DONE:** the ProvenancePanel metabolite-provenance rows (above); the metabolite `<Line>` rows; the 3-comp DATA+UI wiring; the
+**Oral 3-comp ka-from-Tmax derivation — LANDED (`feat(engine)`, 330 tests).** `deriveParams3c`
+previously threw on oral; now `kaFromTmax3c` (the four-exponential analogue of `kaFromTmax2c`
+— same bracket-and-bisect on the single peak equation `C′(tmax; ka)=0`, using `threeCompModes`
+for the g_λ and `batemanModeDerivative`) inverts a reported Tmax, and the oral branch of
+`deriveParams3c` is wired (F handling, ka measured-or-Tmax-inverted, flip-flop warning against
+the terminal eigenvalue **γ** — the smallest, so the oral terminal slope is −min(ka,γ) and ka<γ
+is exactly the flip-flop condition; consistent with 2c's ka<β). `curve.ts` `curveHorizon3c`/
+`criticalTimes3c` gained an oral branch (tail +~3 ka half-lives; densify over max(α,ka); pin the
+exact `oralPeakTime3c` Bateman peak). Oracles: `kaFromTmax3c` round-trips through `oralPeakTime3c`
+and collapses to `kaFromTmax2c` as Q3→0; `buildCurve3c` oral starts at C(0)=0 with the marked
+peak pinned on Tmax. Engine capability only — no shipped 3-comp compound declares an oral Tmax
+(remifentanil is IV-only), same posture as oral-2c Stage A.
+
+**Oral-PARENT metabolites — LANDED (`feat(engine)`, residue-form parent modes, 343 tests).** The
+metabolite gate widened from IV-bolus-only to **`iv_bolus || oral`** across ALL THREE disposition
+models (and `buildCurve3c` gained a metabolite path it never had). An oral parent's central
+concentration is a sum of Bateman terms, not plain exponential modes; re-expressing it in RESIDUE
+form (`engine/metabolite.ts` `oralParentResidueModes`: one mode at rate ka with coef `Σ B_λ`, one
+per disposition rate λ with coef `−B_λ`, where `B_λ = ka·F·D·g_λ/(λ−ka)`) yields plain
+`coef·e^(−rate·t)` modes that feed the SAME `metaboliteConcentrationFromModes` core the IV cases
+use — so ONE oral core (`oralMetaboliteConcentrationFromModes`/`oralMetaboliteConcentrationCurve`)
+serves a 1-, 2- or 3-compartment oral parent (1c is the single-`1/Vd`-mode instance). `curve.ts`
+wires it into all three build paths (route-branch IV vs oral; 1c formation still driven by the
+plotted `mainKe` so the slider reshapes it). The `B_λ` denominator has a removable double pole at
+`ka ≈ λ` that the residue SPLIT cannot represent (would need a `t·e^(−λt)` limit term), so the
+builder THROWS a clear message (linearity-gate refuse-don't-mislead posture; `threeCompModes`'s
+"does not arise for physical parameters" stance) — **note the asymmetry: this throw propagates out
+of `buildCurve` and blanks the WHOLE curve, not just the metabolite line, so a future oral+metabolite
+compound whose ka coincides with a disposition eigenvalue loses the parent curve too** (a 1c oral
+PARENT alone renders fine at ka≈ke via `batemanMode`'s equal-rates limit — only the metabolite path
+refuses). IV-infusion-parent metabolites (zero-order input) remain a NEW deferred case. Oracles:
+C_m(0)=0; `AUC_m = fm·F·D/(k_m·Vd_m)` (CL and (λ−ka) cancel — only F remains); an **independent RK4
+integration** of `dA_m/dt = fm·CL·C_p(t) − k_m·A_m` (C_p from the engine's oral parent curve) matches
+the analytic curve, catching residue-coefficient SIGN errors the scalar AUC can't; collapse ka→∞
+reproduces the IV-bolus metabolite and Q→0 collapses 3c→2c→1c; superposition; ka≈λ refusal. The UI
+chart/ProvenancePanel are model-agnostic consumers of `curve.value.metabolites`, so the oral line +
+honesty-panel rows follow with NO component change (verified via node driver: oral line + provenance
+group render; infusion draws neither; both seams correct). **Gate widening is INERT for every shipped
+compound** — diazepam is the only compound with a metabolite and it has no oral route, so no shipped
+compound's rendered output changes (pure new latent capability, zero regression surface).
+
+Deferred follow-on still open: **IV-infusion-parent metabolites** (zero-order input — a distinct
+input shape from bolus/oral; the gate excludes `iv_infusion`), and the oral 3-comp inversion's sibling
+edges. **DONE:** oral 3-comp ka-from-Tmax (above); oral-parent metabolites (above); the ProvenancePanel metabolite-provenance rows; the metabolite `<Line>` rows; the 3-comp DATA+UI wiring; the
 `ModelAssumptionsNote` compartment caveat is now model-aware (`fix(ui)`, commit `6dc022a`) — a 2-comp
 compound gets a "Two compartments" bullet (central/peripheral split, α→β phases) instead of the
 contradictory hardcoded "One compartment"; branched on `compound.model`, verified in the running app.
@@ -314,8 +360,9 @@ vs elimination-rate-limited), superposition. (2) **`MetaboliteParams`** in `engi
 bibliography via the superRefine); an omitted/empty array stays valid so all 8 compounds
 pass. (4) **`derive.ts`** `deriveMetaboliteParams` (keM=ln2/t½, Vd L/kg scaling, percent
 fm normalisation). (5) **`ui/curve.ts`** `buildCurve` returns `metabolites: MetaboliteCurve[]`
-— **only for `route === 'iv_bolus'`** (the mono-exponential-parent gate; also excludes
-infusion), formation driven by the plotted `mainKe` (slider reshapes the metabolite but
+— at the spike this was **only for `route === 'iv_bolus'`** (the mono-exponential-parent gate; the
+gate has SINCE widened to `iv_bolus || oral` — see the oral-parent metabolites note above; infusion
+is still excluded), formation driven by the plotted `mainKe` (slider reshapes the metabolite but
 preserves its AUC), and the horizon is sized on the slowest of parent/band/metabolite ke
 so a long-lived metabolite isn't clipped. **Since landed:** the React `<Line>` rows are now
 DRAWN (see the "Metabolite `<Line>` rows" note above) and a real demo compound shipped
