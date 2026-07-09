@@ -16,6 +16,7 @@
 
 import { concentrationCurve, recurringDoses } from '../engine/dosing.ts';
 import {
+  infusionMetaboliteConcentrationCurve,
   metabolite2cConcentrationCurve,
   metabolite3cConcentrationCurve,
   metaboliteConcentrationCurve,
@@ -211,7 +212,7 @@ function scaleKe(baseKe: number, nominalHalfLifeH: number, targetHalfLifeH: numb
 /**
  * A metabolite's plotted curve (handoff §12; metabolites spike). One line per
  * metabolite formed from the parent, with its own peak and provenance. Present for an
- * IV-bolus or oral parent (any compartment count) that declares metabolites.
+ * IV-bolus, oral, or IV-infusion parent (any compartment count) that declares metabolites.
  */
 export interface MetaboliteCurve {
   /** Stable id (metabolite file key). */
@@ -258,9 +259,10 @@ interface CurveResultBase {
    */
   band?: BandPoint[];
   /**
-   * Metabolite curves, one per declared metabolite. Present for an IV-bolus or oral
-   * parent (any compartment count) that declares metabolites; `undefined` otherwise
-   * (e.g. an IV infusion, whose zero-order input is a separate deferred case).
+   * Metabolite curves, one per declared metabolite. Present for an IV-bolus, oral, or
+   * IV-infusion parent (any compartment count) that declares metabolites; `undefined`
+   * otherwise. The infusion metabolite is the convolution of the zero-order input
+   * window with the unit-bolus Bateman response (engine `infusionMetaboliteConcentration*`).
    */
   metabolites?: MetaboliteCurve[];
   /** Values the derivation computed rather than read (handoff §8). */
@@ -503,12 +505,13 @@ export function buildCurve(input: CurveInput): CurveResult {
   const doses = buildSchedule(schedule);
   const lastDoseTime = doses.reduce((latest, dose) => Math.max(latest, dose.time), 0);
 
-  // Metabolites (IV bolus or oral parent). Derive their disposition up front so a
-  // long-lived metabolite (keM < parent ke) extends the horizon below and isn't
-  // clipped mid-decay. Formation is driven by the parent ke actually plotted (mainKe),
-  // so moving the half-life slider moves the metabolite consistently.
+  // Metabolites (IV bolus, oral, or IV infusion parent). Derive their disposition up
+  // front so a long-lived metabolite (keM < parent ke) extends the horizon below and
+  // isn't clipped mid-decay. Formation is driven by the parent ke actually plotted
+  // (mainKe), so moving the half-life slider moves the metabolite consistently.
   const metaboliteDerivations =
-    (route === 'iv_bolus' || route === 'oral') && compound.metabolites?.length
+    (route === 'iv_bolus' || route === 'oral' || route === 'iv_infusion') &&
+    compound.metabolites?.length
       ? compound.metabolites.map((m) => ({
           meta: m,
           ...deriveMetaboliteDisposition(m, { weightKg }),
@@ -536,7 +539,9 @@ export function buildCurve(input: CurveInput): CurveResult {
   // Evaluate each metabolite over the same grid/schedule as the parent. An IV-bolus
   // parent contributes a plain Bateman metabolite (formation rate = the plotted mainKe);
   // an oral parent's metabolite is driven off the parent's residue-form mode
-  // (single 1/Vd mode at mainKe, absorption ka/F), so the slider still reshapes it.
+  // (single 1/Vd mode at mainKe, absorption ka/F), so the slider still reshapes it; an
+  // IV-infusion parent's metabolite is the zero-order-input convolution over that same
+  // single mode (duration from the injected disposition).
   const metabolites: MetaboliteCurve[] | undefined = metaboliteDerivations.length
     ? metaboliteDerivations.map(({ meta, params: mp, derived: mDerived, warnings: mWarnings }) => {
         const c =
@@ -550,7 +555,16 @@ export function buildCurve(input: CurveInput): CurveResult {
                 doses,
                 times,
               )
-            : metaboliteConcentrationCurve({ ...mp, keParent: mainKe }, doses, times);
+            : route === 'iv_infusion'
+              ? infusionMetaboliteConcentrationCurve(
+                  [{ coef: 1 / params.vd, rate: mainKe }],
+                  mainKe * params.vd,
+                  mp,
+                  doses,
+                  disposition.infusionDuration ?? DEFAULT_INFUSION_DURATION_H,
+                  times,
+                )
+              : metaboliteConcentrationCurve({ ...mp, keParent: mainKe }, doses, times);
         const mPoints = times.map((t, i) => ({ t, c: c[i] ?? 0 }));
         return {
           id: meta.id,
@@ -672,7 +686,7 @@ function criticalTimes2c(
  * absorption data — the caller catches and shows the message), injects the
  * infusion duration and oral absorption (ka/F), sizes and densifies the grid, and
  * evaluates the 2-comp superposition (IV bolus, IV infusion, or oral). Metabolites
- * (IV bolus only, the extension scope) are driven by the parent's α/β modes.
+ * (IV-bolus, oral, or IV-infusion parent) are driven off the parent's α/β modes.
  * Variability band/slider are intentionally omitted — varying a single half-life
  * is ill-defined across two eigenvalues (a §12 follow-on, like the 1-comp band).
  */
@@ -691,10 +705,11 @@ export function buildCurve2c(input: CurveInput): TwoCompartmentCurveResult {
   const doses = buildSchedule(schedule);
   const lastDoseTime = doses.reduce((latest, dose) => Math.max(latest, dose.time), 0);
 
-  // Metabolites (IV bolus or oral parent). Derive their disposition up front so a
-  // long-lived metabolite (keM < β) extends the horizon below.
+  // Metabolites (IV bolus, oral, or IV infusion parent). Derive their disposition up
+  // front so a long-lived metabolite (keM < β) extends the horizon below.
   const metaboliteDerivations =
-    (route === 'iv_bolus' || route === 'oral') && compound.metabolites?.length
+    (route === 'iv_bolus' || route === 'oral' || route === 'iv_infusion') &&
+    compound.metabolites?.length
       ? compound.metabolites.map((m) => ({
           meta: m,
           ...deriveMetaboliteDisposition(m, { weightKg }),
@@ -725,7 +740,16 @@ export function buildCurve2c(input: CurveInput): TwoCompartmentCurveResult {
                 doses,
                 times,
               )
-            : metabolite2cConcentrationCurve(disposition, mp, doses, times);
+            : route === 'iv_infusion'
+              ? infusionMetaboliteConcentrationCurve(
+                  twoCompModes(disposition, 1),
+                  disposition.cl,
+                  mp,
+                  doses,
+                  disposition.infusionDuration ?? DEFAULT_INFUSION_DURATION_H,
+                  times,
+                )
+              : metabolite2cConcentrationCurve(disposition, mp, doses, times);
         const mPoints = times.map((t, i) => ({ t, c: c[i] ?? 0 }));
         return {
           id: meta.id,
@@ -762,8 +786,8 @@ export function buildCurve2c(input: CurveInput): TwoCompartmentCurveResult {
 // four-exponential parent whose ka comes from `deriveParams3c`/`kaFromTmax3c`), though
 // no shipped 3-comp compound declares an oral Tmax yet, so oral is engine capability
 // rather than a live route today. Returns a {@link ThreeCompartmentCurveResult} so the
-// UI narrows on `model` for the caption. Metabolites (IV-bolus or oral parent) are
-// driven off the parent's α/β/γ modes, as in the 2-comp path; the variability band is
+// UI narrows on `model` for the caption. Metabolites (IV-bolus, oral, or IV-infusion
+// parent) are driven off the parent's α/β/γ modes, as in the 2-comp path; the band is
 // intentionally omitted (varying one half-life across three eigenvalues is ill-defined).
 
 /**
@@ -848,8 +872,8 @@ function criticalTimes3c(
  * absorption data — the caller catches and shows the message), injects the infusion
  * duration and oral absorption (ka/F), sizes and densifies the grid on the α/γ
  * eigenvalues, and evaluates the 3-comp superposition (IV bolus, IV infusion, or oral).
- * Metabolites (IV-bolus or oral parent) are driven off the α/β/γ modes. Returns α/β/γ
- * half-lives for the caption.
+ * Metabolites (IV-bolus, oral, or IV-infusion parent) are driven off the α/β/γ modes.
+ * Returns α/β/γ half-lives for the caption.
  */
 export function buildCurve3c(input: CurveInput): ThreeCompartmentCurveResult {
   const { compound, route, schedule, weightKg, samples = DEFAULT_SAMPLES } = input;
@@ -866,10 +890,11 @@ export function buildCurve3c(input: CurveInput): ThreeCompartmentCurveResult {
   const doses = buildSchedule(schedule);
   const lastDoseTime = doses.reduce((latest, dose) => Math.max(latest, dose.time), 0);
 
-  // Metabolites (IV bolus or oral parent). Derive their disposition up front so a
-  // long-lived metabolite (keM < γ) extends the horizon below.
+  // Metabolites (IV bolus, oral, or IV infusion parent). Derive their disposition up
+  // front so a long-lived metabolite (keM < γ) extends the horizon below.
   const metaboliteDerivations =
-    (route === 'iv_bolus' || route === 'oral') && compound.metabolites?.length
+    (route === 'iv_bolus' || route === 'oral' || route === 'iv_infusion') &&
+    compound.metabolites?.length
       ? compound.metabolites.map((m) => ({
           meta: m,
           ...deriveMetaboliteDisposition(m, { weightKg }),
@@ -900,7 +925,16 @@ export function buildCurve3c(input: CurveInput): ThreeCompartmentCurveResult {
                 doses,
                 times,
               )
-            : metabolite3cConcentrationCurve(disposition, mp, doses, times);
+            : route === 'iv_infusion'
+              ? infusionMetaboliteConcentrationCurve(
+                  threeCompModes(disposition, 1),
+                  disposition.cl,
+                  mp,
+                  doses,
+                  disposition.infusionDuration ?? DEFAULT_INFUSION_DURATION_H,
+                  times,
+                )
+              : metabolite3cConcentrationCurve(disposition, mp, doses, times);
         const mPoints = times.map((t, i) => ({ t, c: c[i] ?? 0 }));
         return {
           id: meta.id,

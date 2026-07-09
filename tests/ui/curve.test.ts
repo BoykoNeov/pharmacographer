@@ -404,10 +404,11 @@ describe('buildCurve — metabolites (IV-bolus parent)', () => {
     expect(build1c({ compound: oralWithMetabolite, route: 'iv_bolus', schedule: single(350) }).metabolites).toHaveLength(1);
   });
 
-  it('does NOT plot a metabolite for an IV infusion (zero-order input still deferred)', () => {
-    expect(
-      build1c({ compound: metaboliteCompound(), route: 'iv_infusion', schedule: single(350) }).metabolites,
-    ).toBeUndefined();
+  it('plots a metabolite for an IV infusion (zero-order input), starting at C_m(0) = 0', () => {
+    const inf = build1c({ compound: metaboliteCompound(), route: 'iv_infusion', schedule: single(350) });
+    expect(inf.metabolites).toHaveLength(1);
+    expect(inf.metabolites![0]!.points[0]!.c).toBe(0);
+    expect(inf.metabolites![0]!.peak.c).toBeGreaterThan(0);
   });
 
   it('omits metabolites entirely for a parent-only compound', () => {
@@ -595,10 +596,11 @@ describe('buildCurve2c — two-compartment metabolite (IV bolus and oral)', () =
     expect(metabolites![0]!.peak.t).toBeGreaterThan(0); // forms after absorption
   });
 
-  it('does NOT plot the metabolite for an IV infusion (still deferred)', () => {
-    expect(
-      buildCurve2c({ compound: withMetabolite(), route: 'iv_infusion', schedule: single(100) }).metabolites,
-    ).toBeUndefined();
+  it('plots the metabolite for an IV infusion (zero-order input), starting at C_m(0) = 0', () => {
+    const inf = buildCurve2c({ compound: withMetabolite(), route: 'iv_infusion', schedule: single(100) });
+    expect(inf.metabolites).toHaveLength(1);
+    expect(inf.metabolites![0]!.points[0]!.c).toBe(0);
+    expect(inf.metabolites![0]!.peak.c).toBeGreaterThan(0);
   });
 
   it('a long-lived metabolite extends the horizon beyond the parent terminal', () => {

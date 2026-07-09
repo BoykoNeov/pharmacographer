@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   batemanMode,
+  infusionMetaboliteConcentrationCurve,
+  infusionMetaboliteConcentrationFromModes,
   metabolite2cConcentrationCurve,
   metaboliteConcentrationCurve,
   oralMetaboliteConcentrationCurve,
@@ -8,7 +10,7 @@ import {
   singleDose2cMetaboliteConcentration,
   singleDoseMetaboliteConcentration,
 } from '../../src/engine/metabolite.ts';
-import { oralConcentrationFromModes } from '../../src/engine/modes.ts';
+import { infusionConcentrationFromModes, oralConcentrationFromModes } from '../../src/engine/modes.ts';
 import { FLIP_FLOP_REL_TOL } from '../../src/engine/models.ts';
 import { twoCompModes, twoCompRates } from '../../src/engine/models2c.ts';
 import { threeCompModes } from '../../src/engine/models3c.ts';
@@ -424,6 +426,158 @@ describe('oral parent → metabolite (residue form)', () => {
     expect(() => oralMetaboliteConcentrationFromModes(modes, ke * 15, ke, 0.9, meta, dose, 5)).toThrow(
       /coincid|eigenvalue|absorption rate/i,
     );
+  });
+});
+
+/**
+ * IV-INFUSION parent → metabolite (the zero-order-input generalisation). An infused
+ * parent's central concentration is a rectangular input window convolved with the
+ * disposition; by linearity the metabolite is that same window convolved with the
+ * metabolite's unit-bolus Bateman response, so it is a difference of running Bateman
+ * areas (one closed form across during and after the infusion). Oracles: `C_m(0) = 0`;
+ * total exposure `AUC_m = fm·D/(k_m·Vd_m)` — the SAME as the IV bolus, independent of
+ * disposition AND of infusion duration; an independent RK4 integration of the defining
+ * ODE `dA_m/dt = fm·CL·C_p(t) − k_m·A_m` (driving C_p from the engine's infusion parent
+ * curve, integrated ACROSS the during/after seam) matches the analytic curve — the SIGN
+ * check the scalar AUC cannot see; collapse duration→0 reproduces the IV-bolus metabolite
+ * and Q→0 reproduces the lower-compartment infusion metabolite; superposition. Engine
+ * capability that lights up for a real compound: diazepam→nordiazepam on the IV-infusion
+ * route (the 2-comp params below mirror diazepam's shape).
+ */
+describe('IV-infusion parent → metabolite (zero-order input)', () => {
+  /** The one-compartment disposition as a single per-unit-dose mode (g = 1/Vd at ke). */
+  const oneCompModes = (vd: number, ke: number): ExpMode[] => [{ coef: 1 / vd, rate: ke }];
+
+  const meta: MetaboliteDisposition = { vdM: 30, keM: 0.15, fractionFormed: 0.5 };
+  const dose = 250;
+  const duration = 4;
+
+  it('C_m(0) = 0 and nothing before the dose (tau < 0 → 0)', () => {
+    const modes = twoCompModes({ vc: 10, cl: 5, q: 10, vp: 20 }, 1);
+    expect(infusionMetaboliteConcentrationFromModes(modes, 5, meta, dose, duration, 0)).toBe(0);
+    expect(infusionMetaboliteConcentrationFromModes(modes, 5, meta, dose, duration, -1)).toBe(0);
+  });
+
+  it('AUC_0→∞ ≈ fm·D/(k_m·Vd_m) for a 1-, 2- and 3-compartment infused parent', () => {
+    const expected = (meta.fractionFormed * dose) / (meta.keM * meta.vdM);
+    const cases: { label: string; modes: ExpMode[]; cl: number }[] = [
+      { label: '1c', modes: oneCompModes(15, 0.4), cl: 0.4 * 15 },
+      { label: '2c', modes: twoCompModes({ vc: 10, cl: 5, q: 10, vp: 20 }, 1), cl: 5 },
+      {
+        label: '3c',
+        modes: threeCompModes({ vc: 10, cl: 5, q2: 10, vp2: 20, q3: 2, vp3: 40 }, 1),
+        cl: 5,
+      },
+    ];
+    for (const { modes, cl } of cases) {
+      const curve = (tau: number) =>
+        infusionMetaboliteConcentrationFromModes(modes, cl, meta, dose, duration, tau);
+      const slowestRate = Math.min(meta.keM, ...modes.map((m) => m.rate).filter((r) => r > 0));
+      const auc = trapezoid(curve, 40 * (Math.LN2 / slowestRate), 400_000);
+      expectRelClose(auc, expected, 1e-3);
+    }
+  });
+
+  it('AUC is independent of the infusion duration (1 h vs 24 h)', () => {
+    const modes = twoCompModes({ vc: 10, cl: 5, q: 10, vp: 20 }, 1);
+    const expected = (meta.fractionFormed * dose) / (meta.keM * meta.vdM);
+    for (const dur of [1, 24]) {
+      const curve = (tau: number) =>
+        infusionMetaboliteConcentrationFromModes(modes, 5, meta, dose, dur, tau);
+      const auc = trapezoid(curve, 40 * (Math.LN2 / meta.keM), 400_000);
+      expectRelClose(auc, expected, 1e-3);
+    }
+  });
+
+  it('matches an independent RK4 integration of dA_m/dt = fm·CL·C_p(t) − k_m·A_m across the seam', () => {
+    // The SIGN / seam check (the AUC pins only a scalar): integrate the defining ODE with
+    // C_p driven by the engine's own infusion parent curve — which itself switches form at
+    // t = duration — and compare to the analytic metabolite both DURING and AFTER the infusion.
+    const parent: TwoCompParams = { vc: 12, cl: 4, q: 8, vp: 30 };
+    const modes = twoCompModes(parent, 1);
+    const dur = 3;
+    const r0 = dose / dur;
+    const cp = (t: number) => infusionConcentrationFromModes(modes, r0, dur, t);
+    const rk4AmountAt = (target: number, steps: number): number => {
+      const h = target / steps;
+      let a = 0;
+      const deriv = (t: number, av: number) => meta.fractionFormed * parent.cl * cp(t) - meta.keM * av;
+      for (let i = 0; i < steps; i++) {
+        const t = i * h;
+        const k1 = deriv(t, a);
+        const k2 = deriv(t + h / 2, a + (h / 2) * k1);
+        const k3 = deriv(t + h / 2, a + (h / 2) * k2);
+        const k4 = deriv(t + h, a + h * k3);
+        a += (h / 6) * (k1 + 2 * k2 + 2 * k3 + k4);
+      }
+      return a;
+    };
+    for (const target of [1.5, 3, 8, 20, 45]) {
+      // 1.5 is during the infusion, 3 is the exact seam, the rest are after.
+      const analytic = infusionMetaboliteConcentrationFromModes(modes, parent.cl, meta, dose, dur, target);
+      const rk4 = rk4AmountAt(target, 60_000) / meta.vdM;
+      expectRelClose(rk4, analytic, 1e-4);
+    }
+  });
+
+  it('is continuous at the end-of-infusion seam (t = duration)', () => {
+    const modes = twoCompModes({ vc: 12, cl: 4, q: 8, vp: 30 }, 1);
+    const dur = 3;
+    const eps = 1e-6;
+    const before = infusionMetaboliteConcentrationFromModes(modes, 4, meta, dose, dur, dur - eps);
+    const after = infusionMetaboliteConcentrationFromModes(modes, 4, meta, dose, dur, dur + eps);
+    expectRelClose(after, before, 1e-4);
+  });
+
+  it('collapses to the IV-bolus metabolite as duration → 0 (instant delivery)', () => {
+    const parent: TwoCompParams = { vc: 10, cl: 5, q: 10, vp: 20 };
+    const modes = twoCompModes(parent, 1);
+    const tinyDur = 1e-5; // delivery effectively instantaneous
+    for (const tau of [0.5, 2, 5, 12, 30]) {
+      const infusion = infusionMetaboliteConcentrationFromModes(modes, parent.cl, meta, dose, tinyDur, tau);
+      const ivBolus = singleDose2cMetaboliteConcentration(parent, meta, dose, tau);
+      expectRelClose(infusion, ivBolus, 1e-3);
+    }
+  });
+
+  it('3-comp infusion metabolite collapses to the 2-comp infusion metabolite as Q3 → 0', () => {
+    const twoComp = twoCompModes({ vc: 10, cl: 5, q: 10, vp: 20 }, 1);
+    const collapsed: ThreeCompParams = { vc: 10, cl: 5, q2: 10, vp2: 20, q3: 0, vp3: 40 };
+    const threeComp = threeCompModes(collapsed, 1);
+    for (const tau of [0.5, 2, 5, 12, 30]) {
+      expect(
+        infusionMetaboliteConcentrationFromModes(threeComp, 5, meta, dose, duration, tau),
+      ).toBeCloseTo(infusionMetaboliteConcentrationFromModes(twoComp, 5, meta, dose, duration, tau), 9);
+    }
+  });
+
+  it('2-comp infusion metabolite collapses to the 1-comp infusion metabolite as Q → 0', () => {
+    const vd = 15;
+    const ke = 0.4;
+    const oneComp = oneCompModes(vd, ke);
+    const twoComp = twoCompModes({ vc: vd, cl: ke * vd, q: 0, vp: 25 }, 1);
+    for (const tau of [0.5, 2, 5, 12, 30]) {
+      expect(
+        infusionMetaboliteConcentrationFromModes(twoComp, ke * vd, meta, dose, duration, tau),
+      ).toBeCloseTo(infusionMetaboliteConcentrationFromModes(oneComp, ke * vd, meta, dose, duration, tau), 9);
+    }
+  });
+
+  it('superposition: a single-dose schedule reproduces the single-dose curve', () => {
+    const modes = twoCompModes({ vc: 10, cl: 5, q: 10, vp: 20 }, 1);
+    const grid = [0, 1, 2, 4, 8, 16, 32];
+    const viaCurve = infusionMetaboliteConcentrationCurve(modes, 5, meta, [{ time: 0, amount: dose }], duration, grid);
+    for (let i = 0; i < grid.length; i++) {
+      expect(viaCurve[i]).toBeCloseTo(
+        infusionMetaboliteConcentrationFromModes(modes, 5, meta, dose, duration, grid[i]!),
+        12,
+      );
+    }
+  });
+
+  it('an empty schedule yields all zeros', () => {
+    const modes = twoCompModes({ vc: 10, cl: 5, q: 10, vp: 20 }, 1);
+    expect(infusionMetaboliteConcentrationCurve(modes, 5, meta, [], duration, [0, 1, 2])).toEqual([0, 0, 0]);
   });
 });
 

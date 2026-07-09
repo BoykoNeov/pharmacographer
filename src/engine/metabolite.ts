@@ -47,13 +47,31 @@
  * the same refuse-don't-mislead posture as the linearity gate. This does not arise for
  * physically separated absorption and disposition rates.
  *
+ * IV-INFUSION PARENT (the zero-order-input generalisation): an infused parent's
+ * central concentration is not a plain mode sum either — it is a rectangular window
+ * of zero-order input convolved with the disposition. Since the whole parent →
+ * metabolite chain is linear and time-invariant, the metabolite of an infusion is
+ * the SAME convolution of that rectangular window with the metabolite's unit-bolus
+ * impulse response `h(t) = (1/Vd_m)·Σ_λ batemanMode(fm·CL·g_λ, λ, k_m, t)`. So the
+ * metabolite of a single infusion (rate `R0 = D/T` over `[0, T]`) is a difference of
+ * running Bateman areas — one closed form covering during and after the infusion with
+ * no seam bookkeeping:
+ *
+ *   C_m(t) = (R0/Vd_m)·Σ_λ [ batemanModeIntegral(fm·CL·g_λ, λ, k_m, t)
+ *                           − batemanModeIntegral(fm·CL·g_λ, λ, k_m, max(0, t − T)) ]
+ *
+ * Its total exposure is `AUC_m = fm·D/(k_m·Vd_m)` — the SAME as the IV bolus (route-
+ * and duration-independent; `Σ g_λ/λ = 1/CL` cancels the disposition), the free
+ * regression anchor — and as `T → 0` it collapses to the IV-bolus metabolite. This
+ * serves a 1-, 2- or 3-compartment infused parent off the same disposition modes.
+ *
  * Pre-systemic/first-pass formation is still deferred (this treats the metabolite as
  * formed only from the systemically-absorbed parent).
  *
  * No React, no DOM, no data/JSON imports, no I/O — see CLAUDE.md / handoff §4.
  */
 
-import { batemanMode } from './modes.ts';
+import { batemanMode, batemanModeIntegral } from './modes.ts';
 import { FLIP_FLOP_REL_TOL } from './models.ts';
 import { twoCompModes } from './models2c.ts';
 import { threeCompModes } from './models3c.ts';
@@ -313,6 +331,81 @@ export function oralMetaboliteConcentrationCurve(
           F,
           meta,
           dose.amount,
+          t - dose.time,
+        ),
+      0,
+    ),
+  );
+}
+
+/**
+ * Metabolite concentration (mg/L) contributed by a SINGLE IV-INFUSION parent dose of
+ * `dose` mg delivered at constant rate over `duration` h, `tau` hours after the
+ * infusion STARTED, for a parent of ANY compartment count. The zero-order-input
+ * generalisation: an infusion is a rectangular window of boluses, so by linearity the
+ * metabolite is the convolution of that window with the metabolite's unit-bolus Bateman
+ * response — a difference of running Bateman areas ({@link batemanModeIntegral}), one
+ * closed form spanning DURING (`tau ≤ duration`) and AFTER (`tau > duration`) with no
+ * seam bookkeeping (the `max(0, tau − duration)` lower limit is `0` during the infusion):
+ *
+ *   C_m(tau) = (R0/Vd_m)·Σ_λ [ I_λ(tau) − I_λ(max(0, tau − duration)) ],   R0 = dose/duration
+ *
+ * where `I_λ(u) = batemanModeIntegral(fm·CL·g_λ, λ, k_m, u)`. `C_m(0) = 0`, the terminal
+ * slope is `−min(slowest parent rate, k_m)` as in the bolus case, and its total exposure
+ * is `AUC_m = fm·dose/(k_m·Vd_m)` — identical to the IV bolus (duration-independent). A
+ * zero-rate collapse mode (`λ = 0`, `g = 0`) contributes nothing and is skipped so it
+ * can't divide by 0, mirroring {@link infusionConcentrationFromModes}. As `duration → 0`
+ * this collapses to {@link metaboliteConcentrationFromModes} (the IV-bolus metabolite).
+ */
+export function infusionMetaboliteConcentrationFromModes(
+  dispositionUnitModes: ExpMode[],
+  parentCl: number,
+  meta: MetaboliteDisposition,
+  dose: number,
+  duration: number,
+  tau: number,
+): number {
+  if (tau < 0) return 0;
+  const { vdM, keM, fractionFormed } = meta;
+  const r0 = dose / duration;
+  const tPost = Math.max(0, tau - duration);
+  let amount = 0;
+  for (const { coef: g, rate: lambda } of dispositionUnitModes) {
+    if (lambda === 0 || g === 0) continue;
+    const amplitude = fractionFormed * parentCl * g;
+    amount +=
+      batemanModeIntegral(amplitude, lambda, keM, tau) -
+      batemanModeIntegral(amplitude, lambda, keM, tPost);
+  }
+  return (r0 * amount) / vdM;
+}
+
+/**
+ * Total metabolite concentration (mg/L) at each grid time for an IV-INFUSION parent
+ * (any compartment count) — the infusion analogue of {@link metaboliteConcentrationCurve}
+ * / {@link oralMetaboliteConcentrationCurve}. Every scheduled dose is infused over the
+ * same `duration` h (as the parent infusion curves apply one duration to all doses);
+ * superposes {@link infusionMetaboliteConcentrationFromModes} over the schedule with the
+ * per-unit-dose disposition modes (`g_λ`) and parent clearance computed once by the caller.
+ */
+export function infusionMetaboliteConcentrationCurve(
+  dispositionUnitModes: ExpMode[],
+  parentCl: number,
+  meta: MetaboliteDisposition,
+  schedule: DoseEvent[],
+  duration: number,
+  timeGrid: number[],
+): number[] {
+  return timeGrid.map((t) =>
+    schedule.reduce(
+      (total, dose) =>
+        total +
+        infusionMetaboliteConcentrationFromModes(
+          dispositionUnitModes,
+          parentCl,
+          meta,
+          dose.amount,
+          duration,
           t - dose.time,
         ),
       0,

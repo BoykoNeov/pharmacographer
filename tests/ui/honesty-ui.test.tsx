@@ -72,8 +72,11 @@ describe('metabolite provenance rows (handoff §12)', () => {
     expect(bolusHtml).toContain('CHEMM'); // metabolite Vd source
   });
 
-  it('drops the metabolite rows on a route that draws no metabolite line', () => {
+  it('shows the metabolite rows on IV infusion too (zero-order input forms the metabolite)', () => {
+    // An infused parent still forms the metabolite (the zero-order-input generalisation),
+    // so nordiazepam's rows appear on the infusion route exactly as on the bolus route.
     const infusion = buildCurve({ compound: diazepam!, route: 'iv_infusion', schedule });
+    expect(infusion.metabolites).toHaveLength(1);
     const infusionHtml = renderToStaticMarkup(
       <ProvenancePanel
         compound={diazepam!}
@@ -82,8 +85,19 @@ describe('metabolite provenance rows (handoff §12)', () => {
         metabolites={infusion.metabolites}
       />,
     );
-    expect(infusionHtml).not.toContain('prov__meta-group');
-    expect(infusionHtml).not.toContain('Nordiazepam');
+    expect(infusionHtml).toContain('prov__meta-group');
+    expect(infusionHtml).toContain('Nordiazepam');
+  });
+
+  it('drops the metabolite rows when the build produced no metabolite curve (route-truthful)', () => {
+    // The panel keys off the BUILT metabolites, not the compound's declared ones, so a
+    // build that produced none (e.g. a future route the engine can't form the metabolite
+    // from) shows no group even though diazepam declares nordiazepam.
+    const html = renderToStaticMarkup(
+      <ProvenancePanel compound={diazepam!} route="iv_bolus" derived={bolus.derived} metabolites={undefined} />,
+    );
+    expect(html).not.toContain('prov__meta-group');
+    expect(html).not.toContain('Nordiazepam');
   });
 });
 

@@ -91,6 +91,47 @@ export function batemanModeDerivative(
   );
 }
 
+/**
+ * Running area `∫₀^tau batemanMode(amplitude, inputRate, elimRate, v) dv` — the
+ * cumulative exposure of one Bateman term from the dose instant to `tau`.
+ * Integrating
+ *
+ *   amplitude / (elimRate − inputRate) · ( e^(−inputRate·v) − e^(−elimRate·v) )
+ *
+ * gives
+ *
+ *   amplitude / (elimRate − inputRate) · ( (1 − e^(−inputRate·tau))/inputRate
+ *                                        − (1 − e^(−elimRate·tau))/elimRate )
+ *
+ * and the equal-rates limit `amplitude · (1 − e^(−elimRate·tau)(1 + elimRate·tau)) / elimRate²`
+ * (the integral of `amplitude·v·e^(−elimRate·v)`) covers the `inputRate ≈ elimRate`
+ * 0/0 with the SAME tolerance as {@link batemanMode}, so the integrand and its
+ * integral switch branches at the same boundary. `0` at `tau = 0`; as `tau → ∞`
+ * it tends to `amplitude/(inputRate·elimRate)` (the full Bateman AUC). Used to
+ * build the metabolite of an IV-INFUSION parent, whose zero-order input makes the
+ * metabolite the convolution of a rectangular window with the unit-bolus Bateman
+ * response — that convolution is a difference of these running areas. Unit-agnostic
+ * like {@link batemanMode}. Precondition: `inputRate > 0` and `elimRate > 0` (both
+ * hold for physical disposition/elimination rates — the caller skips any zero-rate
+ * collapse mode, as {@link infusionConcentrationFromModes} does).
+ */
+export function batemanModeIntegral(
+  amplitude: number,
+  inputRate: number,
+  elimRate: number,
+  tau: number,
+): number {
+  if (Math.abs(inputRate - elimRate) <= FLIP_FLOP_REL_TOL * Math.max(inputRate, elimRate)) {
+    return (
+      (amplitude * (1 - Math.exp(-elimRate * tau) * (1 + elimRate * tau))) / (elimRate * elimRate)
+    );
+  }
+  return (
+    (amplitude / (elimRate - inputRate)) *
+    ((1 - Math.exp(-inputRate * tau)) / inputRate - (1 - Math.exp(-elimRate * tau)) / elimRate)
+  );
+}
+
 /** Sum the exponential modes at elapsed time `tau` (h) — the IV-bolus curve. */
 export function sumModes(modes: ExpMode[], tau: number): number {
   return modes.reduce((total, m) => total + m.coef * Math.exp(-m.rate * tau), 0);
