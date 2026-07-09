@@ -100,8 +100,11 @@ metabolites are engine-capability-only (no shipped compound exercises them — r
 IV-only), but the infusion-metabolite gate widening is NOT inert: diazepam has a metabolite and all IV
 routes are user-selectable, so **diazepam/iv_infusion now draws nordiazepam** (physically correct,
 route-independent AUC already validated; the default landing view stays iv_bolus, unchanged). See the
-per-milestone notes below. The **static-site deploy remains the sole open Phase 7 item**; open post-v1
-deferral: the flip-flop oral horizon.**
+per-milestone notes below. The **flip-flop oral horizon LANDED** (`fix(ui)`, 355 tests) — the three
+`curveHorizon*` functions now size the oral tail on the SLOWER of ka and the terminal disposition rate
+(`min(ka, ke/β/γ)`), so a flip-flop compound (ka < ke) isn't clipped mid-decay; reduces exactly to the
+old `5·ln2/ke + 3·ln2/ka` when ka > ke (zero regression on every normal compound), engine-capability-only
+(no shipped compound is flip-flop). The **static-site deploy remains the sole open Phase 7 item**.**
 
 **Multi-compartment (2-compartment) §12 engine extension — engine + glue + tests
 landed AND wired into the app (246 tests).** The linear 2-comp model (central +
@@ -375,8 +378,12 @@ nordiazepam provenance group on iv_infusion). Two UI tests that had ASSERTED inf
 metabolite (the old deferral) were updated to the corrected behavior, plus a new "route-truthful drop"
 test that proves the panel still hides the group when the build produced no metabolite curve.
 
-Deferred follow-on still open: the **flip-flop oral horizon** and the oral 3-comp inversion's sibling
-edges. **DONE:** IV-infusion-parent metabolites (above); oral 3-comp ka-from-Tmax (above); oral-parent metabolites (above); the ProvenancePanel metabolite-provenance rows; the metabolite `<Line>` rows; the 3-comp DATA+UI wiring; the
+Deferred follow-on still open: the oral 3-comp inversion's sibling edges. **DONE:** the **flip-flop oral
+horizon** (`fix(ui)`, 355 tests) — `curveHorizon`/`curveHorizon2c`/`curveHorizon3c` size the oral tail on
+`min(ka, terminal rate)` so a flip-flop (ka < ke) curve isn't clipped; reduces exactly to the old formula
+when ka > ke (zero regression), mutation-checked (pre-fix tail cut at ~9% of Cmax > the 5% test threshold;
+fixed ~0.6%), engine-capability-only (no shipped compound is flip-flop; synthetic caffeine-clone fixture);
+IV-infusion-parent metabolites (above); oral 3-comp ka-from-Tmax (above); oral-parent metabolites (above); the ProvenancePanel metabolite-provenance rows; the metabolite `<Line>` rows; the 3-comp DATA+UI wiring; the
 `ModelAssumptionsNote` compartment caveat is now model-aware (`fix(ui)`, commit `6dc022a`) — a 2-comp
 compound gets a "Two compartments" bullet (central/peripheral split, α→β phases) instead of the
 contradictory hardcoded "One compartment"; branched on `compound.model`, verified in the running app.

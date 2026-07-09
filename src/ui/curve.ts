@@ -389,7 +389,17 @@ function curveHorizon(route: Route, params: PkParams, lastDoseTime: number): num
   const halfLife = Math.LN2 / params.ke;
   let tail = 5 * halfLife;
   if (route === 'oral' && params.ka !== undefined && params.ka > 0) {
-    tail += 3 * (Math.LN2 / params.ka);
+    // Oral: the terminal decline is governed by the SLOWER of absorption (ka) and
+    // elimination (ke) — normally ke, but in flip-flop kinetics (ka < ke) absorption
+    // is rate-limiting and the tail decays at ka (a LONGER half-life). Size the
+    // 5-half-life tail on the slower rate and add ~3 half-lives of the faster
+    // (transient) rate for the other phase. Reduces EXACTLY to the previous
+    // `5·ln2/ke + 3·ln2/ka` when ka > ke, so no normal compound's horizon moves.
+    // (`params.ke` is already the slowest ke in view, so this also keeps a slow
+    // metabolite in the running for the terminal rate.)
+    const terminalRate = Math.min(params.ka, params.ke);
+    const transientRate = Math.max(params.ka, params.ke);
+    tail = 5 * (Math.LN2 / terminalRate) + 3 * (Math.LN2 / transientRate);
   }
   if (route === 'iv_infusion' && params.infusionDuration !== undefined) {
     tail = Math.max(tail, params.infusionDuration + 5 * halfLife);
@@ -618,7 +628,14 @@ function curveHorizon2c(
   const terminalHalfLife = Math.LN2 / slowestRate;
   let tail = 5 * terminalHalfLife;
   if (route === 'oral' && params.ka !== undefined && params.ka > 0) {
-    tail += 3 * (Math.LN2 / params.ka);
+    // Flip-flop-aware, as in {@link curveHorizon}: the terminal decline follows the
+    // SLOWER of absorption (ka) and the terminal disposition rate (`slowestRate` —
+    // already the min of β and any metabolite kₘ). In flip-flop (ka < β) the tail
+    // decays at ka, so sizing on β alone would clip it. Reduces EXACTLY to the
+    // previous `5·ln2/β + 3·ln2/ka` when ka > slowestRate.
+    const terminalRate = Math.min(params.ka, slowestRate);
+    const transientRate = Math.max(params.ka, slowestRate);
+    tail = 5 * (Math.LN2 / terminalRate) + 3 * (Math.LN2 / transientRate);
   }
   if (params.infusionDuration !== undefined) {
     tail = Math.max(tail, params.infusionDuration + 5 * terminalHalfLife);
@@ -805,7 +822,14 @@ function curveHorizon3c(
   const terminalHalfLife = Math.LN2 / terminalRate;
   let tail = 5 * terminalHalfLife;
   if (route === 'oral' && params.ka !== undefined && params.ka > 0) {
-    tail += 3 * (Math.LN2 / params.ka);
+    // Flip-flop-aware, as in {@link curveHorizon}: the terminal decline follows the
+    // SLOWER of absorption (ka) and the terminal disposition rate (`terminalRate` —
+    // already the min of γ and any metabolite kₘ). In flip-flop (ka < γ) the tail
+    // decays at ka, so sizing on γ alone would clip it. Reduces EXACTLY to the
+    // previous `5·ln2/γ + 3·ln2/ka` when ka > terminalRate.
+    const slowRate = Math.min(params.ka, terminalRate);
+    const fastRate = Math.max(params.ka, terminalRate);
+    tail = 5 * (Math.LN2 / slowRate) + 3 * (Math.LN2 / fastRate);
   }
   if (params.infusionDuration !== undefined) {
     tail = Math.max(tail, params.infusionDuration + 5 * terminalHalfLife);

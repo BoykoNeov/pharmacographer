@@ -62,6 +62,37 @@ describe('buildCurve peak (Cmax/Tmax)', () => {
 });
 
 /**
+ * Flip-flop oral horizon: when absorption is slower than elimination (ka < ke) the
+ * terminal decline follows the SLOW absorption rate, so the horizon must be sized on
+ * ka, not ke, or the tail is clipped mid-decay. No shipped compound is flip-flop (all
+ * have Tmax < 1/ke), so we synthesize one — engine-capability-only, like the oral-2c/3c
+ * paths. The assertion is a mutation check: the pre-fix horizon (sized on the fast ke)
+ * cut the tail at ~9% of Cmax, above the 5% threshold below; the fix decays it to ~0.6%.
+ */
+describe('buildCurve horizon (flip-flop oral, ka < ke)', () => {
+  it('sizes the tail on the slow absorption rate so the curve is not clipped', () => {
+    // Force flip-flop: a short elimination half-life (fast ke) with a late Tmax (slow
+    // ka) ⇒ Tmax (4 h) ≫ 1/ke (1.44 h), the exact condition derive.ts flags.
+    const flipFlop = structuredClone(byId('caffeine'));
+    flipFlop.disposition.halfLife = { ...flipFlop.disposition.halfLife, value: 1, unit: 'h' };
+    const oral = flipFlop.routes.oral;
+    if (!oral?.tmax) throw new Error('test fixture: caffeine oral Tmax missing');
+    oral.tmax = { ...oral.tmax, value: 4, range: undefined };
+
+    const { points, peak, horizonH } = buildCurve({
+      compound: flipFlop,
+      route: 'oral',
+      schedule: single(100),
+    });
+
+    const last = points[points.length - 1]!;
+    expect(last.t).toBeCloseTo(horizonH, 6); // the grid does reach the horizon
+    // Decayed to well under 5% of Cmax by the horizon ⇒ ~5 slow-rate half-lives shown.
+    expect(last.c / peak.c).toBeLessThan(0.05);
+  });
+});
+
+/**
  * `metaboliteTag` is the single source of truth for the "— (active) metabolite"
  * wording shared by the chart legend and the provenance panel, so the two can
  * never drift. It pins BOTH branches — the inactive branch in particular is not
