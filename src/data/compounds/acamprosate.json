@@ -1,0 +1,65 @@
+{
+  "id": "acamprosate",
+  "schemaVersion": 1,
+  "names": { "inn": "Acamprosate", "brand": ["Campral"], "synonyms": ["Acamprosate calcium", "Calcium acetylhomotaurinate"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 3.0,
+      "range": [2.5, 3.5],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "acamprosate_pk",
+      "conditions": "TRUE elimination half-life ~3 h, measured after INTRAVENOUS infusion (the true disposition rate, uncontaminated by absorption). This is the ke the model uses. The much longer ~20–33 h terminal half-life seen after ORAL dosing is NOT a slower elimination — it is the flip-flop signature (absorption-rate-limited; see notes and the oral route). Acamprosate is not metabolised and is excreted unchanged renally, so elimination is renal-function dependent."
+    },
+    "vd": {
+      "value": 1.3,
+      "range": [1.0, 1.6],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "acamprosate_pk",
+      "conditions": "volume of distribution 72–109 L after IV administration (≈1.0–1.6 L/kg for a 70 kg subject; point value ~1.3 L/kg). Negligible plasma protein binding. Scaled to absolute litres against the 70 kg reference subject at derivation time."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 0.11,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "campral_label",
+        "conditions": "absolute oral bioavailability ~11% (low; acamprosate is a hydrophilic BDDCS Class 3 molecule with poor, slow, absorption). Food reduces absorption further. The low F makes oral concentrations much lower than the IV curve at equal dose."
+      },
+      "tmax": {
+        "value": 7.0,
+        "range": [5.5, 8.0],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "campral_label",
+        "conditions": "peak plasma concentration reached ~5.5–8 h after an oral dose (point value 7 h) — a slow absorption peak. The engine inverts this Tmax to an absorption constant ka; because absorption is slower than elimination the derived ka (~0.08 /h) is LESS than ke (~0.23 /h) — a genuine flip-flop. See notes."
+      }
+    },
+    "iv_bolus": {
+      "available": false,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "campral_label": {
+      "type": "FDA label",
+      "title": "CAMPRAL (acamprosate calcium) delayed-release tablets — FDA Structured Product Label, Clinical Pharmacology (absolute oral bioavailability ~11%; Tmax 3–8 h; oral terminal half-life ~20–33 h; negligible protein binding; not metabolised; renal excretion of unchanged drug; flip-flop absorption noted)",
+      "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2012/021431s015lbl.pdf",
+      "accessed": "2026-07-10"
+    },
+    "acamprosate_pk": {
+      "type": "Journal article",
+      "title": "Clinical Pharmacokinetics of Acamprosate (Clin Pharmacokinet. 1998;35(5):331–345): IV volume of distribution 72–109 L, IV terminal half-life ~3 h, and the flip-flop mechanism (oral terminal half-life ~10× the IV value because absorption is rate-limiting).",
+      "url": "https://link.springer.com/article/10.2165/00003088-199835050-00001",
+      "accessed": "2026-07-10"
+    }
+  },
+  "notes": "The FIRST shipped FLIP-FLOP (ka < ke) compound — it exercises the engine's flip-flop-aware oral horizon (all three curveHorizon* functions size the oral tail on min(ka, terminal rate)) on real data. Acamprosate is the textbook flip-flop drug: its ELIMINATION is fast (IV terminal half-life ~3 h) but its ABSORPTION is slow (oral Tmax ~7 h), so after an oral dose the observed decline is governed by the slow absorption, not by elimination — the apparent oral terminal half-life (~20–33 h reported) is ~10× the true IV half-life. In flip-flop kinetics the roles are reversed: the terminal slope is −min(ka, ke) = −ka.\n\nHOW IT IS MODELLED: the TRUE elimination rate ke = ln2/3 h ≈ 0.231 /h comes from the IV disposition (half-life + Vd). The oral absorption constant is derived from the reported oral Tmax ~7 h by inverting Tmax = ln(ka/ke)/(ka − ke); this yields ka ≈ 0.08 /h, which is LESS than ke — the flip-flop condition. The IV bolus curve therefore decays with the fast ~3 h true half-life, while the oral curve rises slowly to its ~7 h peak and then declines with the SLOW ka-governed tail — the two curves side by side ARE the flip-flop lesson (the same drug appears to have two different 'half-lives' depending on route, and the oral one is an absorption artefact).\n\nDELAYED-RELEASE FORMULATION CAVEAT (a documented approximation, like ibuprofen's collapse). Campral is marketed ONLY as a delayed-release tablet, and its full reported oral terminal half-life (20–33 h) is prolonged further by the formulation's sustained release — a non-first-order absorption that a single ka cannot fully reproduce. A single ka can match EITHER the reported Tmax (~7 h → ka ≈ 0.08 /h, oral terminal ~8.7 h) OR the reported 20–33 h tail, but not both. This file matches the Tmax, so the modelled oral terminal (~8.7 h) is SHORTER than the label's 20–33 h: the single-ka model captures the flip-flop QUALITATIVELY (ka < ke; oral terminal > IV terminal; slow absorption governing the tail) but underestimates the delayed-release prolongation. This is a deliberate curator judgment (curate the drug's flip-flop behaviour approximately, with the formulation caveat noted) rather than modelling the DR release profile, which is out of scope for a first-order-absorption engine.\n\nROUTES: oral (F ~11%) is the real clinical route. IV is marked available: false because there is no marketed IV acamprosate product — but the IV disposition is real (measured in PK studies) and is the source of the true elimination rate, so the app offers an INFERRED IV bolus curve (labelled 'inferred, not based on route-specific data') precisely so the true-vs-apparent half-life contrast can be seen.\n\nLINEARITY: acamprosate elimination is first-order and dose-proportional (no saturable metabolism — it isn't metabolised at all), so superposition holds; linear: true. Educational illustration only — not for dosing."
+}

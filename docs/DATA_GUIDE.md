@@ -139,9 +139,17 @@ Tmax 7 h with **ka ≈ 0.08/h < ke 0.23/h — a genuine flip-flop** (oral termin
 The catch: Campral is a **delayed-release-only** product and its full reported 20–33 h oral
 tail is formulation-driven — no single ka reproduces both Tmax 7 h AND a 33 h tail. That is the
 "a sustained/delayed-release formulation bends 'curate drugs not formulations'" judgment call,
-which is a **user decision**, not the curator's: ship acamprosate as a flip-flop demo with a
-documented formulation caveat (single-ka captures the flip-flop qualitatively but underestimates
-the DR tail), or keep flip-flop as an engine-only capability. Parked pending that decision.
+which was put to the user, who chose to **ship it with the caveat documented**.
+
+**SHIPPED** (`compounds/acamprosate.json`) — the first flip-flop compound. Modelled 1-comp:
+true ke = ln2/3 h ≈ 0.231/h from the IV disposition (Vd ~1.3 L/kg, IV t½ 3 h); ka inverted from
+oral Tmax 7 h → **ka ≈ 0.081/h < ke — a genuine flip-flop**. IV bolus is offered as INFERRED
+(available: false — no marketed IV product, but the IV disposition is real and is the source of
+the true ke, so the true-vs-apparent half-life contrast can be shown); oral (F ~11%) is the real
+route. Documented caveat: matching Tmax gives a modelled oral terminal ~8.7 h, SHORTER than the
+label's 20–33 h — the single-ka model captures the flip-flop qualitatively but underestimates the
+DR prolongation (a deliberate approximation, like ibuprofen's monophasic collapse). Verified:
+IV decays on the fast 3 h t½ while the oral curve rises to its 7 h peak and outlasts the IV curve.
 
 ### Phase-7 seed expansion — 7 compounds added 2026-07-09
 
