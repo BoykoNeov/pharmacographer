@@ -85,7 +85,26 @@ all pass.
 
 Follow the phases in handoff §13 — engine + tests before UI. Current state:
 **Phase 7 data expansion + all three chart refinements done; static-site deploy
-is the sole remaining Phase 7 item. Post-v1: the metabolites (§12) engine core
+is the sole remaining Phase 7 item. SEED SET now 17 compounds (was 10): a
+2026-07-09 data pass added `levetiracetam`, `fluconazole`, `phenobarbital` (clean
+linear 1-comp oral+IV — renal clearance, long-t½ loading dose, very-long-t½
+accumulation / the LINEAR counterpoint to excluded phenytoin), `digoxin` (FIRST
+oral two-compartment compound — the distribution-phase teacher; Konishi 2014 popPK
+model; oral + IV bolus; α t½ ~0.9 h carrying ~82% of C(0) then β t½ ~48 h — the
+"wait 6–8 h to sample" lesson, magnitude-checked: 0.5 mg IV → C(0) ~4.5 ng/mL
+falling to ~0.8 into the 0.5–2 therapeutic window), `vancomycin` + `gentamicin`
+(IV 2-comp TDM archetypes, representative normal-renal-function params documented
+diazepam-style; peak/trough teaching), and `cefotaxime`→desacetylcefotaxime (the
+2nd metabolite pair and the FIRST compound to exercise the ORIGINAL 1-comp-parent
+Bateman-metabolite path — modelled 1-comp via a documented ibuprofen-style collapse;
+`fm` stored as 25% with the cited 19±4% urinary recovery as an explicit lower bound,
+NOT a bare "~33%"). All 370 tests / lint / build green; each magnitude-checked
+against reported concentrations. PARKED verdicts refreshed in docs/DATA_GUIDE.md:
+lisinopril stays deferred (no clean adult V/F; dual 40 h/12 h half-life makes a
+single-compartment V/F ambiguous); flip-flop found a candidate — **acamprosate**
+(genuine ka<ke: IV t½ 3 h, oral Tmax 7 h → ka ~0.08 < ke 0.23) but it's a
+delayed-release-only product whose 20–33 h tail no single ka captures, so shipping
+it is a USER judgment call (curate-drugs-not-formulations), pending. Post-v1: the metabolites (§12) engine core
 landed as a spike; the **multi-compartment (2-compartment) §12 engine extension**
 landed AND is wired into the app (bolus/infusion/oral + metabolites); the first
 2-comp compound (diazepam→nordiazepam) shipped; the **3-compartment (Stage B)

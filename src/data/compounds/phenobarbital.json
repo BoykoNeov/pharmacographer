@@ -1,0 +1,63 @@
+{
+  "id": "phenobarbital",
+  "schemaVersion": 1,
+  "names": { "inn": "Phenobarbital", "synonyms": ["Phenobarbitone", "Phenobarbital sodium"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 130,
+      "range": [80, 140],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "nelson_1982",
+      "conditions": "elimination half-life in healthy adults ~5.1 days (oral) to ~5.8 days (IV) — ~130 h — in Nelson 1982 (the single-population primary source). The point value 130 h ≈ 5.4 days; the band spans the broader adult literature (~3.3–5.8 days). Very long relative to a dosing interval, so phenobarbital accumulates for weeks before steady state (see notes)."
+    },
+    "vd": {
+      "value": 0.6,
+      "range": [0.5, 0.7],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "nelson_1982",
+      "conditions": "apparent volume of distribution 0.60 L/kg in healthy adults (Nelson 1982). Scaled to absolute litres against the 70 kg reference subject at derivation time. Clearance (3.0 mL/hr/kg, Nelson) is deliberately NOT stored: with this Vd it back-computes ke and would be a circular cross-check of the half-life, not an independent input."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 0.95,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "nelson_1982",
+        "conditions": "adjusted absolute oral availability from tablets 94.9% (range 81–112%, Nelson 1982). Point value 0.95; treated as effectively complete absorption. Because F is measured (~1), Vd is a true volume and the oral curve is C = F·D/V."
+      },
+      "tmax": {
+        "value": 2.3,
+        "range": [1.0, 4.0],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "nelson_1982",
+        "conditions": "peak serum concentration at 2.3 h after the oral tablet dose studied (Nelson 1982). NOTE: some references quote a slower oral Tmax (up to 8–12 h) for other phenobarbital formulations due to slow dissolution of the poorly-soluble acid; 2.3 h is the value from this single-population primary source. Given the ~130 h half-life the elimination phase dominates the curve, so the absorption-phase timing has little effect on overall shape."
+      }
+    },
+    "iv_bolus": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    },
+    "iv_infusion": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": true },
+  "sources": {
+    "nelson_1982": {
+      "type": "Journal article",
+      "title": "Nelson E, Powell JR, Conrad K, et al. Phenobarbital pharmacokinetics and bioavailability in adults. J Clin Pharmacol. 1982;22(2-3):141–148 (elimination half-life ~5.1–5.8 days; apparent Vd 0.60 L/kg; absolute oral availability 94.9%; total body clearance 3.0 mL/hr/kg; Tmax 2.3 h)",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/7068937/",
+      "accessed": "2026-07-09"
+    }
+  },
+  "notes": "A LINEAR one-compartment barbiturate — deliberately included as the counterpoint to phenytoin, which is EXCLUDED from v1 for saturable (nonlinear) elimination. Phenobarbital, unlike phenytoin, is eliminated by first-order kinetics at therapeutic concentrations, so a fixed half-life is meaningful and superposition holds; that contrast is itself a teaching point about which anticonvulsants a linear model may honestly represent.\n\nPOPULATION / SOURCE: all four parameters come from ONE primary source (Nelson 1982, healthy adults) so the set is internally consistent — half-life ~5.1 d (oral)/5.8 d (IV) ≈ 130 h, apparent Vd 0.60 L/kg, absolute oral availability 94.9%, total body clearance 3.0 mL/hr/kg, Tmax 2.3 h. These round-trip: ke = CL/Vd = 3.0/600 = 0.005 /h ⇒ t½ = ln2/ke ≈ 139 h, matching the IV half-life. Clearance is therefore NOT stored as a separate parameter (it would be a circular cross-check of the half-life, per the cetirizine rule).\n\nTEACHING VALUE — extreme accumulation. With a ~130 h (~5.4-day) half-life, phenobarbital needs ~3–4 weeks of a fixed daily dose to approach steady state; the recurring-dose view makes the very slow climb to plateau visible, and explains clinically why loading doses are used and why maintenance changes take weeks to fully register. (Illustrative curves only — no regimen advice; the bright line holds.)\n\nTmax CAVEAT: Nelson measured Tmax 2.3 h for the tablet studied; other sources report a slower oral peak (8–12 h) for less-soluble formulations. The value is kept at the primary-source figure and flagged; because elimination is so slow, the curve shape is nearly insensitive to this.\n\nNARROW THERAPEUTIC INDEX: therapeutic serum range ~15–40 mg/L with toxicity above; narrowTherapeuticIndex = true. This is an epistemic flag for the honesty layer, NOT a dosing constraint — the app never returns a dose. Educational illustration only — not for dosing."
+}

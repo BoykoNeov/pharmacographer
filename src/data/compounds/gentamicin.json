@@ -1,0 +1,75 @@
+{
+  "id": "gentamicin",
+  "schemaVersion": 1,
+  "names": { "inn": "Gentamicin", "brand": ["Garamycin"], "synonyms": ["Gentamicin sulfate"] },
+  "model": "two_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 3.0,
+      "range": [2, 4],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "gentamicin_review",
+      "conditions": "terminal (β-phase) elimination half-life ~2–3 h in adults with normal renal function (the engine recomputes β from the disposition2c micro-parameters, ~3.0 h here). A separate very-slow deep-tissue release phase (t½ of days) exists but carries negligible amplitude and is not modelled. Strongly renal-function dependent — gentamicin is ~100% renally cleared unchanged, so half-life lengthens sharply in renal impairment."
+    },
+    "vd": {
+      "value": 0.25,
+      "range": [0.2, 0.3],
+      "unit": "L/kg",
+      "derived": true,
+      "sourceRef": "gentamicin_review",
+      "conditions": "steady-state volume Vd(ss) = Vc + Vp = 0.15 + 0.10 = 0.25 L/kg, the classic aminoglycoside value (extracellular-fluid-like distribution, range ~0.2–0.3 L/kg). Scaled to absolute litres against the 70 kg reference subject at derivation time (≈17.5 L)."
+    }
+  },
+  "disposition2c": {
+    "clearance": {
+      "value": 0.0857,
+      "unit": "L/h/kg",
+      "derived": false,
+      "sourceRef": "gentamicin_review",
+      "conditions": "total clearance ≈6 L/h in a 70 kg adult with normal renal function (≈0.0857 L/h/kg). Gentamicin clearance approximates the glomerular filtration rate (≈creatinine clearance), so 6 L/h corresponds to CrCl ~100 mL/min. Sets AUC = Dose/CL."
+    },
+    "centralVd": {
+      "value": 0.15,
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "gentamicin_review",
+      "conditions": "central-compartment volume Vc ≈0.15 L/kg — a representative adult two-compartment value. As with the other aminoglycoside-class 2-comp entries, Vc is the softest input (it sets the early distribution-peak amplitude, which is illustrative); Vd(ss), CL and the terminal phase are well grounded."
+    },
+    "interCompartmentalClearance": {
+      "value": 0.0429,
+      "unit": "L/h/kg",
+      "derived": false,
+      "sourceRef": "gentamicin_review",
+      "conditions": "inter-compartmental clearance Q ≈3 L/h (≈0.0429 L/h/kg), a representative adult value that reproduces the reported distribution half-life (~0.4–0.7 h, i.e. ~20–40 min)."
+    },
+    "peripheralVd": {
+      "value": 0.10,
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "gentamicin_review",
+      "conditions": "peripheral (tissue) volume Vp ≈0.10 L/kg, chosen so Vc + Vp = 0.25 L/kg reproduces the reported Vd(ss). The terminal Vβ (= CL/β) then lands ~3 h, consistent with the reported normal-renal-function terminal of ~2–3 h."
+    }
+  },
+  "routes": {
+    "iv_infusion": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    },
+    "iv_bolus": {
+      "available": false,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": true },
+  "sources": {
+    "gentamicin_review": {
+      "type": "Journal article",
+      "title": "Clinical Pharmacokinetics of Gentamicin in Various Patient Populations and Consequences for Optimal Dosing for Gram-Negative Infections: An Updated Review (Clin Pharmacokinet, 2022; PMC9349143). Two-compartment disposition; Vd(ss) ~0.25 L/kg; clearance ≈ glomerular filtration rate; distribution t½ ~20–40 min, terminal t½ ~2–3 h in normal renal function. Representative normal-renal-function adult parameters used here.",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9349143/",
+      "accessed": "2026-07-09"
+    }
+  },
+  "notes": "A second therapeutic-drug-monitoring (TDM) archetype, alongside vancomycin, and another IV two-compartment infusion compound. Gentamicin is monitored for both efficacy (peak, or AUC, for concentration-dependent killing) and toxicity (trough, for nephro-/oto-toxicity from accumulation), which is the classic aminoglycoside peak/trough teaching pair. The two-compartment shape shows the short distribution phase (α t½ ~0.5 h) that is the reason a 'peak' level is drawn ~30 min AFTER the end of the infusion (once distribution is complete), not at the end of infusion where the central spike overreads.\n\nWHY IV INFUSION ONLY: gentamicin is given as a short IV infusion (typically over 30–60 min) or intramuscularly; a rapid IV push is not used, so iv_bolus is marked unavailable and iv_infusion is the modelled route. Gentamicin is not orally absorbed (oral omitted).\n\nPARAMETERS / POPULATION: like vancomycin, this file uses REPRESENTATIVE normal-renal-function adult two-compartment values rather than one population model whose covariate structure would distort the illustrative curve — Vc ~0.15 L/kg, Vp ~0.10 L/kg (so Vd(ss) ~0.25 L/kg, the classic aminoglycoside value), CL ~6 L/h (≈GFR), Q ~3 L/h — documented the same way as diazepam's/vancomycin's representative Vc. The engine recomputes α t½ ~0.66 h and β t½ ~3.0 h; the constraint β < k10 < α holds. Gentamicin's genuine deep-tissue third phase (renal cortex accumulation, t½ of days — the substrate of nephrotoxicity) carries negligible plasma amplitude and is deliberately not modelled; the two-compartment fit is the standard clinical description.\n\nNARROW THERAPEUTIC INDEX: dose-related nephrotoxicity and (largely irreversible) ototoxicity make gentamicin monitored; narrowTherapeuticIndex = true. This is an epistemic flag only — the app plots illustrative curves and NEVER returns a dose or target level (the bright line holds).\n\nRENAL ELIMINATION: ~100% renally cleared unchanged, so clearance and terminal half-life scale directly with renal function — an educational point, NOT a patient-specific adjustment. Educational illustration only — not for dosing."
+}

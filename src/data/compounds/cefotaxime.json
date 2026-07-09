@@ -1,0 +1,83 @@
+{
+  "id": "cefotaxime",
+  "schemaVersion": 1,
+  "names": { "inn": "Cefotaxime", "brand": ["Claforan"], "synonyms": ["Cefotaxime sodium"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 1.13,
+      "range": [0.9, 1.65],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "cefotaxime_pk",
+      "conditions": "terminal elimination half-life 1.13 h after a 1000 mg IV infusion in healthy adults (range across studies 0.9–1.65 h). Cefotaxime is genuinely mildly biphasic; modelled here as one-compartment (see notes — the distribution phase is shallow, a documented collapse comparable to ibuprofen)."
+    },
+    "vd": {
+      "value": 0.47,
+      "range": [0.45, 0.53],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "cefotaxime_pk",
+      "conditions": "volume of distribution 33 L in a 70 kg adult (≈0.47 L/kg; reported 32–37 L across IV/IM studies). Consistent with total clearance 341 mL/min/1.73m² and the 1.13 h half-life (Vβ = CL/β ≈ 33 L). Scaled to absolute litres against the 70 kg reference subject at derivation time."
+    }
+  },
+  "routes": {
+    "iv_bolus": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    },
+    "iv_infusion": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "metabolites": [
+    {
+      "id": "desacetylcefotaxime",
+      "name": "Desacetylcefotaxime (DACM)",
+      "active": true,
+      "fractionFormed": {
+        "value": 25,
+        "range": [19, 40],
+        "unit": "percent",
+        "derived": false,
+        "sourceRef": "ings_1985",
+        "conditions": "The directly-cited number is the URINARY RECOVERY of desacetylcefotaxime, 19 ± 4% of an IV dose (Ings 1985). That is a LOWER BOUND on the fraction formed, because desacetylcefotaxime is itself further eliminated (renal tubular secretion, plus some onward degradation) rather than fully recovered in urine. The true fraction metabolised is therefore somewhat higher, commonly estimated ~25–40%. Point value 25% is a conservative representative estimate near the cited lower bound; the band spans the recovery lower bound to the upper literature estimate. This is the honesty-critical parameter for the pair — see notes."
+      },
+      "vd": {
+        "value": 0.8,
+        "range": [0.5, 1.1],
+        "unit": "L/kg",
+        "derived": false,
+        "sourceRef": "ings_1985",
+        "conditions": "desacetylcefotaxime volume of distribution 56 ± 24 L (≈0.8 L/kg) — reported directly by Ings 1985 but with wide uncertainty (the ±24 L SD spans ~0.5–1.1 L/kg). Its own one-compartment disposition, not the parent's."
+      },
+      "halfLife": {
+        "value": 2.5,
+        "range": [1.5, 2.6],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "ings_1985",
+        "conditions": "desacetylcefotaxime observed (apparent) half-life 2.3 ± 0.4 h (Ings 1985), longer than the parent's 1.13 h — so the metabolite is elimination-rate-limited (its own elimination k_m is slower than the parent formation rate), and the observed metabolite decline tracks the metabolite's own slower disposition. Point value 2.5 h. (Ings also back-calculated a shorter model-dependent 'true' 0.83 h; the observed 2.3 h is used because it reproduces the measured metabolite curve.)"
+      },
+      "notes": "Desacetylcefotaxime is the principal metabolite of cefotaxime and is itself antibacterially active (weaker than the parent, and synergistic with it against some organisms). It is COMPUTED end-to-end by the metabolite engine as a Bateman curve off the one-compartment parent (the parent elimination rate is the formation input) and DRAWN as a dashed line for the IV routes. This is the FIRST shipped compound to exercise the original one-compartment-parent metabolite path (diazepam→nordiazepam, the only prior pair, has a two-compartment parent)."
+    }
+  ],
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "cefotaxime_pk": {
+      "type": "Journal article",
+      "title": "Pharmacokinetics of cefotaxime in healthy adults (PMC352911): 1000 mg IV infusion — volume of distribution 33 L, total body clearance 341 mL/min/1.73m², terminal half-life 1.13 h, renal clearance 130 mL/min/1.73m²; IM 500–1000 mg — half-life 1.2–1.3 h, Vd 32–37 L.",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC352911/",
+      "accessed": "2026-07-09"
+    },
+    "ings_1985": {
+      "type": "Journal article",
+      "title": "Ings RMJ, et al. The human pharmacokinetics of cefotaxime and its metabolites and the role of renal tubular secretion on their elimination. J Pharmacokinet Biopharm. 1985 (PubMed 4057054): desacetylcefotaxime urinary recovery 19 ± 4% of dose (a lower bound on fraction formed), observed half-life 2.3 ± 0.4 h, volume of distribution 56 ± 24 L.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/4057054/",
+      "accessed": "2026-07-09"
+    }
+  },
+  "notes": "The second shipped parent→metabolite pair (after diazepam→nordiazepam) and, importantly, the FIRST compound to exercise the engine's ORIGINAL one-compartment-parent metabolite path on real data — diazepam's parent is two-compartment, so the mono-exponential-parent Bateman metabolite had no shipped compound until now.\n\nWHY ONE-COMPARTMENT (a documented collapse). Cefotaxime is genuinely, but only MILDLY, biphasic — its distribution phase is shallow and short, and the reported volume (33 L), clearance (341 mL/min/1.73m²) and terminal half-life (1.13 h) form a self-consistent one-compartment description (Vβ = CL/β ≈ 33 L). This is the same documented monophasic-collapse posture used for ibuprofen (docs/DATA_GUIDE.md), and it is what made cefotaxime the 'least-bad' metabolite candidate in the rejection log. Choosing one-compartment (rather than back-deriving soft 2-comp micro-parameters) keeps every parent number a direct healthy-volunteer measurement and lets the clean one-compartment metabolite math apply.\n\nfm — THE HONESTY-CRITICAL PARAMETER. The only directly-cited figure is desacetylcefotaxime's URINARY RECOVERY, 19 ± 4% of an IV dose (Ings 1985). Urinary recovery is a LOWER BOUND on the fraction formed, because the metabolite is further eliminated rather than fully recovered. The fraction metabolised is therefore somewhat higher (commonly estimated ~25–40%), so fm is stored as 25% (a conservative estimate near the cited lower bound) with a range 19–40% and an explicit note that 19% is the measured floor, not the formation fraction. This deliberately avoids the earlier temptation to quote a bare '~33%' without a resolvable citation.\n\nMETABOLITE. Desacetylcefotaxime is active (weaker than cefotaxime, occasionally synergistic). Its observed half-life (2.3 h) is longer than the parent's (1.13 h), so it is elimination-rate-limited and its terminal decline reflects its own slower disposition; the engine's terminal-rate = min(k_parent, k_metabolite) reproduces this. Its volume (56 ± 24 L) is reported but uncertain. The metabolite is computed end-to-end and drawn as a dashed line for both IV routes (the metabolite gate is iv_bolus || oral || iv_infusion).\n\nROUTES. Cefotaxime is given IV (push over 3–5 min, or short infusion) and IM; iv_bolus and iv_infusion are both offered. It is not orally absorbed (oral omitted). Educational illustration only — not for dosing."
+}

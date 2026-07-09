@@ -56,16 +56,21 @@ vetting. The rationale is preserved here so it isn't re-litigated:
   on repeated dosing (autoinhibition; at high dose CYP2C19 saturates and CYP3A4
   takes over). That is a genuine superposition violation — the same class of
   problem as phenytoin — so it belongs in the nonlinear phase, not v1.
-- **Lisinopril — deferred, not excluded.** Its kinetics are compatible with the
-  linear model (the terminal ~40 h phase is saturable ACE binding that does _not_
-  accumulate; the accumulation-governing **effective half-life is ~12 h**, which
-  is what a superposition model should use). It is deferred only because a
-  concentration curve needs a volume of distribution and **neither the FDA label
-  nor the EMA SmPC states one** — they give absorption (~25%, 6–60% range),
-  effective half-life (12 h), and Tmax (~7 h), but no Vd/(V/F). Per the sourcing
-  rule "a value with no defensible source is omitted, not guessed," lisinopril
-  waits for a citable V/F (e.g. from an apparent oral clearance via the
-  `derived_from_clearance` route) rather than shipping a guessed volume.
+- **Lisinopril — deferred, not excluded (blocker re-confirmed 2026-07-09).** Its
+  kinetics are compatible with the linear model (the terminal ~40 h phase is
+  saturable ACE binding that does _not_ accumulate; the accumulation-governing
+  **effective half-life is ~12 h**, which is what a superposition model should
+  use). It is deferred because a concentration curve needs a volume of
+  distribution and **neither the FDA label nor the EMA SmPC states one** — they
+  give absorption (~25%, 6–60% range), effective half-life (12 h), and Tmax
+  (~7 h), but no Vd/(V/F). The `derived_from_clearance` escape hatch was
+  investigated and does **not** cleanly resolve it: the only apparent oral
+  clearance found is a **pediatric** popPK value (~10 L/h for a 30 kg child), not
+  an adult figure, and the **dual half-life** (40 h saturable-binding terminal vs
+  12 h effective) makes a single-compartment V/F = (CL/F)·t½/ln2 ambiguous in
+  _which_ t½ — the 40 h phase being the very saturable-binding nonlinearity we'd
+  be modelling around. Shipping would stack a pediatric CL/F on a contested t½.
+  Stays parked until a clean adult V/F (or apparent oral clearance) surfaces.
 
 ### Metabolite-pair candidates — one shipped, two still deferred
 
@@ -99,17 +104,56 @@ representable. Rationale preserved so it isn't re-litigated:
 - **Procainamide → NAPA — out, 2-compartment + genotype-dependent fm.** Parent is a
   2-compartment model; NAPA formation is acetylator-dependent (urinary recovery
   7–34%, bimodal fast/slow), so `fm` is not a single citable number.
-- **Cefotaxime → desacetylcefotaxime — out, 2-compartment (least-bad).** Its
-  secondary params ARE citable (`fm` ≈ 33%, parent t½ ~1.7 h, metabolite t½ ~2.6 h)
-  and its distribution/terminal split is mild, so it is the closest to a defensible
-  one-compartment approximation (comparable to ibuprofen's documented biphasic
-  collapse) — but the parent is still genuinely 2-compartment, so it waits.
+- **Cefotaxime → desacetylcefotaxime — SHIPPED 2026-07-09** (`compounds/cefotaxime.json`;
+  the second parent→metabolite pair and the FIRST shipped compound to exercise the
+  engine's ORIGINAL one-compartment-parent Bateman-metabolite path — diazepam's parent
+  is two-compartment). Modelled as **one-compartment** (a documented monophasic collapse,
+  the same posture as ibuprofen): its distribution phase is shallow and the reported
+  healthy-volunteer numbers form a self-consistent 1-comp set — Vd 33 L, CL 341 mL/min/1.73m²,
+  terminal t½ 1.13 h (Vβ = CL/β ≈ 33 L), from PMC352911. Choosing 1-comp (over back-deriving
+  soft 2-comp micro-parameters) keeps every parent number a direct measurement and lets the
+  clean 1-comp metabolite math apply. **fm was the honesty-critical parameter**: the only
+  directly-cited figure is desacetylcefotaxime's **urinary recovery, 19 ± 4%** of dose
+  (Ings 1985, PubMed 4057054), which is a LOWER BOUND on the fraction formed (the metabolite
+  is further eliminated, not fully recovered). So `fm` is stored as 25% (a conservative
+  estimate near the cited floor) with range 19–40% and an explicit note that 19% is the
+  measured lower bound — deliberately NOT the bare "~33%" the earlier draft quoted without a
+  resolvable citation. Metabolite: observed (apparent) t½ 2.3 h > parent's 1.13 h, so it is
+  elimination-rate-limited (its own slower disposition governs the terminal); Vd 56 ± 24 L
+  (wide). Drawn for both IV routes.
 
-The multi-compartment §12 engine extension unblocked the first of these (diazepam,
-above). Procainamide and cefotaxime still wait — not on the parent's compartmental
-structure (now representable) but on a citable single-value `fm` (procainamide's is
-acetylator-bimodal; cefotaxime's ~33% is citable, so it is the next candidate once its
-2-comp micro-parameters are sourced or derived the way diazepam's were).
+The multi-compartment §12 engine extension unblocked diazepam, and cefotaxime has now
+shipped as a one-compartment collapse (both above). **Procainamide still waits** — not on
+the parent's compartmental structure (now representable) but on a citable single-value `fm`
+(procainamide→NAPA formation is acetylator-bimodal, 7–34% urinary recovery, so `fm` is not
+one number).
+
+### Flip-flop (ka < ke) candidate — acamprosate (found, pending a curation judgment call)
+
+The engine gained a flip-flop-aware oral horizon (all three `curveHorizon*` size the oral
+tail on `min(ka, terminal rate)`), but no shipped compound is flip-flop. A signature search
+(oral terminal t½ > IV terminal t½) surfaced **acamprosate** as the cleanest documented case:
+IV Vd ~1 L/kg and IV terminal t½ ~3 h (the true elimination rate), oral F ~11%, Tmax ~7 h,
+no metabolism, renally excreted unchanged (BDDCS Class 3). A single-ka 1-comp model reproduces
+Tmax 7 h with **ka ≈ 0.08/h < ke 0.23/h — a genuine flip-flop** (oral terminal ~8.7 h > IV 3 h).
+The catch: Campral is a **delayed-release-only** product and its full reported 20–33 h oral
+tail is formulation-driven — no single ka reproduces both Tmax 7 h AND a 33 h tail. That is the
+"a sustained/delayed-release formulation bends 'curate drugs not formulations'" judgment call,
+which is a **user decision**, not the curator's: ship acamprosate as a flip-flop demo with a
+documented formulation caveat (single-ka captures the flip-flop qualitatively but underestimates
+the DR tail), or keep flip-flop as an engine-only capability. Parked pending that decision.
+
+### Phase-7 seed expansion — 7 compounds added 2026-07-09
+
+Beyond the metabolite/flip-flop work above, the seed set grew from 10 → 17 compounds in one
+pass: **levetiracetam, fluconazole, phenobarbital** (clean linear one-compartment, oral + IV —
+renal clearance, long-t½ loading-dose rationale, and very-long-t½ accumulation respectively;
+phenobarbital deliberately included as the LINEAR counterpoint to excluded phenytoin);
+**digoxin** (the first oral two-compartment compound — the canonical distribution-phase teacher,
+from the directly-parameterized Konishi 2014 popPK model, oral + IV bolus); **vancomycin,
+gentamicin** (IV two-compartment TDM archetypes, representative normal-renal-function parameters
+documented diazepam-style); and **cefotaxime** (above). All validated against the engine and
+magnitude-checked against reported concentrations.
 
 ### Three-compartment compounds — remifentanil shipped
 

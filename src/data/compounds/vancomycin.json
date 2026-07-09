@@ -1,0 +1,75 @@
+{
+  "id": "vancomycin",
+  "schemaVersion": 1,
+  "names": { "inn": "Vancomycin", "brand": ["Vancocin"], "synonyms": ["Vancomycin hydrochloride"] },
+  "model": "two_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 8.5,
+      "range": [4, 11],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "matzke_1986",
+      "conditions": "terminal (β-phase) elimination half-life in adults with normal renal function; the true two-compartment terminal runs ~6–12 h (longer than the ~4–6 h effective half-life often used for one-compartment dosing). The engine recomputes β from the disposition2c micro-parameters (~8.5 h here). Renal-function dependent — vancomycin is ~80–90% renally cleared unchanged, so half-life lengthens markedly in renal impairment."
+    },
+    "vd": {
+      "value": 0.7,
+      "range": [0.4, 1.0],
+      "unit": "L/kg",
+      "derived": true,
+      "sourceRef": "matzke_1986",
+      "conditions": "steady-state volume Vd(ss) = Vc + Vp = 0.2 + 0.5 = 0.7 L/kg, the widely-reported adult value (range 0.4–1.0). Scaled to absolute litres against the 70 kg reference subject at derivation time (≈49 L)."
+    }
+  },
+  "disposition2c": {
+    "clearance": {
+      "value": 0.0857,
+      "unit": "L/h/kg",
+      "derived": false,
+      "sourceRef": "matzke_1986",
+      "conditions": "total clearance ≈6 L/h in a 70 kg adult with normal renal function (≈0.0857 L/h/kg). Vancomycin clearance tracks creatinine clearance closely (≈0.7–0.9 × CrCl); 6 L/h corresponds to good renal function (CrCl ~120 mL/min). Sets AUC = Dose/CL — the modern vancomycin monitoring target is AUC-based."
+    },
+    "centralVd": {
+      "value": 0.2,
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "matzke_1986",
+      "conditions": "central-compartment volume Vc ≈0.2 L/kg — a representative adult two-compartment value (reported Vc runs ~0.15–0.2 L/kg). Sets the immediately-post-infusion peak reference. As with diazepam's Vc this is the softest input (few studies report Vc as a single young-adult number); the early distribution peak amplitude is therefore illustrative, while the terminal phase and Vd(ss) are well grounded."
+    },
+    "interCompartmentalClearance": {
+      "value": 0.1,
+      "unit": "L/h/kg",
+      "derived": false,
+      "sourceRef": "matzke_1986",
+      "conditions": "inter-compartmental clearance Q ≈7 L/h (≈0.1 L/h/kg), a representative adult value (population analyses report Q ~6.5–7 L/h). Drives the ~0.5–1 h distribution phase seen right after an infusion, before the trough is drawn."
+    },
+    "peripheralVd": {
+      "value": 0.5,
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "matzke_1986",
+      "conditions": "peripheral (tissue) volume Vp ≈0.5 L/kg, chosen so Vc + Vp = 0.7 L/kg reproduces the reported Vd(ss). The two-compartment terminal Vβ (= CL/β) then lands ~8.5 h, consistent with the true (2-comp) vancomycin terminal of ~6–12 h."
+    }
+  },
+  "routes": {
+    "iv_infusion": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    },
+    "iv_bolus": {
+      "available": false,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": true },
+  "sources": {
+    "matzke_1986": {
+      "type": "Journal article",
+      "title": "Matzke GR, Zhanel GG, Guay DR. Clinical pharmacokinetics of vancomycin. Clin Pharmacokinet. 1986;11(4):257–282 (two-compartment disposition; Vd(ss) ~0.4–1 L/kg; clearance tracks creatinine clearance; distribution and terminal phases). Representative normal-renal-function adult two-compartment parameters used here.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/3530582/",
+      "accessed": "2026-07-09"
+    }
+  },
+  "notes": "A therapeutic-drug-monitoring (TDM) archetype and a second IV two-compartment infusion compound. Vancomycin is the drug clinicians routinely monitor, and it illustrates why a two-compartment picture matters for sampling: after the infusion ends there is a short distribution phase (α t½ ~0.5–1 h) during which the serum level is still falling as drug redistributes into tissue, so a level drawn too early overreads — troughs are drawn just before the next dose, on the terminal line.\n\nWHY IV INFUSION ONLY: vancomycin must be infused slowly (a rapid IV push causes the histamine-mediated 'red man' / vancomycin-infusion reaction), so iv_bolus is marked unavailable (an IV push is not a real vancomycin route) and iv_infusion is the modelled route. Oral vancomycin exists but is essentially non-absorbed (it acts locally in the gut for C. difficile) — there is no systemic oral curve to plot, so oral is omitted.\n\nPARAMETERS / POPULATION: vancomycin has many published population models that disagree on the split between central and peripheral volume (e.g. the Goti 2018 model places an unusually large volume centrally, which lengthens the apparent terminal). Rather than adopt one model whose compartment split distorts the teaching curve, this file uses REPRESENTATIVE normal-renal-function adult two-compartment values — Vc ~0.2 L/kg, Vp ~0.5 L/kg (so Vd(ss) ~0.7 L/kg, the consensus value), CL ~6 L/h, Q ~7 L/h — from the Matzke clinical-pharmacokinetics review, documented the same way as diazepam's representative Vc. The engine recomputes α t½ ~0.66 h and β t½ ~8.5 h from these; the constraint β < k10 < α holds. As with diazepam, Vc is the softest input (it sets the early distribution-peak amplitude, which is illustrative), while Vd(ss), CL and the terminal phase are well grounded.\n\nNARROW THERAPEUTIC INDEX: nephrotoxicity/ototoxicity at high exposure and efficacy targets make vancomycin monitored; narrowTherapeuticIndex = true. This is an epistemic flag only — the app plots illustrative curves and NEVER returns a dose or a target level. Modern monitoring is AUC-based (AUC = Dose/CL), which the curve's exposure illustrates conceptually, not as a dosing calculator (the bright line holds).\n\nRENAL ELIMINATION: ~80–90% renally cleared unchanged, so clearance and terminal half-life scale with renal function — an educational point, NOT a patient-specific adjustment. Educational illustration only — not for dosing."
+}

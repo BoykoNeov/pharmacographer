@@ -1,0 +1,63 @@
+{
+  "id": "levetiracetam",
+  "schemaVersion": 1,
+  "names": { "inn": "Levetiracetam", "brand": ["Keppra"], "synonyms": ["LEV"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 7,
+      "range": [6, 8],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "plasma elimination half-life in adults 7 ± 1 h (FDA label), independent of dose and route; renally eliminated (~66% unchanged in urine), minimally metabolised. Point value 7 h, band = the ±1 h SD reported."
+    },
+    "vd": {
+      "value": 0.6,
+      "range": [0.5, 0.7],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "the FDA label does not print a numeric volume; it states the volume of distribution is 'close to the volume of intracellular and extracellular water' (i.e. total body water). Total body water is ~0.6 L/kg, the value used here (band 0.5–0.7 L/kg spans the customary reported range). Levetiracetam is <10% protein-bound, so an apparent-volume/true-volume distinction does not arise. Scaled to absolute litres against the 70 kg reference subject at derivation time."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 1.0,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "oral bioavailability of levetiracetam tablets is 100% (FDA label); tablets and oral solution are bioequivalent. Food does not change the extent of absorption (only lowers Cmax ~20% and delays Tmax). Because F = 1 is measured (not assumed), Vd is a true volume and the oral curve is C = D/V."
+      },
+      "tmax": {
+        "value": 1.0,
+        "range": [0.8, 1.3],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "peak plasma concentrations occur 'in about an hour' after oral dosing in fasted subjects (FDA label). Representative point value 1.0 h."
+      }
+    },
+    "iv_infusion": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    },
+    "iv_bolus": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "fda_label": {
+      "type": "FDA label",
+      "title": "KEPPRA (levetiracetam) tablets/oral solution — FDA Structured Product Label, Clinical Pharmacology / Pharmacokinetics (half-life 7 ± 1 h; oral bioavailability 100%; Tmax ~1 h; <10% protein bound; volume of distribution close to total body water; linear kinetics over 500–5000 mg)",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=d1329893-a8bc-4f31-a31b-76690d111035",
+      "accessed": "2026-07-09"
+    }
+  },
+  "notes": "A textbook-clean LINEAR one-compartment drug, curated entirely from the FDA Keppra label. Reported PK: half-life 7 ± 1 h, oral bioavailability 100%, Tmax ~1 h, <10% plasma protein binding, and kinetics that are explicitly 'linear and time-invariant, with low intra- and inter-subject variability' over the 500–5000 mg dose range. This is why levetiracetam is a good teaching compound: superposition is on firm ground (linearity stated by the label, not assumed), and F = 1 makes the IV and oral curves differ only by the absorption phase — the cleanest illustration of oral-vs-IV equivalence in the seed set.\n\nVOLUME: the label characterises the volume of distribution qualitatively ('close to the volume of intracellular and extracellular water') rather than numerically. Total body water is ~0.6 L/kg, which is the value used (band 0.5–0.7 L/kg). Because the drug is <10% protein-bound and F = 1, the volume is genuinely a true distribution volume, not an apparent V/F.\n\nROUTES: oral (F = 1) and IV are both real (Keppra is marketed as tablets, oral solution, and IV injection; the IV form is given as a ~15-minute infusion). iv_infusion and iv_bolus are both offered with F = 1 by definition; the bolus is illustrative (the product is infused, not pushed).\n\nRENAL ELIMINATION: ~66% is excreted unchanged in urine, so clearance scales with renal function — an educational point about renal drugs, but NOT modelled as a patient-specific adjustment (the bright line: no patient renal input, no dose output). Educational illustration only — not for dosing."
+}

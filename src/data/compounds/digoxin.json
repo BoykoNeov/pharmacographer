@@ -1,0 +1,88 @@
+{
+  "id": "digoxin",
+  "schemaVersion": 1,
+  "names": { "inn": "Digoxin", "brand": ["Lanoxin"], "synonyms": ["Digoxin"] },
+  "model": "two_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 48,
+      "range": [36, 50],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "konishi_2014",
+      "conditions": "terminal (β-phase) elimination half-life. The engine recomputes β from the disposition2c micro-parameters; at the normal-renal-function reference (CrCl 100 mL/min/1.73m²) that yields ~48 h. Commonly-quoted values center ~36–40 h (range 26–45 h) — the model's clearance at CrCl 100 places the terminal at the upper end. Renal-function dependent (digoxin is ~60–80% renally excreted unchanged)."
+    },
+    "vd": {
+      "value": 7.44,
+      "range": [5.0, 7.5],
+      "unit": "L/kg",
+      "derived": true,
+      "sourceRef": "konishi_2014",
+      "conditions": "steady-state volume Vd(ss) = Vc + Vp = 1.5714 + 5.8666 = 7.44 L/kg, the sum of the two-compartment volumes (Vp derived from the model's k12/k21 — see disposition2c). Reproduces the very large reported digoxin Vd (5–7.3 L/kg), reflecting extensive binding to Na/K-ATPase in skeletal and cardiac muscle. Scaled to absolute litres against the 70 kg reference subject at derivation time (≈521 L)."
+    }
+  },
+  "disposition2c": {
+    "clearance": {
+      "value": 0.11613,
+      "unit": "L/h/kg",
+      "derived": true,
+      "sourceRef": "konishi_2014",
+      "conditions": "total clearance CL = k10·Vc, computed from the model's central-compartment micro-rate constant k10 and central volume Vc. k10 = k_nonrenal + k_renal = 0.0288 + 0.000451·CrCl; at the CrCl 100 reference subject k10 = 0.0739 /h, so CL = 0.0739 × 1.5714 = 0.1161 L/h/kg ≈ 8.1 L/h at 70 kg. Renal-function dependent via k_renal. Sets AUC = Dose/CL."
+    },
+    "centralVd": {
+      "value": 1.5714,
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "konishi_2014",
+      "conditions": "central-compartment volume Vc (mean 1.5714 L/kg) read directly from the two-compartment population model. Sets the immediately-post-dose concentration C(0) = Dose/Vc for an IV bolus — the high early level that then FALLS as drug distributes to the deep compartment (the distribution phase; see notes). ≈110 L at 70 kg."
+    },
+    "interCompartmentalClearance": {
+      "value": 0.87998,
+      "unit": "L/h/kg",
+      "derived": true,
+      "sourceRef": "konishi_2014",
+      "conditions": "inter-compartmental clearance Q = k12·Vc = 0.56 × 1.5714 = 0.880 L/h/kg (≈61.6 L/h at 70 kg), from the model's central→peripheral micro-rate constant k12 and Vc. Drives the fast distribution phase (α t½ ~0.9 h)."
+    },
+    "peripheralVd": {
+      "value": 5.8666,
+      "unit": "L/kg",
+      "derived": true,
+      "sourceRef": "konishi_2014",
+      "conditions": "peripheral (deep tissue) volume Vp = Vc·k12/k21 = 1.5714 × 0.56/0.15 = 5.867 L/kg (≈411 L at 70 kg), from the model's k12/k21 ratio. The large peripheral volume is the muscle Na/K-ATPase pool that gives digoxin its huge Vd(ss) and slow terminal phase."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 0.65,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "konishi_2014",
+        "conditions": "oral bioavailability 65% assumed in the population model (consistent with the classic tablet value of ~60–70%; elixir and soft-gel capsule run higher, ~80–100%). Kept at the model's 0.65 for coherence with the model-reported ka."
+      },
+      "ka": {
+        "value": 0.6093,
+        "unit": "1/h",
+        "derived": false,
+        "sourceRef": "konishi_2014",
+        "conditions": "first-order absorption constant ka = 0.6093 /h read directly from the population model (a Tmax of ~1.5–2 h and slow onset of action 2–6 h are consistent with it). Provided directly rather than inverted from Tmax."
+      }
+    },
+    "iv_bolus": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": true },
+  "sources": {
+    "konishi_2014": {
+      "type": "Journal article",
+      "title": "A two-compartment population pharmacokinetic-pharmacodynamic model of digoxin in adults, with implications for dosage (2014; PubMed 24492383 / PMC4286255). Reports central volume Vc, micro-rate constants k10 (nonrenal 0.0288/h + renal 0.000451·CrCl), k12 0.56/h, k21 0.15/h, absorption ka 0.6093/h, and assumed oral bioavailability 65%, in adults with a normal-renal-function reference of CrCl ~100 mL/min/1.73m². Structural model traces to Reuning et al. 1973.",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4286255/",
+      "accessed": "2026-07-09"
+    }
+  },
+  "notes": "The canonical DISTRIBUTION-PHASE teaching drug, and the first oral two-compartment compound in the set — it exercises the oral-2c engine path on a real compound. Digoxin is why clinicians wait ~6–8 h after a dose before drawing a serum level: right after an IV dose the serum (central) concentration is high and MISLEADING — much of it then redistributes into a large, slowly-equilibrating muscle compartment, so the serum level falls steeply for the first few hours before settling onto the slow terminal line. Reading a peak serum level as if it were the steady tissue level would badly overstate the body burden.\n\nWHY IV BOLUS IS OFFERED (and is the clearest view): on an IV bolus the central concentration starts at C(0) = Dose/Vc and the α (distribution) mode carries ~82% of it, so the curve drops ~5-fold over the first ~4 h (α t½ ~0.9 h) and then declines slowly (β t½ ~48 h). That steep-then-flat shape IS the lesson, and it is crispest on a bolus where no absorption phase masks it. The oral route adds the absorption limb (ka 0.6093/h) on top of the same disposition.\n\nSOURCE / POPULATION: unlike diazepam (whose Q and Vp were back-computed offline from several sources), digoxin is taken from ONE directly-parameterized two-compartment population model (2014, PMID 24492383; structural model from Reuning 1973). The model reports Vc and the micro-rate constants k10/k12/k21 + ka + F directly; the schema's CL, Q, Vp are a standard reparameterization of those SAME micro-constants (CL = k10·Vc, Q = k12·Vc, Vp = Vc·k12/k21), so they are marked derived: true but come from a single coherent source and population — not a multi-source inference. k10 splits into a fixed nonrenal term (0.0288/h) and a renal term (0.000451·CrCl); the reference subject uses CrCl 100 mL/min/1.73m² (normal renal function), giving k10 = 0.0739/h, CL ≈ 8.1 L/h, α t½ ~0.9 h and β t½ ~48 h. The constraint β < k10 < α holds.\n\nMAGNITUDE CHECK: a 0.5 mg (500 µg) IV loading dose gives C(0) = 500 µg / ~110 L ≈ 4.5 ng/mL immediately, falling to ~0.8–1 ng/mL once distribution completes — squarely in the 0.5–2 ng/mL therapeutic range, with the transient early 'toxic-looking' spike that resolves on redistribution. This validates Vc (the early-peak amplitude) directly against the known therapeutic level.\n\nNARROW THERAPEUTIC INDEX: digoxin has a narrow therapeutic window (serum ~0.5–2 ng/mL, with atrial-fibrillation targets often lower ~0.5–0.9 ng/mL); narrowTherapeuticIndex = true. This is an epistemic flag for the honesty layer only — the app plots illustrative curves for a user-chosen dose and NEVER returns a dose or a level to target. The distribution-phase lesson is educational, not a sampling instruction. Educational illustration only — not for dosing.\n\nRENAL ELIMINATION: ~60–80% excreted unchanged renally, so clearance (and terminal half-life) scale with renal function — an educational point captured by the CrCl-dependent k10, but NOT a patient-specific adjustment (no patient renal input, no dose output; the bright line holds)."
+}
