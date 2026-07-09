@@ -85,7 +85,22 @@ all pass.
 
 Follow the phases in handoff §13 — engine + tests before UI. Current state:
 **Phase 7 data expansion + all three chart refinements done; static-site deploy
-is the sole remaining Phase 7 item. SEED SET now 18 compounds (was 10): a
+is the sole remaining Phase 7 item. SEED SET now 20 compounds (was 10). A
+2026-07-10 pass added three (killer-param-vetted then magnitude-checked, all 377 tests green):
+`atenolol` (clean linear 1-comp; the RENAL counterpoint to hepatic metoprolol — hydrophilic,
+>85% renal unchanged, no CYP2D6 polymorphism, ~50% F is an absorption limit not saturable
+first-pass; FDA Tenormin label + an enantiomer PK study for the label-absent Vd ~0.8 L/kg;
+100 mg oral → Cmax ~650 ng/mL), `lamotrigine` (clean linear 1-comp, oral only; the
+CONDITIONAL-half-life teacher — modelled monotherapy t½ ~25 h, documented ~14 h with enzyme
+inducers / ~60–70 h with valproate, NOT auto-applied; FDA Lamictal label + Garnett 1997;
+F ~98%, Vd/F ~1.1 L/kg treated as true volume à la fluconazole; 200 mg oral → Cmax ~2.4 µg/mL),
+and `propofol` (the SECOND 3-comp compound, Schnider 1998, directly parameterized like
+remifentanil — V1 4.27/V2 18.9/V3 238 L, Cl1 1.89/Cl2 1.29/Cl3 0.836 L/min at the Schnider
+reference point; keyed to Sahinovic 2018 PMC6267518; IV bolus + infusion both genuinely
+available; α/β/γ t½ 0.72/15.2/287 min with an IV-bolus amplitude split ~97.4/2.4/0.17% — the
+redistribution-wake-up story where it's clinically famous; 150 mg bolus → 35 µg/mL transient
+→ ~2.6 µg/mL at 3 min → ~0.6 at 10 min; linear modelled as TCI does, documented approximation).
+The earlier 2026-07-09 pass had brought the set from 10→18: a
 2026-07-09 data pass added `levetiracetam`, `fluconazole`, `phenobarbital` (clean
 linear 1-comp oral+IV — renal clearance, long-t½ loading dose, very-long-t½
 accumulation / the LINEAR counterpoint to excluded phenytoin), `digoxin` (FIRST

@@ -1,0 +1,61 @@
+{
+  "id": "lamotrigine",
+  "schemaVersion": 1,
+  "names": { "inn": "Lamotrigine", "brand": ["Lamictal"], "synonyms": ["LTG"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 25,
+      "range": [24, 35],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "mean elimination half-life in healthy adults taking lamotrigine ALONE (monotherapy, drug-naive) is ~25 h (single-dose values run to ~33 h; drug-naive range ~24-35 h). This modelled value is the MONOTHERAPY case. The half-life is strongly comedication-dependent and this is the key caveat: enzyme-inducing antiepileptics (carbamazepine, phenytoin, phenobarbital, primidone) roughly HALVE it to ~14 h, while valproate roughly DOUBLES it to ~60-70 h by inhibiting glucuronidation. A single stored half-life cannot represent a drug whose disposition is set by what else the person takes - see notes."
+    },
+    "vd": {
+      "value": 1.1,
+      "range": [0.9, 1.3],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "apparent volume of distribution following oral administration, ~1.1 L/kg (reported range 0.9-1.3 L/kg). Lamotrigine is ~55% plasma-protein-bound. Because absolute oral bioavailability is ~98% (F ~ 1), the label's apparent Vd/F is essentially the true volume, so it is treated as a true volume with F = 0.98 carried explicitly; the residual apparent-vs-true distinction is ~2%, well inside the 0.9-1.3 L/kg spread. Scaled to absolute litres against the 70 kg reference subject at derivation time."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 0.98,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "absolute oral bioavailability is ~98% (rapid and essentially complete absorption; not affected by food). Because F ~ 1, the oral curve differs from an IV curve only by the absorption phase, and the apparent Vd/F is ~ the true volume."
+      },
+      "tmax": {
+        "value": 2.5,
+        "range": [1.4, 4.8],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "peak plasma concentrations occur ~1.4-4.8 h after an oral dose in healthy volunteers; representative point value 2.5 h. Absorption is first-order; ka is derived from this Tmax at derivation time."
+      }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "fda_label": {
+      "type": "FDA label",
+      "title": "LAMICTAL (lamotrigine) tablets - FDA Structured Product Label (DailyMed), Clinical Pharmacology / Pharmacokinetics (absolute bioavailability ~98%; Tmax ~1.4-4.8 h; apparent volume of distribution 0.9-1.3 L/kg; ~55% plasma protein binding; linear pharmacokinetics over the studied dose range; elimination primarily by hepatic glucuronidation; half-life ~25 h as monotherapy, ~14 h with enzyme inducers, ~60-70 h with valproate)",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=17a20462-d9d2-43ac-bcad-603e8cc76e3b",
+      "accessed": "2026-07-10"
+    },
+    "garnett_1997": {
+      "type": "Journal article",
+      "title": "Garnett WR. Lamotrigine: Pharmacokinetics. Journal of Child Neurology. 1997;12(Suppl 1):S10-S15 (linear/dose-proportional kinetics; near-complete oral absorption; volume of distribution ~0.9-1.3 L/kg; monotherapy half-life ~24-35 h and its strong dependence on concomitant enzyme inducers/inhibitors)",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/9429124/",
+      "accessed": "2026-07-10"
+    }
+  },
+  "notes": "A LINEAR one-compartment antiepileptic / mood stabiliser, curated from the FDA Lamictal label with corroboration from the Garnett 1997 lamotrigine-pharmacokinetics review. Reported PK: absolute oral bioavailability ~98% (food-independent), Tmax ~1.4-4.8 h, apparent volume of distribution ~1.1 L/kg (0.9-1.3), ~55% protein binding, and pharmacokinetics explicitly linear/dose-proportional over the studied range - so superposition is on firm ground. Eliminated chiefly by hepatic glucuronidation (UGT1A4).\n\nTEACHING VALUE - a long half-life whose value depends on comedication. Lamotrigine is the seed set's cleanest illustration that 'the half-life' can be a property of the drug-plus-regimen, not the drug alone. As MONOTHERAPY (the case modelled here) the half-life is ~25 h, giving slow accumulation to steady state over ~5-6 days and the familiar slow up-titration. But the same molecule runs at ~14 h alongside an enzyme inducer (carbamazepine/phenytoin/phenobarbital/primidone, which induce its glucuronidation) and at ~60-70 h alongside valproate (which inhibits glucuronidation). This is exactly the epistemic-honesty point the project exists for: a single stored number is only true under stated conditions. The modelled monotherapy value is labelled as such; the interaction shifts are documented but NOT auto-applied (no patient/comedication input, no dose output - the bright line holds). It sits alongside fluconazole and phenobarbital as a long-half-life accumulation teacher, and complements them by making the CONDITIONALITY of the half-life explicit.\n\nVOLUME / F. The label reports an apparent Vd/F of 0.9-1.3 L/kg. Because F ~ 0.98 the apparent volume is ~ the true volume, so it is treated as a true volume (~1.1 L/kg) with F = 0.98 explicit (the ~2% apparent-vs-true gap is negligible against the reported spread) - the same posture as fluconazole (F ~ 0.9, distinction negligible).\n\nROUTES. Oral only. Lamotrigine has no marketed intravenous product, so no IV route is offered (there is no route-specific IV disposition to source, and F ~ 1 means an inferred IV line would add little contrast). Educational illustration only - not for dosing."
+}

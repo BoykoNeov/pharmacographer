@@ -1,0 +1,87 @@
+{
+  "id": "propofol",
+  "schemaVersion": 1,
+  "names": { "inn": "Propofol", "brand": ["Diprivan"], "synonyms": ["Propofol", "2,6-diisopropylphenol"] },
+  "model": "three_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 287,
+      "unit": "min",
+      "derived": true,
+      "sourceRef": "sahinovic_2018",
+      "conditions": "terminal (gamma-phase) eigenvalue half-life = ln2/gamma ~= 287 min (~4.8 h), computed by the engine from the disposition3c micro-parameters (the three eigenvalues are alpha t1/2 ~0.72 min, beta t1/2 ~15.2 min, gamma t1/2 ~287 min). IMPORTANT - do not read this as 'the' elimination half-life: after an IV bolus the initial concentration splits ~97.4% alpha + ~2.4% beta + ~0.17% gamma by amplitude, so the terminal gamma is a real eigenvalue but a sub-0.2% deep-fat-compartment tail. The observable decline after a bolus is dominated by the fast alpha redistribution (this is why a patient wakes within minutes of an induction bolus despite the hours-long terminal half-life - the classic propofol teaching point); see notes."
+    },
+    "vd": {
+      "value": 261.17,
+      "unit": "L",
+      "derived": true,
+      "sourceRef": "sahinovic_2018",
+      "conditions": "steady-state volume of distribution Vd(ss) = V1 + V2 + V3 = 4.27 + 18.9 + 238 = 261.17 L (the sum of the three Schnider compartment volumes, which IS Vss for a mammillary model) at the reference individual - carried for the caption/provenance rows. Propofol distributes very widely (the large deep V3 = 238 L is fat/slowly-equilibrating tissue). Already absolute litres (no per-kg scaling); the concentration reference is C(0) = Dose/V1."
+    }
+  },
+  "disposition3c": {
+    "clearance": {
+      "value": 1.89,
+      "unit": "L/min",
+      "derived": false,
+      "sourceRef": "sahinovic_2018",
+      "conditions": "central (metabolic) clearance CL (Cl1) for the Schnider reference individual - 1.89 L/min = 113 L/h. High (near-hepatic-blood-flow) clearance by hepatic glucuronidation/CYP plus significant extrahepatic (e.g. pulmonary) metabolism; sets AUC = Dose/CL. Read at the Schnider covariate reference point (age 53, weight 77 kg, height 177 cm, lean body mass 59 kg), where the Cl1 covariate equation reduces to its intercept."
+    },
+    "centralVd": {
+      "value": 4.27,
+      "unit": "L",
+      "derived": false,
+      "sourceRef": "sahinovic_2018",
+      "conditions": "central volume V1 for the Schnider reference individual - the concentration reference C(0) = Dose/V1. Fixed (no covariate dependence) in the Schnider model. A small V1 = 4.27 L is why an induction bolus gives a high transient arterial peak before redistribution."
+    },
+    "interCompartmentalClearance2": {
+      "value": 1.29,
+      "unit": "L/min",
+      "derived": false,
+      "sourceRef": "sahinovic_2018",
+      "conditions": "inter-compartmental clearance Q2 (Cl2) to the rapidly-equilibrating peripheral compartment (muscle/viscera), Schnider reference individual - 1.29 L/min = 77.4 L/h. Drives the fast alpha redistribution phase that terminates the effect of a single bolus."
+    },
+    "peripheralVd2": {
+      "value": 18.9,
+      "unit": "L",
+      "derived": false,
+      "sourceRef": "sahinovic_2018",
+      "conditions": "rapidly-equilibrating peripheral volume V2 for the Schnider reference individual (age 53); in the Schnider model V2 depends on age (V2 = 18.9 - 0.391*(age - 53) L), so 18.9 L is its value at the reference age."
+    },
+    "interCompartmentalClearance3": {
+      "value": 0.836,
+      "unit": "L/min",
+      "derived": false,
+      "sourceRef": "sahinovic_2018",
+      "conditions": "inter-compartmental clearance Q3 (Cl3) to the slow deep (fat) peripheral compartment, Schnider reference individual - 0.836 L/min = 50.2 L/h. The small Q3 into the large deep V3 governs the long terminal gamma phase and the growth of the context-sensitive half-time with infusion duration."
+    },
+    "peripheralVd3": {
+      "value": 238,
+      "unit": "L",
+      "derived": false,
+      "sourceRef": "sahinovic_2018",
+      "conditions": "slow deep (fat/connective-tissue) peripheral volume V3 - fixed at 238 L in the Schnider model (no covariate dependence), so it is identical for every reference individual. This large deep compartment is the propofol 'reservoir' that fills during a long infusion and prolongs recovery."
+    }
+  },
+  "routes": {
+    "iv_bolus": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    },
+    "iv_infusion": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "sahinovic_2018": {
+      "type": "Journal article",
+      "title": "Sahinovic MM, Struys MMRF, Absalom AR. Clinical Pharmacokinetics and Pharmacodynamics of Propofol. Clinical Pharmacokinetics. 2018;57(12):1539-1558 - review tabulating the Schnider et al. (1998, Anesthesiology 88:1170) three-compartment propofol model at its covariate reference point (age 53, weight 77 kg, height 177 cm, lean body mass 59 kg): V1 4.27 L, V2 18.9 L, V3 238 L, Cl1 1.89, Cl2 1.29, Cl3 0.836 L/min; propofol treated as linear over the clinical concentration range; context-sensitive half-time discussion",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6267518/",
+      "accessed": "2026-07-10"
+    }
+  },
+  "notes": "The SECOND three-compartment compound (after remifentanil) and a deliberate teaching contrast to it. Propofol is the archetypal IV general anaesthetic (induction bolus + maintenance infusion). It is modelled here purely to illustrate a tri-phasic (alpha/beta/gamma) disposition curve and the redistribution story. EDUCATIONAL ILLUSTRATION ONLY - not a dosing or clinical tool.\n\nWHY PROPOFOL, next to remifentanil. Remifentanil taught 'a terminal half-life can be a sub-0.1% amplitude tail'; propofol teaches the same lesson in the drug where it is CLINICALLY famous. After an induction bolus the concentration falls fast because of alpha REDISTRIBUTION into muscle/viscera (alpha t1/2 ~0.72 min), not elimination - which is why a patient wakes within ~5-10 min of a single induction dose even though the terminal (gamma) half-life is ~4.8 h. The IV-bolus amplitude split is ~97.4% alpha / ~2.4% beta / ~0.17% gamma, even more alpha-dominated than remifentanil. A second contrast is the INFUSION behaviour: propofol's large deep fat compartment (V3 = 238 L) fills during a long infusion, so its context-sensitive half-time GROWS with infusion duration - the opposite of remifentanil's flat ~3-4 min CSHT. The infusion view illustrates this accumulation.\n\nDIRECTLY PARAMETERISED (like remifentanil, unlike diazepam). The Schnider model reports V1/V2/V3 and Cl1/Cl2/Cl3 outright, so NOTHING here is derived offline - all six disposition3c values are read straight from the model. Stored in absolute litres and L/min (the second compound, after remifentanil, to use absolute rather than per-kg units).\n\nREFERENCE INDIVIDUAL = THE ILLUSTRATIVE SUBJECT. The Schnider parameters are covariate functions of age, weight, height and lean body mass. Rather than pick a specific person, this file uses the model's OWN centred reference point - age 53, weight 77 kg, height 177 cm, LBM 59 kg - at which each covariate equation collapses to its intercept: V1=4.27, V2=18.9, V3=238 L, Cl1=1.89, Cl2=1.29, Cl3=0.836 L/min. (V1, V3, Cl3 are fixed in the Schnider model regardless; V2 and Cl2 depend on age, Cl1 on weight/height/LBM - all at their reference values here.) These intercepts are the canonical, unambiguous 'Schnider reference' values. Weight 77 kg is close to the project's 70 kg illustrative subject, and we adopt the Schnider reference individual AS the illustrative subject for this compound (the honest bridge, since Schnider needs a fuller covariate point than weight alone). No per-kg scaling is applied.\n\nLINEARITY - a documented approximation. Propofol is modelled here with linear compartmental PK, exactly as the Schnider model and all target-controlled-infusion (TCI) systems do; over the clinical concentration range this is the standard and well-validated assumption. Real propofol clearance is partly hepatic-blood-flow-dependent and mild nonlinearity has been reported at concentration extremes, so linear is an approximation (in the same documented spirit as ibuprofen's monophasic collapse or acamprosate's single-ka fit) - faithful to the clinical-range shape, not a claim of exact dose-proportionality at all concentrations. linear: true holds for the illustrative clinical range.\n\nTHE THREE HALF-LIVES, BY AMPLITUDE. The engine computes alpha t1/2 ~0.72 min (redistribution), beta t1/2 ~15.2 min (intermediate), gamma t1/2 ~287 min (~4.8 h, terminal). disposition.halfLife carries the terminal gamma because that is definitionally the slowest eigenvalue, but reading it as 'the half-life' misleads: the ~97.4/2.4/0.17% amplitude split (computed from the stored parameters, not cited) means the observable post-bolus decline is the alpha/beta redistribution, and clinical offset after an infusion is the (duration-dependent) context-sensitive half-time - neither is the gamma eigenvalue.\n\nVd(ss). disposition.vd is the sum V1+V2+V3 = 261.17 L (= Vss for a mammillary model), carried only for the caption/provenance rows; the plotted curve's shape is fixed by the six disposition3c parameters and its initial concentration is Dose/V1.\n\nROUTES. Both IV routes are genuinely available and clinically real: iv_bolus is the induction dose (unlike remifentanil, a propofol bolus is completely standard practice) and iv_infusion is maintenance anaesthesia/sedation (and TCI). Oral is not offered (propofol is not given orally). DOSE SCALE: a ~150 mg induction bolus into V1 = 4.27 L gives a transient C(0) ~35 microgram/mL that redistributes within ~2-3 min to the ~2-3 microgram/mL anaesthetic range - the correct SHAPE and magnitude; absolute numbers are illustrative, per the standing disclaimer. Educational illustration only - not for dosing."
+}

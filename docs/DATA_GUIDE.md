@@ -163,11 +163,51 @@ gentamicin** (IV two-compartment TDM archetypes, representative normal-renal-fun
 documented diazepam-style); and **cefotaxime** (above). All validated against the engine and
 magnitude-checked against reported concentrations.
 
-### Three-compartment compounds — remifentanil shipped
+### Phase-7 seed expansion (continued) — 3 compounds added 2026-07-10
 
-The 3-compartment model (§12, Stage B) is now wired through data + UI, with the first
-compound shipped: **remifentanil (`compounds/remifentanil.json`), the Minto 1997 model,
-IV bolus + infusion.** It is the clean 3-comp case and worth studying as a template:
+A second expansion pass added **atenolol, lamotrigine, propofol** (17 → 20 compounds; 377
+tests green). Each cleared the four killer-parameter gates (linear at therapeutic doses?
+citable Vd or CL+t½? single citable fm if a metabolite pair? single-population
+micro-constants if compartmental?) from a real source *before* any JSON was written, and each
+was magnitude-checked by building the engine curve and comparing the peak to reported
+concentrations.
+
+- **Atenolol (`compounds/atenolol.json`) — clean linear one-compartment; the RENAL
+  counterpoint to metoprolol.** The seed set already carries metoprolol (lipophilic,
+  hepatic CYP2D6, genotype-bimodal t½, saturable first-pass F~50%). Atenolol is the
+  deliberate same-class contrast: hydrophilic, renally cleared essentially unchanged (>85%
+  of an IV dose in urine, minimal hepatic metabolism), low protein binding (6–16%), no
+  metabolic polymorphism — its ~50% oral F is a permeability/absorption limit, not saturable
+  first-pass, so exposure is dose-stable and superposition holds. Disposition + oral params
+  from the FDA Tenormin label (F ~50%, Tmax 2–4 h, t½ 6–7 h); the label prints no numeric
+  Vd, so the volume (~0.8 L/kg, the racemate mean of the enantiomer terminal volumes 0.79 /
+  0.88 L/kg from a Journal of Pharmaceutical Sciences enantiomer PK study) is the softest
+  input — treated as a true volume with F=0.5 explicit (a value below total body water would
+  be implausible, arguing these are IV-derived true volumes, not oral V/F). Magnitude check:
+  100 mg oral → Cmax ~0.65 mg/L (~650 ng/mL) at 3 h, within the reported single-dose band.
+  Both IV routes offered (Tenormin IV is a real slow-push product).
+- **Lamotrigine (`compounds/lamotrigine.json`) — clean linear one-compartment; a long
+  half-life whose VALUE depends on comedication (the epistemic-honesty teacher).** FDA
+  Lamictal label + Garnett 1997 review: absolute oral F ~98%, Tmax 1.4–4.8 h, apparent Vd/F
+  0.9–1.3 L/kg (~1.1; treated as a true volume with F=0.98 since F≈1, the ~2% apparent-vs-true
+  gap negligible — the fluconazole posture), ~55% protein binding, linear/dose-proportional.
+  The teaching point is the CONDITIONALITY of the half-life: the modelled value is the
+  MONOTHERAPY case (~25 h), but the same molecule runs at ~14 h alongside enzyme inducers
+  (carbamazepine/phenytoin/phenobarbital/primidone induce its glucuronidation) and ~60–70 h
+  alongside valproate (inhibits glucuronidation). A single stored number is only true under
+  stated conditions — documented, NOT auto-applied (no comedication input, no dose output).
+  Oral only (no marketed IV product; F≈1 means an inferred IV would add little contrast).
+  Magnitude check: 200 mg oral → Cmax ~2.4 µg/mL at 2.5 h (single-dose peaks ~1.5–3 µg/mL;
+  chronic steady-state 3–15 µg/mL accumulates higher).
+- **Propofol (`compounds/propofol.json`) — the SECOND three-compartment compound; see the
+  three-compartment section below.**
+
+### Three-compartment compounds — remifentanil and propofol shipped
+
+The 3-compartment model (§12, Stage B) is now wired through data + UI, with two compounds
+shipped: **remifentanil (`compounds/remifentanil.json`), the Minto 1997 model, IV bolus +
+infusion**, and **propofol (`compounds/propofol.json`), the Schnider 1998 model, IV bolus +
+infusion.** Remifentanil is the clean 3-comp case and worth studying as a template:
 
 - **Genuinely linear + directly parameterised.** Remifentanil's clearance and Vss are
   dose-independent (esterase metabolism — no saturable enzyme), and Minto 1997 reports
@@ -195,6 +235,34 @@ IV bolus + infusion.** It is the clean 3-comp case and worth studying as a templ
   IV bolus is offered as inferred (a rapid bolus risks chest-wall rigidity); oral is not
   offered (remifentanil is not given orally, and oral 3-comp derivation is deferred — the
   engine supports it, only the ka-from-Tmax inversion is unwired).
+
+**Propofol (Schnider 1998) — the second 3-comp compound, a deliberate teaching contrast to
+remifentanil.** Same directly-parameterized template (V1/V2/V3 + Cl1/Cl2/Cl3 read straight
+from the model, nothing derived offline; absolute L / L·min⁻¹ units), taken at the Schnider
+covariate reference point (age 53, weight 77 kg, height 177 cm, LBM 59 kg — where the
+covariate equations reduce to intercepts): V1 4.27, V2 18.9, V3 238 L; Cl1 1.89, Cl2 1.29,
+Cl3 0.836 L/min. Params keyed to the Sahinovic 2018 *Clin Pharmacokinet* review (PMC6267518),
+which tabulates the Schnider model and discusses linearity + context-sensitive half-time.
+Why it earns a slot next to remifentanil, not redundant with it:
+
+- **The amplitude lesson, where it is CLINICALLY famous.** The engine finds α t½ ~0.72 min,
+  β t½ ~15.2 min, γ t½ ~287 min (~4.8 h); an IV-bolus C(0) splits **~97.4% / ~2.4% / ~0.17%**
+  across α/β/γ — even more α-dominated than remifentanil. This is *why a patient wakes within
+  ~5–10 min of a single induction bolus despite the hours-long terminal half-life*: the
+  post-bolus fall is α REDISTRIBUTION into muscle/viscera, not elimination. The magnitude
+  check makes it vivid — a 150 mg bolus into V1=4.27 L peaks at ~35 µg/mL, redistributes to
+  ~2.6 µg/mL (anaesthetic range) by 3 min, and to ~0.6 µg/mL (sub-anaesthetic) by 10 min.
+- **The infusion contrast.** Propofol's large deep fat compartment (V3=238 L) fills during a
+  long infusion, so its context-sensitive half-time GROWS with duration — the opposite of
+  remifentanil's flat ~3–4 min CSHT. The infusion view illustrates this accumulation.
+- **Both IV routes are genuinely available** (unlike remifentanil's inferred bolus): an
+  induction bolus and a maintenance/TCI infusion are both standard clinical practice. No oral.
+- **Linearity is a documented approximation.** Propofol is modelled linear exactly as the
+  Schnider model and all TCI systems do (standard and well-validated over the clinical range);
+  real clearance is partly hepatic-blood-flow-dependent with mild nonlinearity at extremes, so
+  `linear: true` is faithful to the clinical-range shape, not a claim of exact
+  dose-proportionality at all concentrations (the ibuprofen-collapse / acamprosate-single-ka
+  documented-approximation posture).
 
 ## The schema (one JSON file per compound)
 

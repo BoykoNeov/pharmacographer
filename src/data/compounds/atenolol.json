@@ -1,0 +1,69 @@
+{
+  "id": "atenolol",
+  "schemaVersion": 1,
+  "names": { "inn": "Atenolol", "brand": ["Tenormin"], "synonyms": ["Atenolol"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 6.5,
+      "range": [6, 7],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "the FDA Tenormin label states 'the elimination half-life of oral TENORMIN is approximately 6 to 7 hours' in adults with normal renal function. Point value 6.5 h, band = the reported 6-7 h. Atenolol is eliminated essentially unchanged by the kidney (over 85% of an IV dose recovered in urine within 24 h; minimal hepatic metabolism), so its clearance falls with declining renal function — the renal counterpoint to hepatically-cleared metoprolol (an educational point; NOT modelled as a patient-specific renal adjustment — the bright line holds)."
+    },
+    "vd": {
+      "value": 0.8,
+      "range": [0.7, 1.0],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "atenolol_enantiomers",
+      "conditions": "the FDA label does not print a numeric volume. Atenolol is hydrophilic and only 6-16% protein-bound, so it distributes to roughly total body water plus modest tissue binding. The enantiomer PK study reports a terminal volume of distribution of 0.79 L/kg for R(+)-atenolol and 0.88 L/kg for S(-)-atenolol; the racemate (the marketed drug) sits near their mean, ~0.8 L/kg. Treated as a TRUE distribution volume (these terminal volumes derive from disposition, and a value below total body water ~0.6 L/kg would be implausible for a drug distributing beyond plasma, which argues against these being oral apparent V/F values), with oral F = 0.5 carried explicitly — so the oral curve is C = F.D/V. Band 0.7-1.0 L/kg spans the enantiomer values and the customary reported spread. Scaled to absolute litres against the 70 kg reference subject at derivation time."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 0.5,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "'approximately 50% of an oral dose is absorbed from the gastrointestinal tract, the remainder being excreted unchanged in the feces' (FDA Tenormin label). The incomplete absorption is a permeability/absorption limit, not saturable first-pass metabolism (atenolol is barely metabolised), so F is dose-stable and superposition of identical repeated doses is valid. Vd is kept as a true volume with F = 0.5 explicit (not folded in)."
+      },
+      "tmax": {
+        "value": 3.0,
+        "range": [2, 4],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "'peak blood levels are reached between two (2) and four (4) hours after ingestion' (FDA Tenormin label). Representative point value 3.0 h."
+      }
+    },
+    "iv_bolus": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    },
+    "iv_infusion": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "fda_label": {
+      "type": "FDA label",
+      "title": "TENORMIN (atenolol) tablets - FDA Structured Product Label, Clinical Pharmacology / Pharmacokinetics (approximately 50% of an oral dose absorbed; peak blood levels 2-4 h; elimination half-life ~6-7 h; over 85% of an IV dose excreted unchanged in urine within 24 h; minimal hepatic metabolism; 6-16% plasma protein binding; no alteration of the kinetic profile by chronic administration)",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=746db603-a6e1-4dc3-c2d8-92314419098c",
+      "accessed": "2026-07-10"
+    },
+    "atenolol_enantiomers": {
+      "type": "Journal article",
+      "title": "Pharmacokinetics of Atenolol Enantiomers in Humans and Rats, Journal of Pharmaceutical Sciences (terminal volume of distribution 0.79 L/kg for R(+)- and 0.88 L/kg for S(-)-atenolol; renal clearance ~120-129 mL/min; over 85% of an IV dose excreted unchanged in urine)",
+      "url": "https://www.sciencedirect.com/science/article/abs/pii/S0022354915483674",
+      "accessed": "2026-07-10"
+    }
+  },
+  "notes": "A clean LINEAR one-compartment beta-1-selective adrenoceptor blocker, curated from the FDA Tenormin label (disposition + oral parameters) with the volume of distribution taken from an atenolol-enantiomer PK study (the label gives no numeric Vd). Reported PK: ~50% oral absorption, Tmax 2-4 h, elimination half-life 6-7 h, 6-16% protein binding, and elimination essentially entirely by the kidney (over 85% of an IV dose recovered unchanged in urine; minimal hepatic metabolism).\n\nWHY ATENOLOL - the renal counterpoint to metoprolol. The seed set already carries metoprolol, a lipophilic beta-blocker cleared by hepatic CYP2D6 (with a genotype-bimodal half-life and saturable first-pass reducing F to ~50%). Atenolol is the deliberate contrast: hydrophilic, renally cleared unchanged, low protein binding, and NO metabolic polymorphism - its ~50% F is an absorption/permeability limit, not saturable first-pass, so exposure is dose-stable. Two drugs of the same class with opposite disposition (hepatic vs renal) is a compact teaching pair about why 'beta-blocker' says little about kinetics.\n\nLINEARITY. The label notes 'there is no alteration of the kinetic profile of the drug by chronic administration' and elimination is first-order renal (glomerular filtration + active secretion, non-saturable at therapeutic doses), so a single half-life is meaningful and superposition of repeated doses is valid. linear: true.\n\nVOLUME. The FDA label characterises distribution qualitatively (does not print a number). The value used, ~0.8 L/kg, is the racemate mean of the enantiomer terminal volumes (0.79 / 0.88 L/kg); it is treated as a true distribution volume with oral F = 0.5 explicit (so the oral curve is C = F.D/V, not folded into an apparent V/F). This is the softest input - the enantiomer study's volumes carry SDs and the band is 0.7-1.0 L/kg - but atenolol's low protein binding and hydrophilicity make a value modestly above total body water (~0.6 L/kg) the physiologically expected range.\n\nROUTES. Oral (F ~0.5) and IV are both real products (Tenormin is marketed as tablets and as an IV injection given as a slow push). iv_bolus and iv_infusion are both offered with F = 1 by definition; the clinical IV form is a slow injection, so the instantaneous bolus is illustrative.\n\nRENAL ELIMINATION. Clearance scales with glomerular filtration rate; accumulation occurs when creatinine clearance falls below ~35 mL/min. This is an educational point about renally-cleared drugs, NOT a patient-specific renal-function adjustment (the bright line: no patient renal input, no dose output). Educational illustration only - not for dosing."
+}
