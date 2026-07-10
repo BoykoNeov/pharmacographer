@@ -171,22 +171,43 @@ export function ConcentrationChart({
 }: ConcentrationChartProps) {
   const [yScale, setYScale] = useState<YScale>('linear');
   const [showPeak, setShowPeak] = useState(true);
+  // Per-metabolite line visibility. A pure display concern like `yScale`/`showPeak`,
+  // so it lives in chart-local state rather than being lifted to App — nothing
+  // outside the chart cares which lines are shown (the ProvenancePanel deliberately
+  // stays independent: hiding a line declutters the plot, it does not filter data).
+  // Keyed by metabolite id so stale ids from a previously-selected compound are
+  // harmless (they never match a current id), which is why no reset-on-switch is
+  // needed. Default empty ⇒ every metabolite visible.
+  const [hiddenIds, setHiddenIds] = useState<ReadonlySet<string>>(() => new Set());
   const isLog = yScale === 'log';
 
   const metas = metabolites ?? [];
   // Pair each metabolite with a stable line colour (cycled) once, so the line,
-  // legend, and tooltip all agree.
+  // legend, and tooltip all agree. Colour is assigned from the FULL-list index so a
+  // metabolite's hue never shifts when an earlier one is toggled off.
   const metaSeries = metas.map((m, i) => ({
     ...m,
     color: METABOLITE_COLORS[i % METABOLITE_COLORS.length]!,
   }));
+  // Only the visible metabolites drive the plot, the log axis, and the tooltip —
+  // hiding the towering line (e.g. M3G) lets the remaining lines rescale to fill
+  // the axis, which is the point of the toggle. The toolbar chips iterate the full
+  // `metaSeries` so a hidden line can be brought back.
+  const visibleSeries = metaSeries.filter((m) => !hiddenIds.has(m.id));
+  const toggleMetabolite = (id: string) =>
+    setHiddenIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
-  // The log axis spans every plotted series — band and metabolites included, or a
-  // metabolite that accumulates above the parent (e.g. nordiazepam) overflows.
+  // The log axis spans every VISIBLE plotted series — band and metabolites included,
+  // or a metabolite that accumulates above the parent (e.g. nordiazepam) overflows.
   const positives = [
     ...points.map((p) => p.c),
     ...(band ?? []).flatMap((b) => [b.cLow, b.cHigh]),
-    ...metas.flatMap((m) => m.points.map((p) => p.c)),
+    ...visibleSeries.flatMap((m) => m.points.map((p) => p.c)),
   ].filter((c) => c > 0);
   const minPositive = positives.length > 0 ? Math.min(...positives) : 1e-6;
   const maxPositive = positives.length > 0 ? Math.max(...positives) : 1;
@@ -216,9 +237,9 @@ export function ConcentrationChart({
       band: b ? [clampLog(b.cLow), clampLog(b.cHigh)] : undefined,
       bandRaw: b ? [b.cLow, b.cHigh] : undefined,
     };
-    if (metaSeries.length > 0) {
+    if (visibleSeries.length > 0) {
       const mRaw: Record<string, number> = {};
-      for (const m of metaSeries) {
+      for (const m of visibleSeries) {
         // Metabolites share the parent grid (same `times`), so index-align — no
         // merge on `t`. C(0) = 0 (a metabolite oracle) is nulled on the log axis
         // exactly like the main line so semi-log breaks the line, not the axis.
@@ -234,6 +255,32 @@ export function ConcentrationChart({
   return (
     <div className="chart">
       <div className="chart__toolbar">
+        {metaSeries.length > 0 && (
+          <>
+            <span className="chart__toolbar-label">metabolites</span>
+            <div className="metab-toggles" role="group" aria-label="Metabolite lines">
+              {metaSeries.map((m) => {
+                const visible = !hiddenIds.has(m.id);
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    className={`metab-toggle${visible ? ' metab-toggle--active' : ''}`}
+                    onClick={() => toggleMetabolite(m.id)}
+                    aria-pressed={visible}
+                    title={`${m.name} ${metaboliteTag(m.active)}`}
+                  >
+                    <span
+                      className="metab-toggle__swatch"
+                      style={{ borderTopColor: m.color, opacity: visible ? 1 : 0.4 }}
+                    />
+                    {m.name}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
         <div className="toggle" role="group" aria-label="Peak marker">
           <button
             type="button"
@@ -318,12 +365,12 @@ export function ConcentrationChart({
               content={
                 <ConcTooltip
                   concUnit={concUnit}
-                  metabolites={metaSeries}
+                  metabolites={visibleSeries}
                   parentName={parentName}
                 />
               }
             />
-            {metaSeries.length > 0 && (
+            {visibleSeries.length > 0 && (
               <Legend verticalAlign="top" height={28} iconType="plainline" />
             )}
             {band && (
@@ -352,7 +399,7 @@ export function ConcentrationChart({
             {/* Metabolites: computed (handoff §12), drawn dashed and hued to read
                 as secondary; the legend names each so the dashing isn't the only
                 signal. Rendered after the parent so the parent stays the headline. */}
-            {metaSeries.map((m) => (
+            {visibleSeries.map((m) => (
               <Line
                 key={m.id}
                 type="monotone"

@@ -350,6 +350,43 @@ body {
   font-weight: 600;
 }
 
+/* Per-metabolite line show/hide chips. Independent toggles (not a segmented
+   control), so each is its own bordered chip carrying a dashed swatch in the
+   metabolite's line colour — the chip↔line association. A hidden chip dims and
+   strikes through its label. */
+.metab-toggles {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.metab-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  background: #0f1115;
+  color: var(--text);
+  border: 1px solid #313845;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.metab-toggle:not(.metab-toggle--active) {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+/* A short dashed line matching the on-chart metabolite line; its colour is set
+   inline per metabolite (borderTopColor). */
+.metab-toggle__swatch {
+  width: 14px;
+  height: 0;
+  border-top: 2px dashed currentColor;
+  display: inline-block;
+}
+
 /* ResponsiveContainer needs an explicitly-sized parent or it renders nothing. */
 .chart__canvas {
   width: 100%;
