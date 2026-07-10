@@ -1,0 +1,70 @@
+{
+  "id": "famotidine",
+  "schemaVersion": 1,
+  "names": { "inn": "Famotidine", "brand": ["Pepcid"], "synonyms": ["Famotidine"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 3,
+      "range": [2.5, 3.5],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "FDA Pepcid (famotidine) label: 'famotidine has an elimination half-life of 2.5-3.5 hours' in subjects with normal renal function. Point value 3 h; band 2.5-3.5 h. Half-life exceeds 20 h in severe renal impairment (CrCl <10 mL/min); this file models normal renal function."
+    },
+    "vd": {
+      "value": 1.15,
+      "range": [1.0, 1.3],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "famotidine_review",
+      "conditions": "the FDA label characterises distribution only qualitatively and prints no numeric volume; the steady-state volume of distribution 1.0-1.3 L/kg is from Echizen & Ishizaki, 'Clinical Pharmacokinetics of Famotidine' (Clin Pharmacokinet 1991), as tabulated in the famotidine StatPearls chapter (accessed this pass). Point value 1.15 L/kg (mid-range) lands the single-dose peak on the reported dose-proportional Cmax (see magnitude check in notes). Famotidine is only 15-20% protein bound. Scaled to absolute litres against the 70 kg reference subject at derivation time."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 0.43,
+        "range": [0.4, 0.45],
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "FDA Pepcid label: 'the bioavailability of oral doses is 40 to 45%'. Point value 0.43. The incomplete, dose-independent absorption means oral Cmax is well below the IV level at equal dose - a contrast to the ~100%-bioavailable metronidazole and the ~50% atenolol."
+      },
+      "tmax": {
+        "value": 2,
+        "range": [1, 3],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "FDA Pepcid label: 'peak famotidine plasma levels occur in 1 to 3 hours'. Representative point value 2 h; ka derived from this Tmax at derivation time."
+      }
+    },
+    "iv_infusion": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    },
+    "iv_bolus": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "fda_label": {
+      "type": "FDA label",
+      "title": "PEPCID (famotidine) tablets - FDA Structured Product Label, Clinical Pharmacology / Pharmacokinetics (oral bioavailability 40-45%; peak plasma levels at 1-3 h; elimination half-life 2.5-3.5 h with normal renal function; 15-20% protein bound; eliminated by renal (65-70%) and metabolic (30-35%) routes; the only metabolite identified in humans is the S-oxide; plasma levels after multiple dosages are similar to those after single doses; IV concentration-time profile is biexponential)",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=a06502d9-7903-4f37-833e-e5763d502def",
+      "accessed": "2026-07-10"
+    },
+    "famotidine_review": {
+      "type": "Journal article (review)",
+      "title": "Echizen H, Ishizaki T. Clinical Pharmacokinetics of Famotidine. Clin Pharmacokinet 1991 (steady-state volume of distribution 1.0-1.3 L/kg) - value as tabulated in the famotidine StatPearls chapter (NBK534778), accessed this pass",
+      "url": "https://www.ncbi.nlm.nih.gov/books/NBK534778/",
+      "accessed": "2026-07-10"
+    }
+  },
+  "notes": "A clean LINEAR one-compartment histamine H2-receptor antagonist (a new drug class for the seed set), curated from the FDA Pepcid label for disposition and oral parameters, with the volume of distribution from the Echizen & Ishizaki clinical-pharmacokinetics review (the label prints no numeric Vd). Reported PK: oral bioavailability 40-45%, Tmax 1-3 h, elimination half-life 2.5-3.5 h (normal renal function), 15-20% protein binding, and predominantly renal elimination (65-70% excreted unchanged, 30-35% metabolic).\n\nWHY FAMOTIDINE - it adds the H2-antagonist / acid-suppression class and is a textbook clean linear one-compartment renally-cleared drug, reinforcing the renal-elimination thread (atenolol, vancomycin, gentamicin, acyclovir) alongside a distinctly GI indication. Its ~43% oral bioavailability is a useful middle point between the ~100%-absorbed metronidazole and the low-F flip-flop acamprosate: at equal dose the oral Cmax sits well below the IV level, but exposure is still dose-stable because absorption is incomplete-but-constant, not saturable.\n\nLINEARITY. The FDA label states 'plasma levels after multiple dosages are similar to those after single doses' - i.e. no accumulation and dose-proportional kinetics. Elimination is first-order (chiefly renal tubular secretion plus minor CYP-mediated S-oxidation), non-saturable at therapeutic doses, so a single half-life is meaningful and superposition of repeated doses is valid. linear: true.\n\nONE-COMPARTMENT COLLAPSE. The label notes the IV concentration-time profile 'exhibits a biexponential decay' with a short distribution half-life (~0.18-0.5 h) ahead of the 2.5-3.5 h elimination phase. That distribution phase is shallow and brief, so famotidine is modelled as one compartment (the documented monophasic-collapse posture of metronidazole/cefotaxime/ibuprofen): faithful to the terminal slope and to Cmax, with a slightly idealised early shape.\n\nVOLUME / MAGNITUDE CHECK (ceiling test). For a one-compartment model F.D/V is a hard ceiling on the peak. With Vd 1.15 L/kg (80.5 L for the 70 kg subject), a 40 mg oral dose gives F.D/V = 0.43 x 40 / 80.5 = 0.214 mg/L = 214 ng/mL, comfortably above the reported oral Cmax, so the one-compartment collapse works. Building the engine curve (F = 0.43, ke = ln2/3 h, ka from Tmax 2 h) gives a 40 mg oral peak around 120-130 ng/mL and a 20 mg peak around 65 ng/mL - consistent with reported single-dose Cmax values (a 20 mg oral study reported ~67 ng/mL) scaled dose-proportionally. Vd 1.15 L/kg (mid of the cited 1.0-1.3 L/kg range) is the Cmax-consistent choice.\n\nACTIVE METABOLITE (not modelled). 'The only metabolite identified in humans is the S-oxide' (FDA label). It is NOT modelled as a parent->metabolite pair because the label gives no fraction-formed - metabolic elimination is only 30-35% overall and the S-oxide's specific formation fraction is not a citable single number (the same reason the metronidazole hydroxy metabolite and procainamide->NAPA stay deferred). Noted for a possible future metabolite pair if a citable fm surfaces.\n\nROUTES. Oral (F ~0.43) and IV are both real marketed products (Pepcid tablets and Pepcid injection). The IV form is given by slow injection or infusion, so iv_infusion is the realistic IV route; iv_bolus is offered with F = 1 by definition as the instantaneous-input idealisation, and it makes the incomplete oral bioavailability visible (oral Cmax is ~43% of the IV level at equal dose).\n\nEDUCATIONAL ILLUSTRATION ONLY - not for dosing."
+}

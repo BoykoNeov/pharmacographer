@@ -298,6 +298,71 @@ magnitude-checked against the built engine curve.
   crystallise in the renal tubules. Clearance is deliberately NOT stored (fixed Vd + t½ makes
   ke = CL/Vd a circular cross-check — the cetirizine rule).
 
+### Phase-7 seed expansion (new classes + teaching axes) — 3 compounds added 2026-07-10
+
+A fourth pass added **ethosuximide, famotidine, warfarin** (24 → 27 compounds; 390 tests
+green), all clean linear one-compartment drugs, each earning a *distinct* teaching slot. Every
+value was pulled from a source opened this session (labels/SmPC/reviews — the sourcing gate);
+each was ceiling-tested pre-write and magnitude-checked against the built engine curve.
+**Theophylline was evaluated and excluded** in the same pass — it has capacity-limited
+(Michaelis–Menten) elimination at/above the therapeutic range, the same superposition-breaking
+nonlinearity that excludes phenytoin (an exclude-with-rationale, not a ship-with-caveat).
+
+- **Ethosuximide (`compounds/ethosuximide.json`) — a new class (succinimide) and the very-long-
+  half-life accumulation teacher.** The first-line absence-seizure drug: near-complete oral
+  absorption (F >90%), negligible protein binding (so the volume is unconfounded), first-order
+  dose-proportional kinetics. The FDA Zarontin label's Clinical Pharmacology section is thin
+  (therapeutic range + mechanism only — no Vd/t½/Tmax), so disposition comes from the **EMC
+  SmPC** (t½ adults 40–60 h / children 30 h, Tmax 1–7 h, negligible binding) and the **ethosuximide
+  StatPearls chapter** (F >90%, Vd ~0.7 L/kg attributed to Patsalos 2008, ~80% hepatic CYP3A4 /
+  ~10–20% renal unchanged, linear). Models the **adult** case (one population, the diazepam/
+  lamotrigine discipline). The lesson is accumulation: a 500 mg single-dose peak is ~9 mcg/mL,
+  far below the 40–100 mcg/mL therapeutic range because that range is a *steady-state* level —
+  and the model reproduces the label's own anchor (20 mg/kg/day ≈ 1400 mg/day lands Css in
+  40–100; engine once-daily SS peak ~90 mcg/mL). Oral only (no marketed IV; F≈1 means an inferred
+  IV would add little — the lamotrigine posture). Complements phenobarbital/lamotrigine as the
+  classic absence drug; NTI flagged (educational annotation).
+- **Famotidine (`compounds/famotidine.json`) — a new class (H2-blocker) and the ~43%-F middle
+  point.** A textbook clean linear one-compartment renally-cleared drug (65–70% excreted
+  unchanged), reinforcing the renal thread (atenolol/vancomycin/gentamicin/acyclovir) with a GI
+  indication. FDA **Pepcid label** for disposition + oral params (F 40–45%, Tmax 1–3 h, t½
+  2.5–3.5 h, PB 15–20%, linear — "plasma levels after multiple dosages are similar to those
+  after single doses"); Vd 1.0–1.3 L/kg from the **Echizen & Ishizaki review** (label prints
+  none), as tabulated in StatPearls. Ceiling test clears: `F·D/V = 0.43·40/80.5 ≈ 214 ng/mL`
+  above the reported oral Cmax; Vd 1.15 L/kg (mid-range) is the Cmax-consistent choice — engine
+  20 mg oral peak 67 ng/mL matches the reported ~67 ng/mL, 40 mg peak 135 ng/mL is
+  dose-proportional. Its ~43% F is a useful middle between metronidazole (~100%) and acamprosate
+  (~11%): oral Cmax sits well below the IV level (~497 ng/mL C0 for 40 mg) yet exposure is
+  dose-stable (absorption incomplete-but-constant, not saturable). One-compartment collapse of a
+  shallow biexponential IV profile (metronidazole/cefotaxime posture). The **S-oxide active
+  metabolite is NOT modelled** — no citable fraction-formed (metabolic elimination is only 30–35%
+  overall, no single fm), the metronidazole-hydroxy / procainamide→NAPA deferral. Oral + both IV.
+- **Warfarin (`compounds/warfarin.json`) — the SMALL-VOLUME / HIGH-BINDING axis and a
+  three-caveat honesty showcase.** Vd **~0.14 L/kg** (~9.8 L, barely above plasma volume) because
+  warfarin is ~99% albumin-bound and stays intravascular — the opposite extreme from propofol's
+  Vss ~260 L. A canonical linear one-compartment PK example (CYP2C9/1A2/3A4 metabolism well below
+  saturation; the classic teaching dataset). All from the FDA **Coumadin label** (Vd, F "essentially
+  completely absorbed", PB 99%, peak <4 h, dual half-life) plus a **single-dose enantiomer study**
+  (PMC3555060) for the concentration magnitude (25 mg racemic → ~2.7 mcg/mL total, R 1.34 + S 1.37;
+  engine 2.42 mg/L, ~10% under) and enantiomer half-lives. **Three documented caveats** make it the
+  showcase: (1) *dual half-life* — the label gives a ~1 week terminal AND a 20–60 h (mean ~40 h)
+  *effective* half-life; the file models the **effective ~40 h** because that governs accumulation
+  (the lisinopril "use the accumulation-relevant half-life" reasoning; the ~1 week terminal is a
+  low-amplitude tail a single-compartment effective model doesn't render). (2) *racemate collapse* —
+  one racemic ~40 h collapses R ~51 h / S ~33 h (the atenolol enantiomer note). (3) **the honesty-
+  critical one — concentration is NOT effect**: warfarin acts by depleting already-synthesised
+  clotting factors, so the label notes peak anticoagulant effect is *delayed 72–96 h*, long after
+  the ~3 h concentration peak. The plotted curve is faithful to plasma warfarin and says nothing
+  about INR — the clearest case in the set that concentration and effect must not be conflated.
+  Oral (F=1, the standard route) + an INFERRED iv_bolus (`available: false` — IV warfarin is no
+  longer reliably marketed since the 2020 Coumadin discontinuation, but the disposition is real and
+  makes the small-volume high-C0 point cleanly, ~510 ng/mL C0 for 5 mg; the acamprosate/acyclovir
+  inferred-IV posture); no infusion. Modeling the effective 40 h over the 1-week terminal is
+  clearance-forced (CL = ln2·Vd/t½ ≈ 0.17 L/h at 40 h is warfarin's real ballpark; the 1-week
+  terminal with Vd 0.14 would imply an implausible ~0.04 L/h). CYP2C9/VKORC1 recorded under
+  `variability` for context (they drive dose requirement and effect, never used to produce a dose).
+  NTI flagged.
+
 ### Three-compartment compounds — remifentanil and propofol shipped
 
 The 3-compartment model (§12, Stage B) is now wired through data + UI, with two compounds

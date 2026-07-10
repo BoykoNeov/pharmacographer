@@ -1,0 +1,60 @@
+{
+  "id": "ethosuximide",
+  "schemaVersion": 1,
+  "names": { "inn": "Ethosuximide", "brand": ["Zarontin"], "synonyms": ["Ethosuximide"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 50,
+      "range": [40, 60],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "emc_smpc",
+      "conditions": "the EMC Summary of Product Characteristics for ethosuximide states 'it has a long elimination half life: adults 40 - 60 hours; children 30 hours'; StatPearls gives 50-60 h in adults. Point value 50 h (adult); band 40-60 h. The paediatric value (~30 h) is shorter but this file models the adult case, keeping to one population (the diazepam/lamotrigine posture). The very long half-life is the teaching point: 7-10 days to reach steady state."
+    },
+    "vd": {
+      "value": 0.7,
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "statpearls",
+      "conditions": "the FDA Zarontin label prints no volume of distribution; the ethosuximide StatPearls chapter states a distribution volume of 'approximately 0.7 L/kg', attributing it to the Patsalos 2008 antiepileptic-drug therapeutic-drug-monitoring review. Stored as the single reported point 0.7 L/kg (no range is given by the source read this pass). Ethosuximide is not significantly protein bound (distributes into total body water), so ~0.7 L/kg is a plausible true volume; with oral bioavailability >90% the apparent V/F is essentially the true V. Scaled to absolute litres against the 70 kg reference subject at derivation time."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 0.93,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "statpearls",
+        "conditions": "StatPearls: 'ethosuximide's bioavailability exceeds 90%'. Modelled as F = 0.93 (near-complete absorption). Because F is close to 1 and protein binding is negligible, the apparent oral V/F is treated as the true volume."
+      },
+      "tmax": {
+        "value": 4,
+        "range": [1, 7],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "emc_smpc",
+        "conditions": "EMC SmPC: 'peak serum levels occur 1 to 7 hours after single oral dose'. Representative point value 4 h (capsule); the oral solution absorbs somewhat faster. ka is derived from this Tmax at derivation time."
+      }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": true },
+  "sources": {
+    "emc_smpc": {
+      "type": "EMA/UK SmPC",
+      "title": "Ethosuximide 250 mg/5 ml Syrup - Summary of Product Characteristics (emc), section 5.2 Pharmacokinetic properties (long elimination half-life: adults 40-60 h, children 30 h; peak serum levels 1-7 h after a single oral dose; not significantly bound to plasma proteins; therapeutic serum levels 40-100 mcg/mL)",
+      "url": "https://www.medicines.org.uk/emc/product/10195/smpc",
+      "accessed": "2026-07-10"
+    },
+    "statpearls": {
+      "type": "Reference monograph (StatPearls)",
+      "title": "Ethosuximide, StatPearls (NBK544244) - bioavailability >90%; volume of distribution ~0.7 L/kg (attributed to Patsalos PN et al., antiepileptic-drug therapeutic drug monitoring, Epilepsia 2008); negligible protein binding; ~80% hepatic metabolism via CYP3A4 with ~10-20% excreted unchanged in urine; dosing and serum concentrations show a linear relationship; 7-10 days to steady state",
+      "url": "https://www.ncbi.nlm.nih.gov/books/NBK544244/",
+      "accessed": "2026-07-10"
+    }
+  },
+  "notes": "A clean LINEAR one-compartment succinimide anticonvulsant (the first-line drug for absence / petit-mal seizures), curated from the EMC Summary of Product Characteristics (half-life, Tmax, protein binding, therapeutic range) and the ethosuximide StatPearls chapter (bioavailability, volume of distribution, metabolism, linearity). The FDA Zarontin label's Clinical Pharmacology section is thin - it states the therapeutic range (40-100 mcg/mL) and mechanism but prints no Vd, half-life, or Tmax - so those come from the SmPC and StatPearls (StatPearls attributes Vd and half-life to the Patsalos 2008 antiepileptic-drug TDM review).\n\nWHY ETHOSUXIMIDE - a distinct drug class (succinimide) and the cleanest kind of one-compartment compound: near-complete oral absorption (F >90%), negligible protein binding (so the volume is not confounded by binding), and a genuinely first-order, dose-proportional relationship between dose and serum concentration. Its most useful teaching feature is the VERY LONG half-life (~40-60 h in adults) - it takes 7-10 days to reach steady state, so a single-dose curve looks unremarkable while a repeated-dose schedule accumulates several-fold to the therapeutic range. This complements the other long-half-life compounds (phenobarbital, lamotrigine) with the classic absence-epilepsy drug.\n\nLINEARITY. StatPearls: 'dosing and serum concentrations of ethosuximide demonstrate a linear relationship.' Elimination is first-order (~80% hepatic oxidation via CYP3A4, ~10-20% renal excretion unchanged), non-saturable at therapeutic doses, so a single half-life is meaningful and superposition of repeated doses is valid. linear: true. (Contrast the excluded phenytoin, whose succinimide-adjacent role in epilepsy hides genuinely saturable Michaelis-Menten kinetics - ethosuximide does not share that.)\n\nADULT POPULATION. The half-life is age-dependent (adults ~40-60 h, children ~30 h). This file models the ADULT case and keeps every parameter to that one population, the same single-population discipline used for diazepam and lamotrigine. The paediatric half-life is noted but not applied.\n\nMAGNITUDE CHECK (accumulation, not single-dose peak). For a one-compartment model F.D/V is a hard ceiling on the single-dose peak: a 500 mg oral dose (F = 0.93, Vd 0.7 L/kg = 49 L, ke = ln2/50 h, ka from Tmax 4 h) peaks around 8 mcg/mL against the built engine curve - well below the 40-100 mcg/mL therapeutic range, because that range is a STEADY-STATE accumulation, not a single-dose level. The label's own anchor confirms this: 20 mg/kg/day (~1400 mg/day for the 70 kg subject) gives 'average plasma levels within the accepted therapeutic range of 40 to 100 mcg/mL' - and the model reproduces it: Css,avg = F.Dose/(CL.tau) with CL = ke.Vd ~ 0.68 L/h lands ~80 mcg/mL, dead-centre the range. The single-dose-to-steady-state gap IS the lesson of a long-half-life drug.\n\nROUTE. Oral only - ethosuximide is marketed as capsules and an oral solution, with no intravenous product. Because F is close to 1 and there is no marketed IV form, no inferred IV curve is offered (the lamotrigine posture): an inferred IV would add little contrast when oral absorption is nearly complete.\n\nNARROW THERAPEUTIC INDEX flagged (monitored by serum levels, 40-100 mcg/mL) - this is an educational annotation, not a dosing aid.\n\nEDUCATIONAL ILLUSTRATION ONLY - not for dosing."
+}

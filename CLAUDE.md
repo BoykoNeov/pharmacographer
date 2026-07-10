@@ -85,8 +85,27 @@ all pass.
 
 Follow the phases in handoff §13 — engine + tests before UI. Current state:
 **Phase 7 data expansion + all three chart refinements done; static-site deploy
-is the sole remaining Phase 7 item. SEED SET now 23 compounds (was 10). A second
-2026-07-10 pass (antimicrobials) added three clean linear 1-comp drugs (all 384 tests green),
+is the sole remaining Phase 7 item. SEED SET now 27 compounds (was 10; the file count on disk
+is authoritative — an earlier note miscounted it as "23" when there were 24 files). A fourth
+2026-07-10 pass (new classes + teaching axes) added three clean linear 1-comp drugs (all 389 tests
+green), each ceiling-tested + magnitude-checked against the built engine curve, every value pulled
+from a source opened that session: `ethosuximide` (succinimide, the new class + very-long-t½
+accumulation teacher; FDA Zarontin label is thin so t½/Tmax/binding from the EMC SmPC and
+F/Vd/metabolism from StatPearls→Patsalos 2008; adult population; oral-only like lamotrigine;
+500 mg single oral → ~9 mcg/mL but 20 mg/kg/day accumulates to the 40–100 mcg/mL steady-state range,
+engine qd SS peak ~90), `famotidine` (H2-blocker, the new class + ~43%-F middle point between
+metronidazole ~100% and acamprosate ~11%; FDA Pepcid label + Echizen review for label-absent Vd
+1.15 L/kg; renal thread; 20 mg oral → 67 ng/mL matches reported ~67; S-oxide metabolite NOT modelled,
+no citable fm; oral+both IV), and `warfarin` (the SMALL-Vd 0.14 L/kg / 99%-bound axis — opposite
+extreme from propofol's Vss ~260 L; FDA Coumadin label + a single-dose enantiomer study PMC3555060;
+canonical linear 1-comp; THREE documented caveats — (1) dual half-life: models the EFFECTIVE ~40 h
+not the 1-week terminal, which is clearance-forced (CL=ln2·Vd/t½≈0.17 L/h at 40 h is real, the
+terminal implies implausible ~0.04); (2) racemate collapse R 51 h/S 33 h; (3) THE HONESTY EXEMPLAR —
+concentration is NOT effect, peak anticoagulant effect delayed 72–96 h vs the ~3 h concentration peak;
+25 mg racemic oral → 2.42 mg/L vs reported ~2.7; oral + INFERRED iv_bolus available:false since IV
+warfarin isn't reliably marketed post-2020; NTI). **theophylline evaluated + EXCLUDED same pass**
+(capacity-limited Michaelis–Menten elimination at therapeutic range — the phenytoin nonlinearity;
+exclude-with-rationale, not ship-with-caveat). The earlier antimicrobials pass added three clean linear 1-comp drugs (all 384 tests green),
 gated by the new `F·D/V` CEILING TEST (for a 1-comp model F·D/V is a hard ceiling on the peak;
 if it sits below the reported Cmax the drug is too distributed for 1-comp — defer or go 2-comp;
 see docs/DATA_GUIDE.md): `metronidazole` (5-nitroimidazole, oral+IV, ~100% F so oral≈IV Cmax;

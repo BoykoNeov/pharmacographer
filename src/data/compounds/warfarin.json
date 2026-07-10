@@ -1,0 +1,68 @@
+{
+  "id": "warfarin",
+  "schemaVersion": 1,
+  "names": { "inn": "Warfarin", "brand": ["Coumadin", "Jantoven"], "synonyms": ["Warfarin sodium"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 40,
+      "range": [20, 60],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "FDA Coumadin label: 'the terminal half-life of warfarin after a single dose is approximately 1 week; however, the EFFECTIVE half-life ranges from 20 to 60 hours, with a mean of about 40 hours.' This file models the EFFECTIVE half-life (mean 40 h, band 20-60 h) because that is the value that governs multiple-dose accumulation and steady state - the lisinopril reasoning: a superposition model should use the accumulation-relevant half-life, not the low-amplitude terminal tail. The ~1 week terminal phase is a real but small-amplitude tail that this single-compartment effective model does not render (see notes). The value also collapses the two enantiomers' different half-lives (R ~51 h, S ~33 h) into one racemic figure (see notes)."
+    },
+    "vd": {
+      "value": 0.14,
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "FDA Coumadin label: 'a relatively small apparent volume of distribution of about 0.14 L/kg'. This SMALL volume (warfarin is ~99% plasma-protein bound, so it stays largely in plasma) is the teaching axis of this compound - a stark contrast to the very large tissue volumes of propofol (Vss ~260 L) and diphenhydramine. Scaled to absolute litres against the 70 kg reference subject at derivation time (~9.8 L)."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 1.0,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "FDA Coumadin label: 'warfarin is essentially completely absorbed after oral administration'. Modelled as F = 1. Oral is warfarin's standard route."
+      },
+      "tmax": {
+        "value": 3,
+        "range": [2, 6],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "FDA Coumadin label: peak plasma concentration 'generally attained within the first 4 hours'; enantiomer PK studies report peaks between 2 and 6 h. Representative point value 3 h; ka derived from this Tmax at derivation time. Note: this is the CONCENTRATION peak, which does NOT coincide with the anticoagulant-EFFECT peak (delayed 72-96 h) - see notes."
+      }
+    },
+    "iv_bolus": {
+      "available": false,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "variability": {
+    "geneticFactors": ["CYP2C9", "VKORC1"],
+    "notes": "Warfarin dose requirement varies with CYP2C9 (metabolism of the more active S-enantiomer) and VKORC1 (the pharmacodynamic target) genotype. These affect the anticoagulant EFFECT and dose requirement, not primarily the shape of the concentration curve modelled here; they are recorded for context only, never applied to produce a dose."
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": true },
+  "sources": {
+    "fda_label": {
+      "type": "FDA label",
+      "title": "COUMADIN (warfarin sodium) tablets - FDA Structured Product Label, Clinical Pharmacology / Pharmacokinetics (racemic mixture of R- and S-enantiomers; essentially completely absorbed orally with peak concentration generally within the first 4 hours; apparent volume of distribution ~0.14 L/kg; ~99% protein bound; terminal half-life after a single dose ~1 week, effective half-life 20-60 h mean ~40 h; R-warfarin half-life 37-89 h, S-warfarin 21-43 h; anticoagulation effect generally within 24 h but peak anticoagulant effect may be delayed 72-96 h)",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=91fa852c-b43d-4a55-983b-74aa6827125d",
+      "accessed": "2026-07-10"
+    },
+    "warfarin_enantiomer_study": {
+      "type": "Journal article",
+      "title": "The pharmacokinetics and pharmacodynamics of single-dose (R)- and (S)-warfarin administered separately and together: relationship to VKORC1 genotype (PMC3555060) - single 25 mg racemic dose (11.7 mg each enantiomer) gave peak plasma concentrations of ~1.34 mcg/mL (R) and ~1.37 mcg/mL (S); elimination half-lives R ~51 h, S ~33 h",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3555060/",
+      "accessed": "2026-07-10"
+    }
+  },
+  "notes": "A LINEAR one-compartment oral anticoagulant - the canonical textbook linear one-compartment PK example - curated from the FDA Coumadin label, with a single-dose enantiomer study for the concentration magnitude and enantiomer half-lives. Warfarin earns a slot for a teaching axis nothing else in the set has, plus TWO honesty caveats that make it a showcase for this project's thesis.\n\nWHY WARFARIN - the SMALL-VOLUME, HIGH-BINDING end of the spectrum. Vd ~0.14 L/kg (~9.8 L, barely above plasma volume) because warfarin is ~99% bound to plasma albumin and stays largely intravascular - the opposite extreme from propofol's Vss ~260 L or the large tissue volumes of the amines. On an IV bolus this makes C(0) = Dose/Vd strikingly high for a small dose, which is the point: volume of distribution is what sets the peak, and here it is tiny.\n\nLINEARITY. Warfarin is metabolised by CYP2C9 (S-enantiomer) and CYP1A2/3A4 (R-enantiomer) at concentrations well below saturation, so elimination is first-order and dose-proportional over the therapeutic range - it is a standard linear one-compartment PK teaching example (e.g. the widely used 'warfarin' PK demonstration dataset). linear: true. (Warfarin's clinically important nonlinearity is pharmacodynamic - the INR response - not in the concentration kinetics modelled here.)\n\nCAVEAT 1 - DUAL HALF-LIFE (which number to model). The label reports BOTH a ~1 week terminal half-life after a single dose AND an 'effective half-life' of 20-60 h (mean ~40 h). This file models the EFFECTIVE ~40 h, because that is the half-life that governs multiple-dose accumulation and time to steady state - the same reasoning that fixes lisinopril's effective ~12 h over its 40 h terminal phase. It is also the physically forced choice, not just the well-documented one: CL = ln2.Vd/t½ with Vd 0.14 L/kg (~9.8 L) and t½ 40 h gives ~0.17 L/h, in warfarin's known low-clearance ballpark, whereas the ~1 week terminal with the same small Vd would imply an implausibly low ~0.04 L/h - so 40 h is the clearance-consistent disposition. The ~1 week terminal is a real but low-amplitude tail that a single-compartment effective model does not render; a two-compartment fit would separate it, but no clean single-population two-compartment set was sourced, and the effective 40 h is the accumulation-relevant value. This is the remifentanil lesson in a simpler form: a drug can have more than one 'half-life', and which one is meaningful depends on what you are asking.\n\nCAVEAT 2 - RACEMATE COLLAPSE. Coumadin is a racemic mixture whose enantiomers have different kinetics: R-warfarin half-life ~51 h (label range 37-89 h) and S-warfarin ~33 h (label range 21-43 h), with the S-enantiomer 2-5x more anticoagulant but faster cleared. Modelling one racemic half-life (~40 h) collapses that split - the same documented approximation as atenolol's enantiomer note. The modelled curve is total warfarin, not enantiomer-resolved.\n\nCAVEAT 3 (the honesty-critical one) - CONCENTRATION IS NOT EFFECT. Warfarin is the clearest case in the set where the plotted CONCENTRATION curve does NOT track the drug's EFFECT. The anticoagulant action works by depleting already-synthesised clotting factors, so the label notes 'an anticoagulation effect generally occurs within 24 hours' but 'peak anticoagulant effect may be delayed 72 to 96 hours' - long after the ~3 h concentration peak. The curve here is faithful to plasma warfarin and says nothing about INR or bleeding risk. This is a pure concentration model, and warfarin makes vivid why concentration and effect must not be conflated.\n\nMAGNITUDE CHECK. Vd 0.14 L/kg = 9.8 L. A 25 mg racemic oral dose (F = 1, ke = ln2/40 h, ka from Tmax 3 h) peaks near 2.4 mg/L against the built engine curve; the enantiomer study reported a 25 mg racemic dose giving peak plasma ~1.34 mcg/mL (R) + ~1.37 mcg/mL (S) = ~2.7 mcg/mL total warfarin - the model lands within ~10% (slightly under, as expected when a single racemic half-life is used in place of the two enantiomer rates).\n\nROUTES. Oral (F ~1) is warfarin's standard and essentially only clinical route. An intravenous warfarin injection historically existed but is no longer reliably marketed (brand Coumadin was discontinued in 2020), so iv_bolus is offered as INFERRED (available: false): the IV disposition is real and identical to the oral disposition, and the inferred bolus makes the small-volume high-C(0) point cleanly (C(0) = Dose/Vd ~ 510 ng/mL for 5 mg), but it is labelled 'inferred, not based on route-specific data' rather than presented as a marketed route. No infusion route is offered (not a clinical use). CYP2C9/VKORC1 genotype are recorded under variability for context - they drive dose requirement and effect, not the concentration-curve shape, and are never used to produce a dose.\n\nNARROW THERAPEUTIC INDEX flagged - an educational annotation. EDUCATIONAL ILLUSTRATION ONLY - not for dosing or anticoagulation management."
+}
