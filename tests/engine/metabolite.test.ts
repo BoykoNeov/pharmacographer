@@ -430,6 +430,136 @@ describe('oral parent → metabolite (residue form)', () => {
 });
 
 /**
+ * ORAL FIRST-PASS (pre-systemic formation). The fraction of the oral dose extracted by
+ * gut-wall / hepatic metabolism BEFORE reaching systemic circulation (`ffp`) never enters
+ * the systemic parent, so it is NOT captured by the systemic-formation term — it appears
+ * as an oral-absorption input directly into the metabolite compartment at the parent's
+ * absorption rate `ka`, a single additive Bateman term. Oracles: (1) collapse `ffp → 0`
+ * (or absent) reproduces the systemic-formation-only oral curve EXACTLY — the regression
+ * anchor that protects every shipped compound; (2) the new term's exposure is
+ * `ffp·D/(k_m·Vd_m)`, independent of `ka`; (3) an independent RK4 integration of the
+ * COMBINED ODE `dA_m/dt = fm·CL·C_p(t) + ka·ffp·D·e^(−ka·t) − k_m·A_m` matches the analytic
+ * curve — one integration that checks the SIGN and superposition of BOTH terms the scalar
+ * AUC cannot; (4) first-pass is ORAL-ONLY (the IV entry points ignore `ffp`); (5) a purely
+ * pre-systemic metabolite (`fm = 0, ffp > 0`) still computes cleanly. Engine capability
+ * only — no shipped compound declares a first-pass fraction yet (curated in a later pass).
+ */
+describe('oral first-pass (pre-systemic) metabolite formation', () => {
+  const oneCompModes = (vd: number, ke: number): ExpMode[] => [{ coef: 1 / vd, rate: ke }];
+  const dose = 250;
+
+  it('ffp → 0 (and absent) reproduces the systemic-formation-only oral curve EXACTLY', () => {
+    const base: MetaboliteDisposition = { vdM: 30, keM: 0.15, fractionFormed: 0.5 };
+    const withZero: MetaboliteDisposition = { ...base, firstPassFraction: 0 };
+    const modes = twoCompModes({ vc: 10, cl: 5, q: 10, vp: 20 }, 1);
+    for (const tau of [0.5, 2, 5, 12, 30]) {
+      const bare = oralMetaboliteConcentrationFromModes(modes, 5, 1.1, 0.9, base, dose, tau);
+      // Absent firstPassFraction and an explicit 0 must both be byte-identical to the bare curve.
+      expect(oralMetaboliteConcentrationFromModes(modes, 5, 1.1, 0.9, withZero, dose, tau)).toBe(bare);
+    }
+  });
+
+  it('adds exactly the pre-systemic Bateman term (superposition of the two paths)', () => {
+    const modes = twoCompModes({ vc: 10, cl: 5, q: 10, vp: 20 }, 1);
+    const cl = 5;
+    const ka = 1.1;
+    const F = 0.9;
+    const ffp = 0.3;
+    const systemic: MetaboliteDisposition = { vdM: 30, keM: 0.15, fractionFormed: 0.5 };
+    const withFp: MetaboliteDisposition = { ...systemic, firstPassFraction: ffp };
+    for (const tau of [0.5, 2, 5, 12, 30]) {
+      const both = oralMetaboliteConcentrationFromModes(modes, cl, ka, F, withFp, dose, tau);
+      const systemicOnly = oralMetaboliteConcentrationFromModes(modes, cl, ka, F, systemic, dose, tau);
+      // The added term is an oral "dose" of ffp·D absorbed at ka, eliminated at k_m, in Vd_m.
+      const presystemic = batemanMode(ka * ffp * dose, ka, systemic.keM, tau) / systemic.vdM;
+      expect(both - systemicOnly).toBeCloseTo(presystemic, 12);
+    }
+  });
+
+  it("the pre-systemic term's AUC = ffp·D/(k_m·Vd_m), independent of ka", () => {
+    const modes = oneCompModes(15, 0.4);
+    const cl = 0.4 * 15;
+    const F = 0.8;
+    const ffp = 0.35;
+    const systemic: MetaboliteDisposition = { vdM: 25, keM: 0.12, fractionFormed: 0.4 };
+    const withFp: MetaboliteDisposition = { ...systemic, firstPassFraction: ffp };
+    const expectedFpAuc = (ffp * dose) / (systemic.keM * systemic.vdM);
+    for (const ka of [0.7, 1.5, 3.0]) {
+      const fpTerm = (tau: number) =>
+        oralMetaboliteConcentrationFromModes(modes, cl, ka, F, withFp, dose, tau) -
+        oralMetaboliteConcentrationFromModes(modes, cl, ka, F, systemic, dose, tau);
+      const slowest = Math.min(systemic.keM, ka, ...modes.map((m) => m.rate));
+      const auc = trapezoid(fpTerm, 40 * (Math.LN2 / slowest), 400_000);
+      expectRelClose(auc, expectedFpAuc, 1e-3);
+    }
+  });
+
+  it('matches an RK4 integration of the COMBINED ODE dA_m/dt = fm·CL·C_p + ka·ffp·D·e^(−ka·t) − k_m·A_m', () => {
+    // One integration de-risks the SIGN and superposition of BOTH terms at once: the
+    // systemic-formation flux (fm·CL·C_p, C_p from the engine's oral parent curve) plus the
+    // pre-systemic input (a first-order absorption of ffp·D into the metabolite compartment).
+    const parent: TwoCompParams = { vc: 12, cl: 4, q: 8, vp: 30 };
+    const modes = twoCompModes(parent, 1);
+    const F = 0.6;
+    const ka = 0.9;
+    const ffp = 0.25;
+    const meta: MetaboliteDisposition = { vdM: 30, keM: 0.15, fractionFormed: 0.5, firstPassFraction: ffp };
+    const cp = (t: number) => oralConcentrationFromModes(modes, ka, F, dose, t);
+    const rk4AmountAt = (target: number, steps: number): number => {
+      const h = target / steps;
+      let a = 0;
+      const deriv = (t: number, av: number) =>
+        meta.fractionFormed * parent.cl * cp(t) + ka * ffp * dose * Math.exp(-ka * t) - meta.keM * av;
+      for (let i = 0; i < steps; i++) {
+        const t = i * h;
+        const k1 = deriv(t, a);
+        const k2 = deriv(t + h / 2, a + (h / 2) * k1);
+        const k3 = deriv(t + h / 2, a + (h / 2) * k2);
+        const k4 = deriv(t + h, a + h * k3);
+        a += (h / 6) * (k1 + 2 * k2 + 2 * k3 + k4);
+      }
+      return a;
+    };
+    for (const target of [2, 6, 15, 40]) {
+      const analytic = oralMetaboliteConcentrationFromModes(modes, parent.cl, ka, F, meta, dose, target);
+      const rk4 = rk4AmountAt(target, 40_000) / meta.vdM;
+      expectRelClose(rk4, analytic, 1e-4);
+    }
+  });
+
+  it('a purely pre-systemic metabolite (fm = 0, ffp > 0) computes cleanly', () => {
+    const modes = oneCompModes(15, 0.4);
+    const ka = 1.2;
+    const ffp = 0.7;
+    const meta: MetaboliteDisposition = { vdM: 25, keM: 0.12, fractionFormed: 0, firstPassFraction: ffp };
+    // C_m(0) = 0; positive thereafter; AUC = ffp·D/(k_m·Vd_m) (no systemic term).
+    expect(oralMetaboliteConcentrationFromModes(modes, 6, ka, 0.05, meta, dose, 0)).toBe(0);
+    const curve = (tau: number) => oralMetaboliteConcentrationFromModes(modes, 6, ka, 0.05, meta, dose, tau);
+    expect(curve(5)).toBeGreaterThan(0);
+    const expected = (ffp * dose) / (meta.keM * meta.vdM);
+    const auc = trapezoid(curve, 40 * (Math.LN2 / meta.keM), 400_000);
+    expectRelClose(auc, expected, 1e-3);
+  });
+
+  it('first-pass is ORAL-ONLY — the IV-bolus and IV-infusion entry points ignore ffp', () => {
+    const parent: TwoCompParams = { vc: 10, cl: 5, q: 10, vp: 20 };
+    const bare: MetaboliteDisposition = { vdM: 30, keM: 0.15, fractionFormed: 0.5 };
+    const withFp: MetaboliteDisposition = { ...bare, firstPassFraction: 0.4 };
+    const modes = twoCompModes(parent, 1);
+    for (const tau of [0.5, 2, 5, 12, 30]) {
+      // IV bolus (2-comp) — ffp has no effect.
+      expect(singleDose2cMetaboliteConcentration(parent, withFp, dose, tau)).toBe(
+        singleDose2cMetaboliteConcentration(parent, bare, dose, tau),
+      );
+      // IV infusion — ffp has no effect.
+      expect(infusionMetaboliteConcentrationFromModes(modes, 5, withFp, dose, 1, tau)).toBe(
+        infusionMetaboliteConcentrationFromModes(modes, 5, bare, dose, 1, tau),
+      );
+    }
+  });
+});
+
+/**
  * IV-INFUSION parent → metabolite (the zero-order-input generalisation). An infused
  * parent's central concentration is a rectangular input window convolved with the
  * disposition; by linearity the metabolite is that same window convolved with the

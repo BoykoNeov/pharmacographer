@@ -728,14 +728,45 @@ export function deriveMetaboliteDisposition(
       note: `formation fraction ${fmt(metabolite.fractionFormed.value)}% expressed as ${fmt(fractionFormed)}`,
     });
   }
-  if (fractionFormed <= 0 || fractionFormed > 1) {
+
+  // Pre-systemic (first-pass) fraction — optional; the oral-only additive term. Normalise
+  // percent to a fraction like fractionFormed; absent ⇒ undefined (no first-pass term).
+  let firstPassFraction: number | undefined;
+  if (metabolite.firstPassFraction) {
+    firstPassFraction =
+      metabolite.firstPassFraction.unit === 'percent'
+        ? metabolite.firstPassFraction.value / 100
+        : metabolite.firstPassFraction.value;
+    if (metabolite.firstPassFraction.unit === 'percent') {
+      derived.push({
+        parameter: 'firstPassFraction',
+        note: `first-pass fraction ${fmt(metabolite.firstPassFraction.value)}% expressed as ${fmt(firstPassFraction)}`,
+      });
+    }
+    if (firstPassFraction < 0 || firstPassFraction > 1) {
+      warnings.push({
+        parameter: 'firstPassFraction',
+        message: `metabolite first-pass fraction ${fmt(firstPassFraction)} is outside [0, 1] — check the source and units`,
+      });
+    }
+  }
+
+  // Formation must have at least one active pathway. `fractionFormed` may now be 0 —
+  // a purely pre-systemic metabolite (all first-pass) is legitimate — but only when a
+  // first-pass fraction carries it; the total (fm + ffp) must be positive.
+  if (fractionFormed < 0 || fractionFormed > 1) {
     warnings.push({
       parameter: 'fractionFormed',
-      message: `metabolite formation fraction ${fmt(fractionFormed)} is outside (0, 1] — check the source and units`,
+      message: `metabolite formation fraction ${fmt(fractionFormed)} is outside [0, 1] — check the source and units`,
+    });
+  } else if (fractionFormed + (firstPassFraction ?? 0) <= 0) {
+    warnings.push({
+      parameter: 'fractionFormed',
+      message: `metabolite has no formation pathway (fractionFormed and firstPassFraction both 0) — check the source and units`,
     });
   }
 
-  return { params: { vdM, keM, fractionFormed }, derived, warnings };
+  return { params: { vdM, keM, fractionFormed, firstPassFraction }, derived, warnings };
 }
 
 /**

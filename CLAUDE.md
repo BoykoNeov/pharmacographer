@@ -95,6 +95,31 @@ Follow the phases in handoff §13 — engine + tests before UI. Current state:
 is the sole remaining Phase 7 item. SEED SET now 39 compounds (was 10; the file count on disk
 is authoritative).**
 
+**ORAL FIRST-PASS METABOLISM — engine capability LANDED (2026-07-10, advisor-reviewed, 419 tests;
+engine-first spike, NO compound this pass).** Removes the wall that DEFERRED oseltamivir + every oral
+route whose bioavailability loss is first-pass conversion (oral morphine/nicotine/ketamine, psilocin).
+New optional per-metabolite **`firstPassFraction` (`ffp`)** routes the pre-systemic (gut/hepatic
+first-pass) mass to the metabolite as a single ADDITIVE oral-only Bateman term
+`batemanMode(ka·ffp·D, ka, k_m, t)/Vd_m` — the pre-systemic mass appears as an oral-absorption input
+into the metabolite compartment at the PARENT's `ka` (hepatic conversion fast vs absorption, the
+standard simplification, stated in the engine header). Oral-only (IV bypasses first-pass — the bolus/
+infusion metabolite paths ignore `ffp`); total oral metabolite `AUC = (fm·F + ffp)·D/(k_m·Vd_m)`, the
+`ffp` term ka-independent. **Collapse anchor:** `ffp` absent/0 reproduces every current curve BYTE-FOR-
+BYTE (oracle asserts `.toBe`) — protects all 39 shipped compounds. A PURELY pre-systemic metabolite
+(`fm = 0, ffp > 0`, the oseltamivir shape) computes cleanly; the derive guard now allows `fm = 0` when
+`ffp` carries formation (invariant: `fm + ffp > 0`, each in [0,1]). Files: `types.ts`
+(`MetaboliteDisposition.firstPassFraction?`), `metabolite.ts` (`presystemicMetaboliteConcentration` +
+oral-path add + header), `schema.ts` (optional `firstPassFraction` param + sourceRef check), `derive.ts`
+(resolve `ffp`, reworked plausibility guard). `curve.ts`/UI unchanged — `ffp` rides on the derived
+`MetaboliteDisposition`. Oracles (metabolite.test.ts): collapse `ffp→0` exact; new-term AUC ka-independent;
+**unified RK4 on the COMBINED ODE `dA_m/dt = fm·CL·C_p + ka·ffp·D·e^(−ka·t) − k_m·A_m`** (checks BOTH
+terms' sign+superposition at once); IV-ignores-ffp; pure-pre-systemic case. **HONESTY GATE (curation,
+docs/DATA_GUIDE.md):** the real gate is "is `ffp` for THIS specific metabolite CITABLE?" — partial
+attribution fine IF sourced (cotinine gets only its share); **do NOT also shave `F`** (double-counts —
+`ffp` is purely additive); mass balance `ffp ≤ 1 − F − f_unabsorbed` (curation check, NOT engine-
+enforced); MW-adjust molar→mass like `fm`. `ffp` is an illustrative population constant (bright line
+holds). **Oseltamivir's deferral is now a CURATION decision, not an engine limit.**
+
 **MORPHINE (→ M3G + M6G) + DIGITOXIN (2026-07-10, advisor-reviewed, 408 tests):** 38th + 39th
 compounds — the two vetted-next candidates. **morphine** = the parallel-glucuronidation centrepiece
 and the FIRST compound with an active AND inactive metabolite drawn together (**M3G is the FIRST

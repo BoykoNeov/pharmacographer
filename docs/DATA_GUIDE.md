@@ -218,6 +218,54 @@ one-compartment collapse; allopurinol→oxypurinol now adds the oral-parent path
 on a citable single-value `fm` (procainamide→NAPA formation is acetylator-bimodal, 7–34% urinary
 recovery, so `fm` is not one number).
 
+### Oral first-pass metabolism — engine capability LANDED (`firstPassFraction`, no compound yet)
+
+The engine now models **pre-systemic (first-pass) metabolite formation** — the wall that had
+DEFERRED oseltamivir and every oral route whose bioavailability loss is first-pass conversion to a
+metabolite (oral morphine, oral nicotine, oral ketamine, psilocin). It is an **engine-first spike**
+(the metabolite / oral-2c / 3c-Stage-B rhythm): engine + oracles + collapse regression green, **no
+compound curated this pass** — the flagship candidates (oseltamivir, oral morphine) are a separate
+advisor-reviewed curation pass against the honesty gate below.
+
+**The mechanism.** `F` was always the *systemic* bioavailable fraction; the `(1 − F)` lost to
+first-pass simply vanished (became nothing) and metabolites formed only from the *systemic* parent
+(`fm·CL·C_p`). So first-pass is only ever *visible* through a metabolite line. The new optional
+per-metabolite **`firstPassFraction` (`ffp`)** routes the pre-systemic mass to the metabolite: a
+fraction `ffp` of the oral dose appears as an oral-absorption input directly into the metabolite
+compartment, at the **parent's absorption rate `ka`** (hepatic conversion is fast relative to
+absorption — the standard simplification, stated in the engine header). It is a single additive
+Bateman term `batemanMode(ka·ffp·D, ka, k_m, t)/Vd_m`, **oral-route only** (IV bypasses first-pass,
+so the bolus/infusion metabolite paths ignore `ffp`). Total oral metabolite exposure is therefore
+`AUC_m = (fm·F + ffp)·D/(k_m·Vd_m)` — the systemic term plus the pre-systemic term, the latter
+independent of `ka`. **Collapse anchor:** `ffp` absent/0 reproduces every current curve *byte-for-
+byte*, which is what protects all 39 shipped compounds (an oracle test asserts `.toBe`, not
+`.toBeCloseTo`). A **purely pre-systemic** metabolite (`fm = 0, ffp > 0`) — the oseltamivir shape,
+parent barely circulates — computes cleanly; the derive guard now allows `fm = 0` when `ffp`
+carries the formation.
+
+**The honesty gate (the load-bearing curation rule).** The question is **"is `ffp` for *this
+specific* metabolite citable?"** — the same cite-or-defer posture as `fm`. Partial attribution is
+fine *if sourced*: if nicotine's first-pass mass splits across cotinine + other products, cotinine
+gets only its *sourced* share, not all of the extracted mass (attributing the whole extraction to
+one modelled product over-predicts — the `F·D/V`-ceiling-test discipline). Two mass-balance rules
+for the curator:
+- **Do NOT also shave `F`.** `F` is already the systemic fraction; `ffp` is purely additive to the
+  metabolite. "Accounting for" first-pass by *also* reducing `F` double-counts the same extracted
+  mass. Leave `F` at the sourced systemic bioavailability and add `ffp` on top.
+- **Mass balance bounds it:** `ffp ≤ 1 − F − f_unabsorbed`. The extracted-and-converted fraction
+  cannot exceed what was absorbed but did not reach systemic circulation. The engine does **not**
+  enforce this (it is a curation-pass check) — verify it by hand when curating a first-pass pair.
+- **MW-adjust a molar fraction to mass**, exactly like `fm` (the caffeine/morphine convention): the
+  engine's `ffp` multiplies parent *mass*, so a molar first-pass fraction is `× MW_m/MW_parent`.
+
+**`ffp` is an illustrative population constant** (a literature fraction, like the 70 kg reference
+subject), not a patient covariate — the bright line holds. Frame it that way in the compound prose.
+
+This makes the **oseltamivir** deferral above a *curation* decision rather than an *engine* limit:
+the systemic-formation engine could not represent it, but a first-pass term can (parent `fm ≈ 0`,
+`ffp` carrying the ≥75%-of-dose carboxylate). It stays parked only until a curation pass sources the
+split against the honesty gate.
+
 ### Flip-flop (ka < ke) candidate — acamprosate (found, pending a curation judgment call)
 
 The engine gained a flip-flop-aware oral horizon (all three `curveHorizon*` size the oral

@@ -292,6 +292,48 @@ describe('deriveMetaboliteParams — metabolite disposition', () => {
   it('throws when the parent ke is not positive', () => {
     expect(() => deriveMetaboliteParams(metaboliteFrom(), 0)).toThrow(/parentKe/);
   });
+
+  it('resolves an optional first-pass fraction (percent → fraction, with a note)', () => {
+    const m = metaboliteFrom({
+      firstPassFraction: { value: 30, unit: 'percent', derived: false, sourceRef: 'ref' },
+    });
+    const { params, derived } = deriveMetaboliteParams(m, 0.5);
+    expect(params.firstPassFraction).toBeCloseTo(0.3, 12);
+    expect(derived.some((d) => d.parameter === 'firstPassFraction')).toBe(true);
+  });
+
+  it('leaves firstPassFraction undefined when absent (the collapse default)', () => {
+    expect(deriveMetaboliteParams(metaboliteFrom(), 0.5).params.firstPassFraction).toBeUndefined();
+  });
+
+  it('allows a purely pre-systemic metabolite (fm = 0) when a first-pass fraction carries it', () => {
+    const m = metaboliteFrom({
+      fractionFormed: { value: 0, unit: 'fraction', derived: false, sourceRef: 'ref' },
+      firstPassFraction: { value: 0.7, unit: 'fraction', derived: false, sourceRef: 'ref' },
+    });
+    const { params, warnings } = deriveMetaboliteParams(m, 0.5);
+    expect(params.fractionFormed).toBe(0);
+    expect(params.firstPassFraction).toBe(0.7);
+    expect(warnings.some((w) => w.parameter === 'fractionFormed')).toBe(false);
+  });
+
+  it('warns when there is no formation pathway (fm = 0 and no first-pass fraction)', () => {
+    const m = metaboliteFrom({
+      fractionFormed: { value: 0, unit: 'fraction', derived: false, sourceRef: 'ref' },
+    });
+    const { warnings } = deriveMetaboliteParams(m, 0.5);
+    expect(warnings.some((w) => w.parameter === 'fractionFormed' && /no formation pathway/.test(w.message))).toBe(
+      true,
+    );
+  });
+
+  it('warns when the first-pass fraction is outside [0, 1]', () => {
+    const m = metaboliteFrom({
+      firstPassFraction: { value: 1.3, unit: 'fraction', derived: false, sourceRef: 'ref' },
+    });
+    const { warnings } = deriveMetaboliteParams(m, 0.5);
+    expect(warnings.some((w) => w.parameter === 'firstPassFraction')).toBe(true);
+  });
 });
 
 describe('deriveParams2c — two-compartment (handoff §12)', () => {

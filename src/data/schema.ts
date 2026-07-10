@@ -200,8 +200,22 @@ const MetaboliteSchema = z.strictObject({
    * plotted (it carries exposure information) but the UI labels it as inactive.
    */
   active: z.boolean(),
-  /** Fraction of the parent dose converted to this metabolite (the formation ratio). */
+  /**
+   * Fraction of the SYSTEMICALLY-absorbed parent converted to this metabolite (the
+   * formation ratio, `fm`). Drives the systemic-formation curve on every route.
+   */
   fractionFormed: requiredParam(FractionUnit),
+  /**
+   * Optional fraction of the ORAL dose converted to this metabolite PRE-SYSTEMICALLY,
+   * by gut-wall / hepatic first-pass extraction (`ffp`). This mass never enters the
+   * systemic parent (it is already excluded by the route's bioavailable fraction `F`),
+   * so it is purely ADDITIVE to `fractionFormed` and affects the ORAL route only — IV
+   * routes bypass first-pass. Omitted ⇒ no first-pass term. Curation rules (see
+   * docs/DATA_GUIDE.md): store only when `ffp` for THIS specific metabolite is citable;
+   * do NOT also shave `F` (double-counting); mass balance bounds it `ffp ≤ 1 − F −
+   * f_unabsorbed`. MW-adjust a molar fraction to mass, like `fractionFormed`.
+   */
+  firstPassFraction: requiredParam(FractionUnit).optional(),
   /** Metabolite volume of distribution — its own disposition, not the parent's. */
   vd: requiredParam(VolumeOfDistributionUnit),
   /** Metabolite elimination half-life — its own disposition, not the parent's. */
@@ -369,6 +383,8 @@ export const CompoundSchema = z
     // Metabolite parameters cite the same compound-level bibliography.
     compound.metabolites?.forEach((m, i) => {
       checkRef(m.fractionFormed.sourceRef, `metabolites.${i}.fractionFormed`);
+      if (m.firstPassFraction)
+        checkRef(m.firstPassFraction.sourceRef, `metabolites.${i}.firstPassFraction`);
       checkRef(m.vd.sourceRef, `metabolites.${i}.vd`);
       checkRef(m.halfLife.sourceRef, `metabolites.${i}.halfLife`);
     });

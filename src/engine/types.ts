@@ -132,6 +132,12 @@ export interface MetaboliteParams {
   keParent: number;
   /** Fraction of the parent dose converted to this metabolite, in [0, 1]. */
   fractionFormed: number;
+  /**
+   * Pre-systemic (oral first-pass) fraction, in [0, 1] — carried through from the
+   * shared disposition for completeness. This one-compartment path is IV-bolus only,
+   * which bypasses first-pass, so it is ignored here; see {@link MetaboliteDisposition}.
+   */
+  firstPassFraction?: number;
 }
 
 /**
@@ -147,8 +153,22 @@ export interface MetaboliteDisposition {
   vdM: number;
   /** Metabolite elimination rate constant, 1/h. */
   keM: number;
-  /** Fraction of the parent dose converted to this metabolite, in [0, 1]. */
+  /**
+   * Fraction of the *systemically-absorbed* parent converted to this metabolite,
+   * in [0, 1] — the formation ratio off the systemic parent (`fm`).
+   */
   fractionFormed: number;
+  /**
+   * Fraction of the ORAL dose converted to this metabolite PRE-SYSTEMICALLY, by
+   * gut-wall / hepatic first-pass extraction, in [0, 1] (`ffp`). Absent/0 ⇒ no
+   * first-pass term (the systemic-formation-only default that reproduces every
+   * pre-first-pass curve exactly). Applies to the ORAL route only — IV routes
+   * bypass first-pass entirely, so the bolus/infusion metabolite paths ignore it.
+   * The pre-systemic mass appears as an oral-absorption input into the metabolite
+   * compartment at the PARENT's absorption rate `ka` (hepatic conversion fast
+   * relative to absorption — the standard simplification); see `metabolite.ts`.
+   */
+  firstPassFraction?: number;
 }
 
 /** A single administered dose: `amount` mg given at `time` h. */

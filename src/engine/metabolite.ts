@@ -47,6 +47,21 @@
  * the same refuse-don't-mislead posture as the linearity gate. This does not arise for
  * physically separated absorption and disposition rates.
  *
+ * ORAL FIRST-PASS (pre-systemic formation): an oral parent additionally forms
+ * metabolite BEFORE reaching systemic circulation, by gut-wall / hepatic first-pass
+ * extraction. That fraction of the oral dose (`ffp = meta.firstPassFraction`) never
+ * enters the systemic parent — the `F` scalar already excludes it — so it is NOT
+ * captured by the systemic-formation term above. It appears instead as an oral-
+ * absorption input directly into the metabolite compartment at the PARENT's
+ * absorption rate `ka` (hepatic conversion fast relative to absorption — the standard
+ * simplification), a single additive Bateman term `batemanMode(ka·ffp·D, ka, k_m,
+ * t)/Vd_m`. This term rides ONLY the oral route (IV bypasses first-pass), is purely
+ * additive to the systemic-formation term, and contributes `AUC = ffp·D/(k_m·Vd_m)`
+ * (independent of `ka`), so the total oral metabolite exposure is `(fm·F + ffp)·D/
+ * (k_m·Vd_m)`. With `ffp` absent/0 the term vanishes and the curve is byte-identical
+ * to the systemic-formation-only case — the collapse anchor that protects every
+ * shipped compound. See {@link presystemicMetaboliteConcentration}.
+ *
  * IV-INFUSION PARENT (the zero-order-input generalisation): an infused parent's
  * central concentration is not a plain mode sum either — it is a rectangular window
  * of zero-order input convolved with the disposition. Since the whole parent →
@@ -64,9 +79,6 @@
  * and duration-independent; `Σ g_λ/λ = 1/CL` cancels the disposition), the free
  * regression anchor — and as `T → 0` it collapses to the IV-bolus metabolite. This
  * serves a 1-, 2- or 3-compartment infused parent off the same disposition modes.
- *
- * Pre-systemic/first-pass formation is still deferred (this treats the metabolite as
- * formed only from the systemically-absorbed parent).
  *
  * No React, no DOM, no data/JSON imports, no I/O — see CLAUDE.md / handoff §4.
  */
@@ -295,12 +307,45 @@ export function oralMetaboliteConcentrationFromModes(
   tau: number,
 ): number {
   if (tau < 0) return 0;
-  return metaboliteConcentrationFromModes(
-    oralParentResidueModes(dispositionUnitModes, ka, F, dose),
-    parentCl,
-    meta,
-    tau,
+  return (
+    metaboliteConcentrationFromModes(
+      oralParentResidueModes(dispositionUnitModes, ka, F, dose),
+      parentCl,
+      meta,
+      tau,
+    ) + presystemicMetaboliteConcentration(meta, ka, dose, tau)
   );
+}
+
+/**
+ * Pre-systemic (first-pass) metabolite concentration (mg/L) from a SINGLE oral
+ * parent dose of `dose` mg, `tau` h after that dose. The fraction of the oral
+ * dose extracted by gut-wall / hepatic metabolism before reaching systemic
+ * circulation (`meta.firstPassFraction`, `ffp`) never enters the systemic parent
+ * — instead it appears directly in the metabolite compartment as an oral-
+ * absorption input at the PARENT's absorption rate `ka` (hepatic conversion is
+ * fast relative to absorption; the standard simplification). So it is an oral
+ * "dose" of the metabolite of `ffp·dose` mg absorbed at rate `ka` and eliminated
+ * at `k_m`, a single Bateman term:
+ *
+ *   C_m,fp(tau) = batemanMode(ka·ffp·dose, ka, k_m, tau) / Vd_m
+ *
+ * Its exposure is `AUC = ffp·dose/(k_m·Vd_m)`, independent of `ka` — additive to
+ * (and independent of) the systemic-formation term. `ffp` absent/0 ⇒ this term is
+ * 0, reproducing the systemic-formation-only curve exactly (the collapse anchor).
+ * IV routes bypass first-pass, so only the oral path calls this. The `ka ≈ k_m`
+ * degeneracy is handled by `batemanMode`'s existing flip-flop limit, so — unlike
+ * the residue split — this term never needs the `ka ≈ λ` refusal.
+ */
+function presystemicMetaboliteConcentration(
+  meta: MetaboliteDisposition,
+  ka: number,
+  dose: number,
+  tau: number,
+): number {
+  const ffp = meta.firstPassFraction ?? 0;
+  if (tau < 0 || ffp === 0) return 0;
+  return batemanMode(ka * ffp * dose, ka, meta.keM, tau) / meta.vdM;
 }
 
 /**
