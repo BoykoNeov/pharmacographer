@@ -2,6 +2,7 @@
   "id": "acyclovir",
   "schemaVersion": 1,
   "names": { "inn": "Aciclovir", "usan": "Acyclovir", "brand": ["Zovirax"], "synonyms": ["Acyclovir"] },
+  "description": "An antiviral drug for herpes simplex and varicella-zoster (chickenpox/shingles) infections. It is switched on inside virus-infected cells, which makes it selectively toxic to the virus.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

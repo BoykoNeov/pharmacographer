@@ -2,6 +2,7 @@
   "id": "methamphetamine",
   "schemaVersion": 1,
   "names": { "inn": "Metamfetamine", "usan": "Methamphetamine", "brand": ["Desoxyn"], "synonyms": ["Methamphetamine", "d-methamphetamine", "N-methylamphetamine", "Crystal meth", "Speed", "Ice"] },
+  "description": "A potent central-nervous-system stimulant. Rarely prescribed (brand Desoxyn) for ADHD or obesity, it is far better known as the illicit drug 'crystal meth'; its clearance depends strongly on urine pH.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

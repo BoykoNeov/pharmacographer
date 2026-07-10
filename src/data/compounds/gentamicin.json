@@ -2,6 +2,7 @@
   "id": "gentamicin",
   "schemaVersion": 1,
   "names": { "inn": "Gentamicin", "brand": ["Garamycin"], "synonyms": ["Gentamicin sulfate"] },
+  "description": "An aminoglycoside antibiotic given by injection for serious Gram-negative infections. Its levels are carefully monitored because too much can damage the kidneys and hearing.",
   "model": "two_compartment_first_order",
   "linear": true,
   "disposition": {

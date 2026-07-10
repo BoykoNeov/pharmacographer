@@ -16,6 +16,7 @@ import { useMemo, useState } from 'react';
 import type { DoseEvent, Route } from '../engine/types.ts';
 import type { DeriveWarning } from '../data/derive.ts';
 import { loadAllCompounds } from '../data/loader.ts';
+import { CompoundAbout, CompoundMetabolism } from './components/CompoundInfo.tsx';
 import { CompoundPicker } from './components/CompoundPicker.tsx';
 import { ConcentrationChart } from './components/ConcentrationChart.tsx';
 import { DisclaimerBanner } from './components/DisclaimerBanner.tsx';
@@ -153,6 +154,10 @@ export function App() {
           </section>
 
           <section className="panel chart-area" aria-label="Concentration curve">
+            {/* Fixed-height "what is this compound" box ABOVE the chart — its
+                constant height keeps the chart's top edge from jumping when the
+                compound changes. */}
+            {compound && <CompoundAbout compound={compound} />}
             {curve.ok ? (
               <>
                 <ConcentrationChart
@@ -193,6 +198,10 @@ export function App() {
                 <strong>No curve.</strong> {curve.error}
               </div>
             )}
+            {/* Metabolism prose renders BELOW the chart, where its unbounded
+                length can't push the chart around. Route-independent descriptive
+                text, so it shows regardless of whether a curve was built. */}
+            {compound && <CompoundMetabolism compound={compound} />}
           </section>
 
           {curve.ok && compound && (

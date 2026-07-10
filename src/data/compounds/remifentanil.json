@@ -2,6 +2,7 @@
   "id": "remifentanil",
   "schemaVersion": 1,
   "names": { "inn": "Remifentanil", "brand": ["Ultiva"], "synonyms": ["Remifentanil"] },
+  "description": "An ultra-short-acting opioid painkiller given by IV infusion during anaesthesia. Uniquely among opioids it is broken down by blood and tissue esterases, so its effect fades within minutes of stopping the infusion.",
   "model": "three_compartment_first_order",
   "linear": true,
   "disposition": {

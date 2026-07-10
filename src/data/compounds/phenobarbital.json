@@ -2,6 +2,7 @@
   "id": "phenobarbital",
   "schemaVersion": 1,
   "names": { "inn": "Phenobarbital", "synonyms": ["Phenobarbitone", "Phenobarbital sodium"] },
+  "description": "One of the oldest barbiturate anti-epileptic drugs, still used for seizures (and historically for sedation). It is very long-acting and a potent inducer of liver drug-metabolising enzymes.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

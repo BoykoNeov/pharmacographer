@@ -2,6 +2,7 @@
   "id": "theobromine",
   "schemaVersion": 1,
   "names": { "inn": "Theobromine", "synonyms": ["3,7-dimethylxanthine", "xantheose"] },
+  "description": "The main methylxanthine stimulant of cocoa and chocolate, and also a metabolite of caffeine. Milder than caffeine, it is behind chocolate's toxicity to dogs, which clear it far more slowly than humans.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

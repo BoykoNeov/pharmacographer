@@ -2,6 +2,7 @@
   "id": "ethosuximide",
   "schemaVersion": 1,
   "names": { "inn": "Ethosuximide", "brand": ["Zarontin"], "synonyms": ["Ethosuximide"] },
+  "description": "An anti-epileptic drug used specifically for absence (petit mal) seizures. Its very long half-life means it accumulates over days to its steady level.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

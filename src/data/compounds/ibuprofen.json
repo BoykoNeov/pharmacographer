@@ -2,6 +2,7 @@
   "id": "ibuprofen",
   "schemaVersion": 1,
   "names": { "inn": "Ibuprofen", "synonyms": ["(RS)-ibuprofen"] },
+  "description": "A common over-the-counter non-steroidal anti-inflammatory drug (NSAID) for pain, fever, and inflammation. It works by blocking cyclo-oxygenase (COX) enzymes and the prostaglandins they produce.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

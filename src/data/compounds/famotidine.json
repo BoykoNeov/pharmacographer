@@ -2,6 +2,7 @@
   "id": "famotidine",
   "schemaVersion": 1,
   "names": { "inn": "Famotidine", "brand": ["Pepcid"], "synonyms": ["Famotidine"] },
+  "description": "An H2-receptor blocker (brand Pepcid) that reduces stomach acid, used for heartburn, reflux, and ulcers. It is largely cleared unchanged by the kidneys.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

@@ -2,6 +2,7 @@
   "id": "metformin",
   "schemaVersion": 1,
   "names": { "inn": "Metformin", "synonyms": ["Metformin hydrochloride"] },
+  "description": "A first-line oral medicine for type 2 diabetes that lowers blood glucose mainly by reducing the liver's glucose output and improving insulin sensitivity. It is not metabolised and is cleared unchanged by the kidneys.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

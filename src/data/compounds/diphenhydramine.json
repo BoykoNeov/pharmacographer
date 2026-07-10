@@ -2,6 +2,7 @@
   "id": "diphenhydramine",
   "schemaVersion": 1,
   "names": { "inn": "Diphenhydramine", "synonyms": ["Diphenhydramine hydrochloride", "DPH"] },
+  "description": "A first-generation antihistamine (brand Benadryl) for allergies, itching, and motion sickness, and an over-the-counter sleep aid. Its ready entry into the brain makes it notably sedating.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

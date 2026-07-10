@@ -2,6 +2,7 @@
   "id": "atenolol",
   "schemaVersion": 1,
   "names": { "inn": "Atenolol", "brand": ["Tenormin"], "synonyms": ["Atenolol"] },
+  "description": "A beta-blocker for high blood pressure and angina. Unlike metoprolol it is water-soluble and cleared largely unchanged by the kidneys, so it enters the brain less and is not affected by CYP2D6.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

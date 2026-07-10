@@ -206,6 +206,15 @@ const MetaboliteSchema = z.strictObject({
   vd: requiredParam(VolumeOfDistributionUnit),
   /** Metabolite elimination half-life — its own disposition, not the parent's. */
   halfLife: requiredParam(TimeUnit),
+  /**
+   * Optional short plain-language blurb surfaced ON SCREEN in the metabolism
+   * section: what this metabolite is and whether it is active — the metabolite
+   * analogue of the compound {@link CompoundSchema} `description`. Length-capped
+   * (a ~2-liner) for the same tidy-layout reason; the longer metabolism story
+   * belongs in the compound-level {@link CompoundSchema} `metabolism`. Distinct
+   * from the technical curator `notes` below.
+   */
+  description: z.string().min(1).max(400).optional(),
   /** Curator reasoning for the metabolite's numbers (same posture as compound `notes`). */
   notes: z.string().optional(),
 });
@@ -240,6 +249,28 @@ export const CompoundSchema = z
       brand: z.array(z.string()).optional(),
       synonyms: z.array(z.string()).optional(),
     }),
+    /**
+     * REQUIRED plain-language blurb surfaced ON SCREEN above the chart: what the
+     * compound is and what it is typically used for (for a toxin, what it is —
+     * a pesticide, a plant alkaloid — not a therapy, keeping the educational-not-
+     * clinical bright line, handoff §1). Kept to ~2 sentences (`.max`) so the
+     * fixed-height "About" box never changes height between compounds — the
+     * curation RULE that stops the interface jumping when the user switches
+     * compound (docs/DATA_GUIDE.md). Deeper metabolism prose goes in {@link metabolism}
+     * (which renders BELOW the chart, where growth is harmless); curator-only
+     * reasoning stays in `notes`.
+     */
+    description: z.string().min(1).max(400),
+    /**
+     * Optional longer plain-language narrative about how the compound is
+     * metabolised / eliminated and what its metabolites are (active vs inactive,
+     * which dominates, the teaching point). Unlike {@link description} this is NOT
+     * length-capped and renders BELOW the chart, so it may be as long as the
+     * story needs without jumping the fixed-height About box or the chart. Still
+     * user-facing prose — distinct from the technical curator `notes` and from each
+     * metabolite's own {@link MetaboliteSchema} `notes`.
+     */
+    metabolism: z.string().min(1).optional(),
     molecular: z
       .strictObject({
         molarMass: z.strictObject({ value: z.number(), unit: z.string() }),

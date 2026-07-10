@@ -2,6 +2,7 @@
   "id": "levofloxacin",
   "schemaVersion": 1,
   "names": { "inn": "Levofloxacin", "brand": ["Levaquin"], "synonyms": ["Levofloxacin"] },
+  "description": "A fluoroquinolone antibiotic for respiratory, urinary, and skin infections. It is almost completely absorbed by mouth, so oral and IV doses give similar blood levels.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

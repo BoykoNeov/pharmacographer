@@ -2,6 +2,7 @@
   "id": "metronidazole",
   "schemaVersion": 1,
   "names": { "inn": "Metronidazole", "brand": ["Flagyl"], "synonyms": ["Metronidazole"] },
+  "description": "An antibiotic and antiprotozoal for anaerobic bacterial infections and parasites such as Giardia and Trichomonas. It is well known for a strong reaction if taken with alcohol.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

@@ -2,6 +2,7 @@
   "id": "acetaminophen",
   "schemaVersion": 1,
   "names": { "inn": "Paracetamol", "usan": "Acetaminophen", "synonyms": ["APAP"] },
+  "description": "A widely used over-the-counter analgesic and antipyretic — it eases mild-to-moderate pain and lowers fever. One of the most common household medicines; safe at normal doses but a leading cause of acute liver failure in overdose.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {
@@ -41,5 +42,6 @@
       "accessed": "2026-06-22"
     }
   },
+  "metabolism": "At normal doses acetaminophen is mostly conjugated to harmless glucuronide and sulfate. A small fraction is oxidised by the liver enzyme CYP2E1 to a reactive toxin, NAPQI, which is normally neutralised by glutathione — in overdose glutathione runs out and NAPQI injures the liver. NAPQI is too short-lived and reactive to appear in plasma, so it is not plotted.",
   "notes": "Curated from the FDA Structured Product Label for intravenous acetaminophen (Baxter), adult clinical-pharmacology values. Disposition is route-independent, so both IV routes share it. Vd is reported as 0.8 (SD 0.2) L/kg and is scaled to absolute litres against the 70 kg illustrative reference subject during derivation. ke is taken from the elimination half-life (2.4 h), NOT from clearance: the label also reports systemic clearance 0.27 (SD 0.08) L/h/kg, which implies ke = CL/Vd = 0.27/0.8 ≈ 0.338 /h — about 17% higher than ke = ln2/t½ ≈ 0.289 /h. For a one-compartment model the two cannot both be exact; the half-life is used so the plotted terminal slope matches the stated 2.4 h, and the clearance value is recorded here for transparency rather than silently dropped. Plasma protein binding is low (10–25%). PK is dose-proportional across single 500/650/1000 mg doses (label), so linear superposition is valid at therapeutic doses; acetaminophen becomes nonlinear in overdose (saturable glucuronidation/sulfation, shunting to the toxic NAPQI pathway), a regime out of scope for this linear model. IV bolus is an instantaneous-input idealization; clinically the label dose is given as a ~15-minute infusion, so the iv_infusion route is the more realistic shape. Educational illustration only — not for dosing."
 }

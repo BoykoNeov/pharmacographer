@@ -2,6 +2,7 @@
   "id": "lamotrigine",
   "schemaVersion": 1,
   "names": { "inn": "Lamotrigine", "brand": ["Lamictal"], "synonyms": ["LTG"] },
+  "description": "An anti-epileptic and mood-stabilising drug (brand Lamictal) for seizures and bipolar disorder. Doses are increased slowly to reduce the risk of a serious rash.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

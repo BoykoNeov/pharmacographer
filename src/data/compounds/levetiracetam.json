@@ -2,6 +2,7 @@
   "id": "levetiracetam",
   "schemaVersion": 1,
   "names": { "inn": "Levetiracetam", "brand": ["Keppra"], "synonyms": ["LEV"] },
+  "description": "An anti-epileptic drug (brand Keppra) used to prevent several types of seizure. It is largely eliminated unchanged by the kidneys and has relatively few drug interactions.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

@@ -2,6 +2,7 @@
   "id": "lsd",
   "schemaVersion": 1,
   "names": { "inn": "Lysergide", "usan": "LSD", "synonyms": ["LSD", "Lysergic acid diethylamide", "LSD-25", "Acid"] },
+  "description": "Lysergic acid diethylamide, a semi-synthetic psychedelic active at microgram doses. A Schedule I controlled substance studied for its action on serotonin (5-HT2A) receptors; included here for its unusual microgram-scale pharmacokinetics.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

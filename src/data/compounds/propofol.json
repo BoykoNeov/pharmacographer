@@ -2,6 +2,7 @@
   "id": "propofol",
   "schemaVersion": 1,
   "names": { "inn": "Propofol", "brand": ["Diprivan"], "synonyms": ["Propofol", "2,6-diisopropylphenol"] },
+  "description": "A short-acting intravenous anaesthetic used to induce and maintain general anaesthesia and for sedation in intensive care. Its milky-white emulsion and rapid on/off action make it an anaesthetic mainstay.",
   "model": "three_compartment_first_order",
   "linear": true,
   "disposition": {

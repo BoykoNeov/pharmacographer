@@ -2,6 +2,7 @@
   "id": "cetirizine",
   "schemaVersion": 1,
   "names": { "inn": "Cetirizine", "synonyms": ["Cetirizine hydrochloride"] },
+  "description": "A second-generation antihistamine for allergic rhinitis (hay fever) and hives (urticaria). It causes less drowsiness than older antihistamines because it enters the brain poorly.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

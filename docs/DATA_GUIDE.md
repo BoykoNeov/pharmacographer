@@ -684,11 +684,36 @@ Real compound files are **strict JSON** — no comments and no trailing commas, 
 `JSON.parse` accepts them. Curator reasoning therefore goes in the `notes` field,
 never inline. Abbreviated shape (full example: handoff §8):
 
+### User-facing prose — `description` (required), `metabolism` + metabolite `description` (optional)
+
+Three plain-language fields are surfaced **on screen** for the viewer (distinct
+from the curator-only `notes`, which stays technical):
+
+- **`description` (REQUIRED, ~2 sentences, `.max(400)`):** what the compound *is*
+  and what it is *typically used for*. Rendered in a **fixed-height "About" box
+  above the chart**. The height is fixed on purpose — this is the **curation rule
+  that stops the interface jumping** when the user switches compound: the box must
+  hold the blurb without changing size, so keep it to about two sentences (the
+  schema enforces the length cap). For a **toxin/poison**, describe *what it is* (a
+  pesticide, a plant alkaloid, an illicit drug) — **not** a therapeutic use it
+  doesn't have — to stay on the educational-not-clinical side of the bright line.
+- **`metabolism` (optional, uncapped):** a longer narrative about how the compound
+  is metabolised/eliminated and what its metabolites are (which dominates, active
+  vs inactive, the teaching point). Rendered **below the chart**, where it may grow
+  as long as needed without disturbing the chart or the About box.
+- **metabolite `description` (optional, per metabolite, `.max(400)`):** a short "what
+  is this metabolite / is it active" blurb, listed under the metabolism section.
+
+Every shipped compound must carry a `description` (a loader-level test enforces
+it). Populate it whenever you add a compound.
+
+
 ```json
 {
   "id": "acetaminophen",
   "schemaVersion": 1,
   "names": { "inn": "Paracetamol", "usan": "Acetaminophen", "synonyms": ["APAP"] },
+  "description": "A widely-used over-the-counter analgesic and antipyretic (pain and fever reducer). One of the most common household medicines; safe at normal doses but toxic to the liver in overdose.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

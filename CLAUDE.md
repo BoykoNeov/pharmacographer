@@ -76,6 +76,13 @@ all pass.
 - Tests import from `vitest` explicitly (globals are off).
 - Data files are **JSON**, validated at load with **Zod**. Reasoning goes in the
   `notes` field (we chose JSON over YAML, so no inline comments).
+- **Every compound MUST carry a user-facing `description`** (required in schema,
+  `.max(400)`): what it is + what it's typically used for, ~2 sentences. It renders
+  in a **fixed-height "About" box above the chart** so switching compounds never
+  jumps the chart — keep it short. Optional `metabolism` (compound-level, uncapped)
+  + per-metabolite `description` render **below** the chart (free to grow). For a
+  toxin, say what it *is*, not a therapy it lacks (bright line). See
+  `docs/DATA_GUIDE.md` "User-facing prose".
 - License is **Apache-2.0**; keep the AS-IS / disclaimer posture intact.
 - Charting is **Recharts**; the lin/semi-log y-axis toggle is a pedagogical
   feature, not optional polish.

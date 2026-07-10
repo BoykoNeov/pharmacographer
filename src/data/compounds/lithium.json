@@ -2,6 +2,7 @@
   "id": "lithium",
   "schemaVersion": 1,
   "names": { "inn": "Lithium", "brand": ["Lithobid", "Eskalith"], "synonyms": ["Lithium carbonate", "Li+"] },
+  "description": "A mood-stabilising element (given as lithium carbonate) used mainly for bipolar disorder. It is a simple ion — not metabolised — with a narrow gap between a helpful and a toxic blood level, so levels are monitored.",
   "model": "two_compartment_first_order",
   "linear": true,
   "disposition": {

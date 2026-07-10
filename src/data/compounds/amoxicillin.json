@@ -2,6 +2,7 @@
   "id": "amoxicillin",
   "schemaVersion": 1,
   "names": { "inn": "Amoxicillin", "synonyms": ["Amoxycillin"] },
+  "description": "A widely prescribed penicillin-type (beta-lactam) antibiotic for common bacterial infections of the ear, chest, throat, and urinary tract. It kills bacteria by disrupting their cell-wall synthesis.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

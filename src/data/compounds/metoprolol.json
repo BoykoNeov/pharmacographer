@@ -2,6 +2,7 @@
   "id": "metoprolol",
   "schemaVersion": 1,
   "names": { "inn": "Metoprolol", "synonyms": ["Metoprolol tartrate"] },
+  "description": "A beta-blocker for high blood pressure, angina, heart failure, and fast heart rhythms. It blocks β1-adrenergic receptors in the heart; its clearance depends heavily on the liver enzyme CYP2D6.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

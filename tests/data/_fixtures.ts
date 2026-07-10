@@ -13,6 +13,7 @@ export function baseRawCompound(): Record<string, unknown> {
     id: 'testdrug',
     schemaVersion: 1,
     names: { usan: 'Testdrug' },
+    description: 'Synthetic test drug — not a real compound.',
     model: 'one_compartment_first_order',
     linear: true,
     disposition: {
@@ -42,6 +43,7 @@ export function baseRawTwoCompCompound(): Record<string, unknown> {
     id: 'testdrug2c',
     schemaVersion: 1,
     names: { usan: 'Testdrug2C' },
+    description: 'Synthetic two-compartment test drug — not a real compound.',
     model: 'two_compartment_first_order',
     linear: true,
     disposition: {
@@ -76,6 +78,7 @@ export function baseRawThreeCompCompound(): Record<string, unknown> {
     id: 'testdrug3c',
     schemaVersion: 1,
     names: { usan: 'Testdrug3C' },
+    description: 'Synthetic three-compartment test drug — not a real compound.',
     model: 'three_compartment_first_order',
     linear: true,
     disposition: {

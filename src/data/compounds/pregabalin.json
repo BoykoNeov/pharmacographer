@@ -2,6 +2,7 @@
   "id": "pregabalin",
   "schemaVersion": 1,
   "names": { "inn": "Pregabalin", "brand": ["Lyrica"], "synonyms": ["Pregabalin"] },
+  "description": "A medicine (brand Lyrica) for nerve pain, some seizures, and generalised anxiety. Unlike gabapentin its absorption is dose-proportional; it is cleared unchanged by the kidneys.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

@@ -2,6 +2,7 @@
   "id": "acamprosate",
   "schemaVersion": 1,
   "names": { "inn": "Acamprosate", "brand": ["Campral"], "synonyms": ["Acamprosate calcium", "Calcium acetylhomotaurinate"] },
+  "description": "A medicine that helps people recovering from alcohol dependence stay abstinent. It is thought to rebalance glutamate/GABA signalling; it is not metabolised and is cleared unchanged by the kidneys.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

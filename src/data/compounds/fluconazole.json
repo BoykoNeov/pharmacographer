@@ -2,6 +2,7 @@
   "id": "fluconazole",
   "schemaVersion": 1,
   "names": { "inn": "Fluconazole", "brand": ["Diflucan"], "synonyms": ["Fluconazole"] },
+  "description": "An antifungal medicine for yeast infections such as thrush (Candida) and for cryptococcal meningitis. It blocks a fungal enzyme needed to build the cell membrane and is well absorbed by mouth.",
   "model": "one_compartment_first_order",
   "linear": true,
   "disposition": {

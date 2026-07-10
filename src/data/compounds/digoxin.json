@@ -2,6 +2,7 @@
   "id": "digoxin",
   "schemaVersion": 1,
   "names": { "inn": "Digoxin", "brand": ["Lanoxin"], "synonyms": ["Digoxin"] },
+  "description": "A cardiac glycoside originally from the foxglove plant, used to slow the heart rate in atrial fibrillation and to help a failing heart pump. It has a narrow margin between a helpful and a toxic dose.",
   "model": "two_compartment_first_order",
   "linear": true,
   "disposition": {

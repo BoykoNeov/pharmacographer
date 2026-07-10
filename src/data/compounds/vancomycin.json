@@ -2,6 +2,7 @@
   "id": "vancomycin",
   "schemaVersion": 1,
   "names": { "inn": "Vancomycin", "brand": ["Vancocin"], "synonyms": ["Vancomycin hydrochloride"] },
+  "description": "A glycopeptide antibiotic given intravenously for serious Gram-positive infections, including MRSA. Blood levels are routinely monitored to keep it effective without harming the kidneys.",
   "model": "two_compartment_first_order",
   "linear": true,
   "disposition": {
