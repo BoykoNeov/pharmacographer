@@ -87,20 +87,29 @@ Follow the phases in handoff §13 — engine + tests before UI. Current state:
 **Phase 7 data expansion + all three chart refinements done; static-site deploy
 is the sole remaining Phase 7 item. SEED SET now 36 compounds (was 10; the file count on disk
 is authoritative). A seventh 2026-07-10 pass (METHYLXANTHINES, 35→36, 399 tests green,
-advisor-reviewed) gave the existing `caffeine` its dominant metabolite and shipped `theobromine`:
-caffeine→`paraxanthine` (CYP1A2 makes THREE parallel metabolites — paraxanthine ~80% / theobromine
-~11% / theophylline ~4%; the single-metabolite engine draws only the dominant paraxanthine, the
-cefotaxime/allopurinol posture; theobromine ships standalone, theophylline stays EXCLUDED [M-M
-nonlinear]); anchored to Lelo 1986 (caffeine + all 3 metabolites in the SAME 6 volunteers, the
+advisor-reviewed; later EXTENDED to draw ALL THREE caffeine metabolites — see next para) gave the
+existing `caffeine` its metabolites and shipped `theobromine`:
+caffeine→`paraxanthine`+`theobromine`+`theophylline` (CYP1A2 makes THREE parallel metabolites —
+paraxanthine ~80% / theobromine ~11% / theophylline ~4% molar of total clearance; **the metabolite
+engine is N-metabolite, NOT single** — `buildCurve` maps over `compound.metabolites` → one
+`MetaboliteCurve`/`<Line>` each, 4 cycled colours + legend + per-metabolite provenance group — so all
+three demethylation products draw as independent Batemans off the shared parent CL [`fm_i·CL·C_p`], the
+physics of parallel metabolism; theobromine ALSO ships standalone; theophylline drawn HERE [low-conc,
+linear-valid ~0.1–0.2 mg/L] but EXCLUDED as a STANDALONE [M-M nonlinear at therapeutic 10–20 mg/L] — no
+contradiction); anchored to Lelo 1986 (caffeine + all 3 metabolites in the SAME 6 volunteers, the
 one-population source) + its partial-clearances companion. **KEY REUSABLE PRECEDENT — the fm MW
 conversion:** Lelo's "79.6% of total clearance" is a MOLAR fraction, but the engine's fm multiplies
-parent MASS (no MW field), so mass-fm = 0.796 × MW(paraxanthine 180.16)/MW(caffeine 194.19) = 0.74
-(stored 74, derived:true) — matches allopurinol's stored mass ratio "90 mg per 100 mg"; whenever fm
+parent MASS (no MW field), so mass-fm = molar × MW(metabolite 180.16, all 3 are dimethylxanthine
+isomers)/MW(caffeine 194.19) = ×0.928: paraxanthine 0.74, theobromine 0.10, theophylline 0.034 (stored
+74/10/3.4, derived:true) — matches allopurinol's stored mass ratio "90 mg per 100 mg"; whenever fm
 is sourced as a clearance/molar fraction, MW-convert before storing. paraxanthine formation-rate-limited
-(t½ 3.1<parent 5 h). `theobromine` = the chocolate methylxanthine, clean linear 1-comp (Lelo t½ 7.2 h,
+(t½ 3.1<parent 5 h, peaks 1.02 @6h); theobromine + theophylline BOTH elimination-limited (t½ 7.2/6.2 >5 h,
+peak 0.17 @9h / 0.08 @8h for 200 mg oral) — a clean formation- vs elimination-limited teaching set.
+`theobromine` = the chocolate methylxanthine, clean linear 1-comp standalone (Lelo t½ 7.2 h,
 Vd 0.75 L/kg=CL·t½/ln2; Baggott 2013 Tmax 3 h; apparent-volume F=1; NO metabolite line [no dominant
-citable fm — pregabalin posture]; cross-ref: also caffeine's minor ~11% metabolite, drawn here not
-there; linear counterpoint to excluded theophylline isomer; oral only; 500 mg → 7.1 mg/L). The earlier
+citable fm — pregabalin posture]; cross-ref: also caffeine's ~10%-mass-fm metabolite, byte-identical
+disposition between the two files; linear counterpoint to excluded theophylline isomer; oral only;
+500 mg → 7.1 mg/L). The earlier
 sixth 2026-07-10 pass added an ILLICIT / RECREATIONAL slate (30→35, 403
 tests green, advisor-reviewed): four clean linear 1-comp singles — `lsd` (Liechti-group human PK,
 Dolder 2016/2017 + Holze 2021; apparent-volume convention V/F ~40 L, true F ~71%; the microgram-dose
@@ -127,7 +136,8 @@ in its place; the BE forensic-marker pair was representable off a 2-comp parent 
 BE Vd ~0.75 L/kg from the measured BE:cocaine AUC ratio 10.1] had CL been dose-independent), `mdma`
 EXCLUDED (linear:false — CYP2D6 autoinhibition, dose-disproportionate AUC, omeprazole class), `thc`
 DEFERRED (deep multi-comp, days-long fat-driven terminal), `heroin`→6-MAM→morphine DEFERRED (two-step
-sequential cascade the single-metabolite engine can't represent). A fifth 2026-07-10 pass (renal / metabolite / ion axes) added three (27→30, 392
+sequential cascade — the engine forms N metabolites in PARALLEL from the parent [single-STEP] but not a
+metabolite OF a metabolite [a chain]). A fifth 2026-07-10 pass (renal / metabolite / ion axes) added three (27→30, 392
 tests green, advisor-reviewed slate): `pregabalin` (clean linear 1-comp; the LINEAR counterpoint to
 gabapentin's saturable dose-DEPENDENT absorption — FDA Lyrica label F ">=90% and independent of dose",
 no protein binding, ~90% renal unchanged, Vd 0.5 L/kg, t½ 6.3 h, oral only; 300 mg → engine 6.5 vs

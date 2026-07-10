@@ -547,15 +547,15 @@ Documented so they aren't re-litigated (defers/exclusions are first-class output
   No clean single-population linear model with citable micro-parameters over a plotted range; parked (the
   amiodarone/thiopental class of unsourceable/nonlinear multi-compartment drug).
 - **Heroin (diamorphine) → 6-MAM → morphine — DEFERRED.** A two-step SEQUENTIAL metabolite cascade
-  (heroin → 6-monoacetylmorphine → morphine), which the single-metabolite engine cannot represent (it forms
-  one metabolite from the parent, not a chain). Heroin itself is ultra-short-lived (t½ ~3 min). Parked pending
+  (heroin → 6-monoacetylmorphine → morphine), which the engine cannot represent: it forms any number of
+  metabolites in PARALLEL from the parent (single-STEP), but not a metabolite OF a metabolite (a chain). Heroin itself is ultra-short-lived (t½ ~3 min). Parked pending
   a metabolite-cascade engine extension. (Codeine → morphine is separately out: CYP2D6-bimodal fm.)
 
 ### Methylxanthines — caffeine → paraxanthine metabolite + theobromine standalone (2 added/expanded 2026-07-10, 399 tests)
 
 A seventh 2026-07-10 pass addressed caffeine's metabolism and shipped **theobromine** (35 → 36
 compounds). Caffeine was already in the set as a plain one-compartment drug with no metabolite; it
-now draws its dominant metabolite, and theobromine — both a caffeine metabolite *and* the principal
+now draws all three of its parallel demethylation metabolites, and theobromine — both a caffeine metabolite *and* the principal
 methylxanthine of chocolate — ships as its own standalone. Both are anchored to **Lelo et al. 1986**
 (Br J Clin Pharmacol 22:177-182, PMID 3756065, the comparative-PK paper), which measured caffeine
 AND all three demethylated metabolites (paraxanthine, theobromine, theophylline) in the **same six
@@ -563,20 +563,26 @@ healthy male volunteers** — the one-population source — plus the companion p
 (PMC1401107, PMID 3756066) for the metabolic split and Baggott et al. 2013 (PMID 23420115) for
 theobromine's oral Tmax.
 
-- **Caffeine → paraxanthine (1,7-dimethylxanthine) — the dominant of three parallel metabolites.**
+- **Caffeine → paraxanthine + theobromine + theophylline — all THREE parallel metabolites drawn.**
   CYP1A2 demethylates caffeine into THREE primary metabolites in parallel — paraxanthine (~80% of
   total clearance), **theobromine (~11%)**, and **theophylline (~4%)** — with ~15% going to
-  8-hydroxylation (trimethyluric acid). The single-metabolite engine draws only ONE line, so it draws
-  paraxanthine, the ~80% dominant active product (cefotaxime/allopurinol single-metabolite posture);
-  drawing the minor theobromine or theophylline line while hiding the 80% one would be the misleading
-  choice. The two undrawn products are represented elsewhere: **theobromine ships as its own compound
-  (below)**, and **theophylline is separately EXCLUDED** as a standalone (Michaelis-Menten nonlinearity;
-  at ~4%-metabolite concentrations the nonlinearity wouldn't bite, but drawing it would contradict that
-  exclusion). Parent disposition kept from the FDA label (t½ 5 h, Vd 0.6 L/kg, already shipped);
-  metabolite params from Lelo (paraxanthine t½ 3.1 h, Vd 0.59 L/kg = CL·t½/ln2). Paraxanthine t½
-  (3.1 h) < caffeine t½ (5 h) ⇒ **formation-rate-limited** (its terminal tracks the parent, no
-  accumulation above it). Built curves: 200 mg oral → parent 4.15 mg/L @ 1 h, paraxanthine 1.02 mg/L
-  @ 6 h (lower + later — the formation-limited signature).
+  8-hydroxylation (trimethyluric acid, not a demethylation product, not drawn). The metabolite engine
+  is **N-metabolite, not single-metabolite** (an earlier note here wrongly claimed it "draws only ONE
+  line" — `buildCurve` maps over `compound.metabolites` producing one `MetaboliteCurve`/`<Line>` each,
+  4 cycled colours + legend + per-metabolite provenance group), and each metabolite is an INDEPENDENT
+  Bateman formed from the shared parent clearance (formation rate `fm_i·CL·C_p`) — exactly the physics
+  of parallel metabolism. So all three are drawn, a faithful picture of caffeine's fate. The three make
+  a clean **formation- vs elimination-rate-limited** teaching set: paraxanthine t½ 3.1 h < parent 5 h ⇒
+  formation-limited (peaks lower/earlier, tail tracks the parent, no accumulation), whereas theobromine
+  (t½ 7.2 h) and theophylline (t½ 6.2 h) both exceed the parent ⇒ elimination-limited (they linger past
+  it). Parent disposition kept from the FDA label (t½ 5 h, Vd 0.6 L/kg, already shipped); metabolite
+  params all from Lelo (paraxanthine t½ 3.1 h/Vd 0.59, theobromine 7.2 h/0.75, theophylline 6.2 h/0.50
+  L/kg = CL·t½/ln2). Built curves (200 mg oral): parent 4.15 mg/L @ 1 h, paraxanthine 1.02 @ 6 h,
+  theobromine 0.17 @ 9 h, theophylline 0.08 @ 8 h. **Theophylline is drawn HERE but EXCLUDED as a
+  STANDALONE** (Michaelis-Menten nonlinearity at therapeutic 10-20 mg/L) — no contradiction: as a
+  ~3.4% metabolite it peaks ~0.1-0.2 mg/L, two decades below its Km, where first-order kinetics is
+  accurate (low-concentration, linear-valid); it must not be read as endorsing a linear standalone
+  theophylline curve. Theobromine ALSO ships as its own standalone (below), byte-identical disposition.
 - **THE fm MW CONVENTION (reusable precedent — this pass's key lesson).** Lelo's "79.6% of total
   clearance" is a **MOLAR** fraction (partial clearance ÷ total clearance is dimensionless — the
   fraction of caffeine *molecules* on that path). But the engine's `fm` multiplies parent **MASS**
@@ -597,8 +603,9 @@ theobromine's oral Tmax.
   Tmax ~3 h from Baggott 2013 (pure capsules). Apparent-volume convention (F = 1, Vd/F used). **No
   metabolite line** — its downstream products (7-/3-methylxanthine, 3,7-dimethyluric acid) have no single
   dominant citable fm (pregabalin/lithium clean-feature posture). **Cross-reference:** theobromine is
-  also caffeine's minor (~11%) metabolite, NOT drawn in caffeine.json (paraxanthine dominates there) —
-  represented here instead, same Lelo-measured disposition, entered from the dietary direction.
+  also caffeine's ~10%-mass-fm metabolite, drawn as one of caffeine.json's three parallel metabolite
+  lines with a byte-identical Lelo-measured disposition — this standalone is the same molecule entered
+  from the dietary direction, so the two files can never disagree.
   **Linearity teaching pair:** theobromine (linear, shipped) vs its isomer theophylline (M-M nonlinear,
   excluded) — two dimethylxanthine isomers on opposite sides of the superposition line. Ceiling test
   clears: 500 mg oral F·D/V ceiling ~9.5 mg/L, built peak 7.1 mg/L @ 3 h (oral only — the dietary route).
