@@ -12,7 +12,7 @@
       "unit": "h",
       "derived": true,
       "sourceRef": "hasselstrom_1993",
-      "conditions": "EFFECTIVE (functional) half-life = ln2·Vd/CL from Hasselström & Säwe 1993's directly-measured clearance (21.1 mL/min/kg = 1.27 L/h/kg) and volume of distribution (2.9 L/kg): 0.693 × 2.9 / 1.27 = 1.58 h. This matches the FDA morphine-injection label's 'effective terminal half-life ~2 h' and carries essentially all of morphine's AUC. The SAME Hasselström study, with a sensitive assay, also resolves a much longer, LOW-AMPLITUDE terminal (~15.1 h); that deep phase is documented but NOT modelled here, because modelling 15 h as a one-compartment half-life would be inconsistent with the measured clearance (it would force CL ~10× too low and inflate AUC ~10×). Reporting the effective phase is the honest one-compartment choice (the same terminal-half-life honesty posture as remifentanil/nicotine, and the dual-half-life posture as warfarin). See notes; the ~15 h tail is also part of why the glucuronides appear so long-lived (metabolite notes)."
+      "conditions": "EFFECTIVE (functional) half-life = ln2·Vd/CL from Hasselström & Säwe 1993's directly-measured clearance (21.1 mL/min/kg = 1.27 L/h/kg) and volume of distribution (2.9 L/kg): 0.693 × 2.9 / 1.27 = 1.58 h. This matches the FDA morphine-injection label's 'accepted elimination half-life in normal subjects is 1.5 to 2 hours' and carries essentially all of morphine's AUC. The SAME Hasselström study, with a sensitive assay, also resolves a much longer, LOW-AMPLITUDE terminal (~15.1 h); that deep phase is documented but NOT modelled here, because modelling 15 h as a one-compartment half-life would be inconsistent with the measured clearance (it would force CL ~10× too low and inflate AUC ~10×). Reporting the effective phase is the honest one-compartment choice (the same terminal-half-life honesty posture as remifentanil/nicotine, and the dual-half-life posture as warfarin). See notes; the ~15 h tail is also part of why the glucuronides appear so long-lived (metabolite notes)."
     },
     "vd": {
       "value": 2.9,
@@ -20,7 +20,7 @@
       "unit": "L/kg",
       "derived": false,
       "sourceRef": "hasselstrom_1993",
-      "conditions": "volume of distribution 2.9 ± 0.8 L/kg (Hasselström & Säwe 1993, healthy volunteers; the FDA injection label states 3–4 L/kg). Morphine is only ~35% plasma-protein-bound. Sets C(0) = Dose/Vd for an IV bolus (10 mg IV → ~49 ng/mL at 70 kg). Scaled to absolute litres against the 70 kg reference subject (≈203 L)."
+      "conditions": "volume of distribution 2.9 ± 0.8 L/kg (Hasselström & Säwe 1993, healthy volunteers), within the FDA injection label's apparent Vd range of 1.0–4.7 L/kg. Morphine is only ~36% plasma-protein-bound (FDA label: 'protein binding is low, about 36%'). Sets C(0) = Dose/Vd for an IV bolus (10 mg IV → ~49 ng/mL at 70 kg). Scaled to absolute litres against the 70 kg reference subject (≈203 L)."
     }
   },
   "routes": {
@@ -101,8 +101,8 @@
     },
     "fda_label": {
       "type": "FDA label",
-      "title": "Morphine Sulfate Injection, USP — FDA Structured Product Label, clinical pharmacology (volume of distribution 3–4 L/kg; plasma clearance 20–30 mL/min/kg; ~35% protein bound; effective terminal half-life ~2 h, with a longer ~15 h terminal on extended sampling; hepatic glucuronidation to M3G [major, inactive] and M6G [minor, active]; ~10% excreted unchanged in urine).",
-      "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2016/020631s001lbl.pdf",
+      "title": "Morphine Sulfate Injection — DailyMed Structured Product Label, section 12.3 Pharmacokinetics (apparent volume of distribution 1.0–4.7 L/kg; total plasma clearance 0.9–1.2 L/kg/h; protein binding low, about 36%; accepted elimination half-life 1.5–2 h; hepatic glucuronidation, chiefly to morphine-3-glucuronide, which is pharmacologically inactive; 2–12% excreted unchanged in urine).",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=6023606c-150c-40c5-9175-598efe2a56c3",
       "accessed": "2026-07-10"
     },
     "hanna_1991": {
