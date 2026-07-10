@@ -172,6 +172,11 @@ export function App() {
                   curve={curve.value}
                   concUnit={concUnit}
                 />
+                {compound?.displayNote && (
+                  <p className="caption caption--emphasis">
+                    <strong>Units.</strong> {compound.displayNote}
+                  </p>
+                )}
                 <PeakNote route={route} schedule={schedule} />
                 {/* Metabolite derivation cautions are folded in alongside the
                     parent's — currently dormant (diazepam's fm is in range) but

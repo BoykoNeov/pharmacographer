@@ -73,6 +73,7 @@
     }
   },
   "flags": { "nonlinear": false, "narrowTherapeuticIndex": true },
+  "displayNote": "Dose and curve are in ELEMENTAL lithium (mg and mg/L), not lithium carbonate. Convert to the clinical unit by dividing by 6.94: 1 mEq/L (= mmol/L) = 6.94 mg/L, and the therapeutic 0.6-1.2 mEq/L band is ~4.2-8.3 mg/L here. A 300 mg lithium-carbonate tablet contains ~56 mg of elemental lithium, so enter ~56 (not 300) for one tablet.",
   "sources": {
     "fda_label": {
       "type": "FDA label",

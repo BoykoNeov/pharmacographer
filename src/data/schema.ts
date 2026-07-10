@@ -277,6 +277,14 @@ export const CompoundSchema = z
 
     sources: z.record(z.string(), SourceSchema),
     notes: z.string(),
+    /**
+     * Optional short caption surfaced ON SCREEN beneath the chart (unlike `notes`,
+     * which is curator-only). For a compound whose plotted axis needs a caveat the
+     * viewer must see — e.g. lithium, dosed/plotted as elemental-lithium mg but
+     * clinically an mEq/L (mmol/L) ion concentration. Keep it to one or two plain
+     * sentences; deeper reasoning stays in `notes`.
+     */
+    displayNote: z.string().optional(),
   })
   .superRefine((compound, ctx) => {
     // At least one human-facing name so the picker has something to show.

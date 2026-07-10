@@ -291,6 +291,14 @@ body {
   color: var(--muted);
 }
 
+/* An on-screen units caveat that must not read as ordinary muted caption text. */
+.caption--emphasis {
+  padding: 0.5rem 0.7rem;
+  border-left: 3px solid var(--accent, #4a90d9);
+  background: color-mix(in srgb, var(--accent, #4a90d9) 8%, transparent);
+  color: var(--text, inherit);
+}
+
 .warnings {
   list-style: none;
   margin: 0.75rem 0 0;
