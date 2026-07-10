@@ -1,0 +1,67 @@
+{
+  "id": "lsd",
+  "schemaVersion": 1,
+  "names": { "inn": "Lysergide", "usan": "LSD", "synonyms": ["LSD", "Lysergic acid diethylamide", "LSD-25", "Acid"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 2.6,
+      "range": [2.2, 3.5],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "dolder_2017",
+      "conditions": "Plasma elimination half-life 2.6 h (2.2-3.4 h) pooled across the 100 and 200 mcg oral doses (Dolder 2017); the microdose study (Holze 2021) gives 2.5-2.9 h over 5-20 mcg. This is the dominant (first-order) phase up to ~12 h. A low-amplitude longer terminal phase (~8.9 h) is reported when sampling is extended (Dolder 2016); the single-compartment model uses the ~2.6 h main phase and does not render that low tail (the warfarin dual-half-life posture - see notes)."
+    },
+    "vd": {
+      "value": 40,
+      "range": [25, 45],
+      "unit": "L",
+      "derived": false,
+      "sourceRef": "dolder_2016",
+      "conditions": "Apparent volume of distribution V/F; F folded in and set to 1 (apparent-volume convention, the metformin posture). The microdose study (Holze 2021) reports Vz/F 23-29 L directly (~0.35 L/kg); the recreational-dose data (Dolder 2016/2017, 100-200 mcg) imply a somewhat larger apparent volume, ~40 L (~0.57 L/kg), which is the Cmax-consistent value that lands the built 200 mcg peak on the reported ~3-4.5 ng/mL (the two published studies bracket that Cmax). The two dose ranges disagree ~1.5x on apparent volume; ~40 L is used for the recreational-dose plot with the microdose value noted as the low end of the range. Stored as absolute litres (LSD Vz/F is reported in absolute L, not weight-normalised)."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 1.0,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "definition",
+        "conditions": "Set to 1 by the apparent-volume convention (V/F used as the volume) so the plotted curve reflects C = D/(V/F) = F.D/V without double-counting F. The true absolute oral bioavailability of LSD is ~71% (Dolder 2016, estimated against historical IV data); it is folded into the apparent V/F rather than applied separately."
+      },
+      "tmax": {
+        "value": 1.5,
+        "range": [1.0, 2.0],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "dolder_2016",
+        "conditions": "Median Tmax ~1.5 h (Dolder 2016/2017; 1.4 h at 100 mcg, 1.5 h at 200 mcg). ka derived from this Tmax at derivation time."
+      }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "dolder_2017": {
+      "type": "Journal article",
+      "title": "Dolder PC, Schmid Y, Steuer AE, et al. Pharmacokinetics and Pharmacodynamics of Lysergic Acid Diethylamide in Healthy Subjects. Clin Pharmacokinet. 2017;56(10):1219-1230 (PMID 28197931): oral LSD 100 and 200 mcg, plasma half-life 2.6 h (2.2-3.4), Cmax 1.3 (100 mcg) and 3.1 (200 mcg) ng/mL, dose-proportional pharmacokinetics and first-order elimination up to 12 h",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/28197931/",
+      "accessed": "2026-07-10"
+    },
+    "dolder_2016": {
+      "type": "Journal article",
+      "title": "Dolder PC, Schmid Y, Haschke M, Rentsch KM, Liechti ME. Pharmacokinetics and Concentration-Effect Relationship of Oral LSD in Humans. Int J Neuropsychopharmacol. 2016;19(1):pyv072 (PMC4772267, PMID 26108222): oral LSD 200 mcg, Cmax ~4.5 ng/mL, Tmax median 1.5 h, main-phase half-life 3.6 h and a longer terminal ~8.9 h on extended sampling, oral bioavailability estimated ~71% vs historical IV data",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4772267/",
+      "accessed": "2026-07-10"
+    },
+    "holze_2021": {
+      "type": "Journal article",
+      "title": "Holze F, Liechti ME, et al. Pharmacokinetics and Pharmacodynamics of Lysergic Acid Diethylamide Microdoses in Healthy Participants. (PMC7984326): oral LSD 5/10/20 mcg, apparent volume of distribution Vz/F 23/25/29 L, apparent clearance CL/F 6.3/6.5/6.9 L/h, half-life 2.5/2.7/2.9 h, dose-proportional microdose kinetics",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7984326/",
+      "accessed": "2026-07-10"
+    }
+  },
+  "notes": "Lysergic acid diethylamide (LSD) - the archetypal serotonergic (5-HT2A agonist) psychedelic, a Schedule I controlled substance, curated from the modern controlled human PK studies of Liechti's group in Basel. Modelled as a clean LINEAR one-compartment oral drug: Dolder 2017 states oral LSD shows 'dose-proportional pharmacokinetics and first-order elimination' across the 100-200 mcg range, and Holze 2021 confirms dose-proportional kinetics across 5-20 mcg microdoses - so superposition holds and linear: true is well supported over the whole plotted (microdose-to-recreational) range.\n\nWHY LSD - the microgram-dose axis and a modern-psychedelic entry. Every other compound in the set is dosed in mg or g; LSD is active at MICROgrams (a full recreational/therapeutic dose is 100-200 mcg = 0.0001-0.0002 g), with correspondingly tiny plasma concentrations (~1-5 ng/mL). It exercises the low end of the dose/concentration axes and displays cleanly in ng/mL. It is also a contemporary, rigorously-characterised dataset (the historical LSD literature was sparse; these 2016-2021 studies are the definitive human PK).\n\nAPPARENT-VOLUME CONVENTION. No intravenous LSD Vd is used here; the sources report an APPARENT volume V/F, so F is set to 1 (the metformin posture) and V/F is used directly as the volume - the plotted curve is true plasma concentration C = F.D/V with F folded in, not double-counted. The real absolute oral F is ~71% (Dolder 2016).\n\nTHE SOFT VOLUME (a documented ~1.5x tension). The microdose study reports Vz/F 23-29 L directly (~0.35 L/kg), but the recreational-dose studies (100-200 mcg) imply a larger apparent volume: their Cmax (~3-4.5 ng/mL at 200 mcg across the two papers) is reproduced by V/F ~40 L (~0.57 L/kg). The apparent volume thus differs ~1.5x between the microdose and full-dose ranges (a real feature of the published data, possibly assay/model related). ~40 L is used because the plotted range is the recreational dose; the microdose 23-29 L is carried as the low end of the range.\n\nDUAL HALF-LIFE (warfarin posture). Extended sampling (Dolder 2016) resolves a low-amplitude longer terminal phase (~8.9 h) beneath the dominant ~2.6-3.6 h phase. The single-compartment model uses the main ~2.6 h phase (which governs the observable rise-and-fall and the concentration-effect relationship); the low terminal tail is not rendered, exactly as warfarin's ~1-week terminal is set aside in favour of its effective half-life.\n\nCONCENTRATION IS NOT EFFECT. LSD's subjective effects outlast and lag its plasma concentration (hysteresis - the effect-site compartment and receptor kinetics dominate); the plotted curve is plasma LSD and says nothing about the intensity or timing of the experience. Magnitude check: built 200 mcg oral curve peaks ~3-4 ng/mL near 1.5 h (reported 3.1-4.5). EDUCATIONAL ILLUSTRATION ONLY - not for dosing."
+}

@@ -1,0 +1,76 @@
+{
+  "id": "dextroamphetamine",
+  "schemaVersion": 1,
+  "names": { "inn": "Dexamfetamine", "usan": "Dextroamphetamine", "brand": ["Dexedrine"], "synonyms": ["Dextroamphetamine", "d-amphetamine", "Amphetamine", "Speed"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 10,
+      "range": [9, 12],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "statpearls",
+      "conditions": "Elimination half-life of the d-enantiomer ~10 h at normal urine pH (l-amphetamine ~11-14 h; the racemate mean plasma half-life ~12 h per the FDA Dexedrine label). Like methamphetamine the half-life is urine-pH dependent (weak base, partly renally excreted unchanged). Point value 10 h for d-amphetamine at normal urine pH."
+    },
+    "vd": {
+      "value": 4.4,
+      "range": [3.0, 5.0],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "statpearls",
+      "conditions": "Volume of distribution ~4 L/kg (StatPearls); amphetamine is lipophilic with low (<20%) plasma protein binding, so widely distributed. Point value 4.4 L/kg is the Cmax-consistent choice within the ~3-5 L/kg range (the diphenhydramine posture): it lands the built 15 mg oral peak on the FDA-label ~36.6 ng/mL. Scaled to absolute litres against the 70 kg reference subject at derivation time (~308 L)."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 0.9,
+        "range": [0.75, 0.95],
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "statpearls",
+        "conditions": "Oral bioavailability ~90% (amphetamine is well absorbed from the gut; F varies mildly with GI pH). Treated as a true F with a Cmax-consistent true volume."
+      },
+      "tmax": {
+        "value": 3.0,
+        "range": [2.0, 4.0],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "dexedrine_label",
+        "conditions": "FDA Dexedrine label: after three 5 mg immediate-release tablets, mean maximal dextroamphetamine plasma concentration ~36.6 ng/mL at ~3 h. Point value 3 h; ka derived from this Tmax at derivation time. (Spansule sustained-release Tmax ~8 h - not modelled; the IR case is used.)"
+      }
+    },
+    "iv_bolus": {
+      "available": false,
+      "F": {
+        "value": 1.0,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "definition",
+        "conditions": "Offered as an INFERRED route (available: false) - Dexedrine is oral only, but IV is a real route of abuse and the disposition is a true volume + half-life, so the fast-onset IV contrast can be shown honestly (the methamphetamine/acamprosate inferred-IV posture). Labelled 'inferred, not based on route-specific data' by the UI."
+      }
+    }
+  },
+  "variability": {
+    "geneticFactors": ["CYP2D6"],
+    "notes": "Half-life depends on urine pH (renal excretion of unchanged drug is pH-sensitive). CYP2D6 (polymorphic) contributes to metabolism (4-hydroxylation). These modulate exposure but are not used to produce a dose."
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "dexedrine_label": {
+      "type": "FDA label",
+      "title": "DEXEDRINE (dextroamphetamine sulfate) - FDA Structured Product Label, clinical pharmacology (average plasma half-life ~12 h; after three 5 mg tablets mean maximal plasma concentration ~36.6 ng/mL at ~3 h; sustained-release Spansule Cmax ~23.5 ng/mL at ~8 h; extent of bioavailability of SR similar to IR)",
+      "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2007/017078s042lbl.pdf",
+      "accessed": "2026-07-10"
+    },
+    "statpearls": {
+      "type": "Reference monograph",
+      "title": "Dextroamphetamine-Amphetamine, StatPearls (NCBI Bookshelf NBK507808): volume of distribution ~4 L/kg, plasma protein binding <20%, oral bioavailability ~90%, d-enantiomer half-life ~10 h / l-enantiomer ~13 h at normal urine pH, hepatic (CYP2D6) and renal elimination",
+      "url": "https://www.ncbi.nlm.nih.gov/books/NBK507808/",
+      "accessed": "2026-07-10"
+    }
+  },
+  "notes": "Dextroamphetamine (d-amphetamine) - the prototypical amphetamine stimulant; a marketed medicine (Dexedrine, for ADHD/narcolepsy) that is also a classic illicit/recreational stimulant ('speed') and a Schedule II controlled substance. Modelled as a clean LINEAR one-compartment oral drug; amphetamine kinetics are first-order and dose-proportional at therapeutic/recreational doses, so superposition holds (linear: true).\n\nWHY DEXTROAMPHETAMINE - the clean-label stimulant sibling to methamphetamine. It provides a well-characterised FDA-label stimulant (a firm Cmax anchor: 15 mg -> 36.6 ng/mL at 3 h) next to methamphetamine's more heterogeneous forensic literature. The pair also teaches structure-kinetics: methamphetamine is d-amphetamine plus an N-methyl group, is more lipophilic/CNS-penetrant, and is partly N-demethylated back to amphetamine in vivo (so amphetamine is BOTH a drug in its own right and a methamphetamine metabolite - see the methamphetamine file).\n\nWHY NOT A DRAWN METABOLITE PAIR. Amphetamine's onward metabolites (4-hydroxyamphetamine, norephedrine) have no single citable fraction-formed, and the methamphetamine->amphetamine link that would make an interesting pair is CYP2D6-genotype-bimodal (no single fm), so no metabolite line is drawn - amphetamine ships as its own single compound. Lisdexamfetamine (Vyvanse) is a separate d-amphetamine PRODRUG (enzymatically hydrolysed to d-amphetamine) - not modelled here.\n\nSOFT INPUTS. The volume (~4.4 L/kg) is Cmax-consistent within the cited ~3-5 L/kg range (chosen with F = 0.9 to land the 15 mg peak on the label's 36.6 ng/mL - the diphenhydramine posture). The half-life is the d-enantiomer's ~10 h at normal urine pH and, as with methamphetamine, is urine-pH dependent (a documented conditional value, not a dose-nonlinearity). Clearance is deliberately NOT stored (Vd + half-life fix ke - the cetirizine rule).\n\nROUTES. Oral (Dexedrine, the real marketed route) available; IV bolus offered as INFERRED (available: false - oral-only product, but IV is a real abuse route and the disposition is a true volume + half-life). The immediate-release case is modelled (the SR Spansule's later/lower peak is noted, not modelled).\n\nMAGNITUDE CHECK. Built 15 mg oral curve peaks ~35.6 ng/mL near 3 h, matching the FDA-label value (36.6 ng/mL, ~3% under). EDUCATIONAL ILLUSTRATION ONLY - not for dosing."
+}

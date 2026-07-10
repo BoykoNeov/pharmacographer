@@ -450,6 +450,107 @@ conversion — see the same section).
   advisor review and re-sourced to the verified Arancibia 1986 paper — never ship a citation you
   did not open.)
 
+### Illicit / recreational compounds — 5 added 2026-07-10 (398 tests)
+
+A sixth 2026-07-10 pass added a slate of illicit / recreational drugs (30 → 35 compounds):
+**LSD, psilocin, methamphetamine, dextroamphetamine** (four clean linear one-compartment
+singles) and **ketamine → norketamine** (a two-compartment parent + drawn active metabolite —
+the metabolite centerpiece). Advisor-reviewed before writing; each ceiling/killer-param vetted
+from a source opened this session, then magnitude-checked against the built engine curve. Two
+recreational-route notes recur: the **apparent-volume convention** (F = 1, use V/F — LSD and
+psilocin) and **inferred IV** (`available: false` on an oral-only stimulant whose IV disposition
+is nonetheless real — methamphetamine, dextroamphetamine, the acamprosate/warfarin posture).
+
+- **LSD (`compounds/lsd.json`) — the microgram-dose axis; a modern-psychedelic single.** Curated
+  from the Liechti-group controlled human PK (Dolder 2016/2017, Holze 2021). Clean LINEAR
+  one-compartment oral: Dolder 2017 states "dose-proportional pharmacokinetics and first-order
+  elimination" over 100–200 µg, Holze 2021 confirms dose-proportional microdose (5–20 µg) kinetics.
+  Apparent-volume convention (V/F ~40 L, F folded in; true F ~71%); t½ 2.6 h main phase (a
+  low-amplitude ~8.9 h terminal is documented, not rendered — the warfarin dual-half-life posture);
+  Tmax 1.5 h. Exercises the low end of the dose (0.0002 g) and concentration (~1–4 ng/mL) axes.
+  Magnitude: 200 µg oral → 3.35 ng/mL at 1.5 h (Dolder 3.1–4.5). Concentration ≠ effect (LSD
+  effect lags/outlasts plasma — hysteresis).
+- **Psilocin (`compounds/psilocin.json`) — model the ACTIVE species, not the prodrug.** Psilocybin
+  is a phosphate-ester prodrug dephosphorylated to psilocin almost entirely PRE-SYSTEMICALLY (plasma
+  psilocybin barely detectable — the oseltamivir situation), so psilocin is modelled as a single oral
+  compound and the prodrug relationship is surfaced via `displayNote` (dose = psilocybin, curve =
+  psilocin). THE UNITS TRAP resolved cleanly: doses are quoted as psilocybin (MW 284.3) but the
+  plotted species is psilocin (MW 204.3, molar ratio 0.719); because the source Vz/F and CL/F are
+  normalised to the psilocybin dose while measuring psilocin, the molar conversion AND the ~55%
+  bioavailability are ALREADY folded into the apparent V/F — so entering the dose as psilocybin mg
+  with F = 1 reproduces plasma psilocin directly, with no explicit 0.719 or 0.55 factor (applying
+  either would double-count). Linear/dose-proportional 7–59.2 mg; t½ 3 h, Vz/F ~900 L (large — psilocin
+  is lipophilic), Tmax 2 h. Source: 2025 systematic review (PMC11762572) + Holze 2023 (CPT). Magnitude:
+  25 mg psilocybin → free-psilocin ~17.5 ng/mL at 2 h.
+- **Methamphetamine (`compounds/methamphetamine.json`) — the long-t½ illicit stimulant + a urine-pH
+  teaching axis.** d-Methamphetamine ("crystal meth", Schedule II; also Desoxyn). Clean one-compartment
+  (with lag) per Schepers 2003; linear over the studied range. Vd 3.73 L/kg (IV elimination-phase,
+  Cruickshank 2010), t½ ~10 h at normal urine pH — but the half-life is strongly URINE-pH DEPENDENT
+  (weak base, partly renally excreted unchanged: ~6–12 h neutral/acidic, 16–31 h alkaline), a CONDITIONAL
+  value modelled at ~10 h and documented (lamotrigine-comedication posture), NOT a dose-nonlinearity.
+  Oral F ~0.67 (softest input — bracketed by the measured intranasal 79% / smoked 67%). Oral (Desoxyn)
+  available; IV bolus inferred. The meth→amphetamine metabolite link is NOT drawn (CYP2D6-genotype-bimodal
+  fm — the procainamide disqualifier); amphetamine ships as its own single compound. Magnitude: 10 mg oral
+  → 21.6 ng/mL at 2.5 h (Schepers band 14.5–33.8).
+- **Dextroamphetamine (`compounds/dextroamphetamine.json`) — the clean-label stimulant sibling.** d-Amphetamine
+  ("speed", Schedule II; also Dexedrine). A firm FDA-label Cmax anchor (15 mg → 36.6 ng/mL at 3 h) next
+  to methamphetamine's forensic literature. Linear one-compartment; Vd 4.4 L/kg (Cmax-consistent within the
+  cited ~3–5 L/kg, F 0.9 — diphenhydramine posture), t½ ~10 h (d-enantiomer, urine-pH conditional like meth).
+  Oral (Dexedrine) available; IV bolus inferred. Onward metabolites have no citable fm (no drawn pair; the
+  meth→amphetamine link is bimodal). Magnitude: 15 mg oral → 35.6 ng/mL at 3 h (label 36.6, ~3% under).
+- **Ketamine → norketamine (`compounds/ketamine.json`) — the metabolite centerpiece; a two-compartment
+  parent + drawn active metabolite on IV/IM.** Dissociative anaesthetic (Ketalar, 1970) and major
+  recreational drug ("Special K", Schedule III). The diazepam template: genuine TWO-COMPARTMENT parent
+  (α t½ ~10–15 min / β t½ 2.5 h) + a drawn active metabolite. Curated from the FDA Ketalar label
+  (DailyMed) + Clements 1982 + Mion 2013 + Kamp 2020. **Why IV/IM only:** oral ketamine has huge hepatic
+  first-pass (F ~17%), so orally most norketamine forms PRE-SYSTEMICALLY (the oseltamivir disqualifier) —
+  representable only on IV/IM (Ketalar's real route), where formation is systemic. Oral omitted (diazepam
+  posture). **disposition2c:** CL 1.13 L/h/kg (Mion, ~79 L/h) and Vc 1.0 L/kg (~70 L) sourced; Q 1.305
+  L/h/kg and Vp 1.86 L/kg (= Vss−Vc) derived offline from CL/Vc/Vss/β so the engine round-trips α t½ ~14.5
+  min (label 10–15) and β t½ 2.5 h, and Vc+Vp = 2.86 L/kg reproduces Vss ~200 L. **Metabolite:** fm ~80% is
+  a SINGLE citable number (N-demethylation, CYP2B6/3A4 — far cleaner than cocaine's or procainamide's soft/
+  bimodal fm); norketamine active (~⅓ potency), t½ ~5 h (> parent → elimination-rate-limited, accumulates and
+  outlives the parent, the oxypurinol story); Vd 1.39 L/kg derived from CL_m/t½_m (nordiazepam posture).
+  Drawn on iv_bolus AND iv_infusion (both real routes). **Timing caveat (allopurinol posture):** the label
+  observes norketamine peaking ~30 min (rapid formation during the high-concentration α phase), but the
+  single-compartment systemic-formation model peaks LATER (~3.3 h) because a slow (5 h) metabolite is
+  accumulation-dominated by the sustained β-phase parent — the magnitude (~0.44 µg/mL for a 100 mg bolus) and
+  the long active tail are faithful, only the peak timing runs late. Magnitude: 100 mg IV bolus → C(0) = 1.43
+  µg/mL (= Dose/Vc exact), norketamine ~0.44 µg/mL.
+
+### Illicit / recreational candidates NOT shipped — cocaine (defer), MDMA / THC / heroin
+
+Documented so they aren't re-litigated (defers/exclusions are first-class output):
+
+- **Cocaine → benzoylecgonine — DEFERRED (nonlinear clearance + genuinely two-compartment; a double
+  disqualifier).** The most tempting illicit metabolite pair — benzoylecgonine (BE) is the long-lived,
+  inactive metabolite that urine drug screens detect, the forensic-marker story. But two independent gates
+  fail. (1) **Dose-dependent clearance:** human IV data give a clearance that FALLS with dose (a reported
+  regression CL ≈ 2.51 − 0.67·dose L/kg/h — saturable esterase hydrolysis by butyrylcholinesterase/CE-1),
+  the same superposition-breaking nonlinearity that excludes phenytoin and MDMA. (2) **Genuinely
+  two-compartment:** Vc ~1.3 L/kg with CL 32.7 mL/min/kg implies a ~0.46 h half-life, but the observed
+  terminal is ~1.1 h (Vβ ~2.7 L/kg, Vss ~1.96 L/kg) — a one-compartment collapse would miss the early peak
+  ~2× (the ciprofloxacin ceiling failure). Either alone would defer it; both together park it firmly. Had the
+  clearance been dose-independent, BE was representable off a 2-comp parent (diazepam template): fm ~40–45%
+  (CE-1 hydrolysis, systemic — passes the pre-systemic screen; IV cocaine actually passes cleaner than
+  allopurinol, no first-pass), BE t½ ~6.0 h, and a BE Vd ~0.75 L/kg that reproduces the measured BE:cocaine
+  AUC ratio of 10.1 (an AUC-anchored volume — magnitude-correct by construction, so the parent curve C₀=D/Vc
+  is the independent check). **Ketamine → norketamine was shipped as the clean metabolite pair in cocaine's
+  place** (explicitly linear, single citable fm). Cocaine stays parked pending a source establishing
+  dose-independent clearance over a narrow single-dose range.
+- **MDMA (ecstasy) — EXCLUDED, `linear: false`.** MDMA inhibits its own metabolising enzyme (CYP2D6), so
+  clearance falls as concentration rises and AUC increases MORE than dose-proportionally (autoinhibition;
+  de la Torre 2000/2004). A genuine superposition violation — the same class as omeprazole and phenytoin —
+  so it belongs in the nonlinear phase, not v1.
+- **THC (Δ9-tetrahydrocannabinol) — DEFERRED.** Highly lipophilic, deep multi-compartment with a days-long
+  terminal half-life driven by slow release from fat; the active metabolite 11-OH-THC adds a second layer.
+  No clean single-population linear model with citable micro-parameters over a plotted range; parked (the
+  amiodarone/thiopental class of unsourceable/nonlinear multi-compartment drug).
+- **Heroin (diamorphine) → 6-MAM → morphine — DEFERRED.** A two-step SEQUENTIAL metabolite cascade
+  (heroin → 6-monoacetylmorphine → morphine), which the single-metabolite engine cannot represent (it forms
+  one metabolite from the parent, not a chain). Heroin itself is ultra-short-lived (t½ ~3 min). Parked pending
+  a metabolite-cascade engine extension. (Codeine → morphine is separately out: CYP2D6-bimodal fm.)
+
 ### Three-compartment compounds — remifentanil and propofol shipped
 
 The 3-compartment model (§12, Stage B) is now wired through data + UI, with two compounds

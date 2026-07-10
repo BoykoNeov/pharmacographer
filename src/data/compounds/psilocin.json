@@ -1,0 +1,62 @@
+{
+  "id": "psilocin",
+  "schemaVersion": 1,
+  "names": { "inn": "Psilocin", "synonyms": ["Psilocin", "4-HO-DMT", "4-hydroxy-N,N-dimethyltryptamine", "Psilocybin (prodrug)"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 3.0,
+      "range": [1.2, 4.7],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "psilocin_review",
+      "conditions": "Terminal elimination half-life of unconjugated (free) psilocin; pooled clinical values span 1.2-4.7 h (systematic review), Holze 2023 reports ~3 h for a 25 mg psilocybin dose. Point value 3.0 h."
+    },
+    "vd": {
+      "value": 900,
+      "range": [505, 1267],
+      "unit": "L",
+      "derived": false,
+      "sourceRef": "psilocin_review",
+      "conditions": "Apparent volume of distribution Vz/F (pooled 505-1267 L), computed by the source studies against the PSILOCYBIN dose (mg) with free psilocin as the measured species - so the psilocybin->psilocin molar conversion (0.719) and the ~55% bioavailability are ALREADY folded into this apparent volume; F is set to 1 (apparent-volume convention) and no explicit molar factor is applied. Point value 900 L (~12.9 L/kg) is the Cmax-consistent choice within the pooled range, landing the built 25 mg-psilocybin curve on the reported free-psilocin Cmax ~15-20 ng/mL. Psilocin is lipophilic and genuinely widely distributed (hence the large apparent volume). Stored as absolute litres (the source reports Vz/F in absolute L)."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 1.0,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "definition",
+        "conditions": "Set to 1 by the apparent-volume convention. The apparent Vz/F above is normalised to the psilocybin dose, so entering the dose as psilocybin mg reproduces the plasma psilocin concentration directly - the ~55% absolute psilocin bioavailability and the 0.719 psilocybin->psilocin molar ratio are both folded into V/F, not applied here (avoids double-counting). See displayNote and notes."
+      },
+      "tmax": {
+        "value": 2.0,
+        "range": [1.05, 3.71],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "psilocin_review",
+        "conditions": "Time to peak free-psilocin plasma concentration ~2 h (Holze 2023: mean 1.9 h for 25 mg psilocybin; pooled range 1.05-3.71 h). ka derived from this Tmax at derivation time. Reflects psilocybin absorption + rapid pre-systemic dephosphorylation to psilocin."
+      }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "displayNote": "Dose is entered as PSILOCYBIN (the ingested prodrug); the plotted curve is plasma PSILOCIN, its psychoactive metabolite, formed by near-complete pre-systemic dephosphorylation. A 25 mg psilocybin dose is a common clinical/high recreational dose.",
+  "sources": {
+    "psilocin_review": {
+      "type": "Journal article",
+      "title": "Clinical Pharmacokinetics of Psilocin After Psilocybin Administration: A Systematic Review and Post-Hoc Analysis. Clin Pharmacokinet 2025 (PMC11762572): pooled free-psilocin terminal half-life 1.23-4.72 h, apparent volume Vz/F 505-1267 L, apparent clearance CL/F 155-296 L/h, dose-normalised Cmax ~0.8 ng/mL/mg psilocybin, Tmax ~2 h (1.05-3.71), absolute psilocin bioavailability ~55%; dose-proportional over 7-59.2 mg psilocybin",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11762572/",
+      "accessed": "2026-07-10"
+    },
+    "holze_2023": {
+      "type": "Journal article",
+      "title": "Holze F, Ley L, Liechti ME, et al. Pharmacokinetics and Pharmacodynamics of Oral Psilocybin Administration in Healthy Participants. Clin Pharmacol Ther. 2023 (doi 10.1002/cpt.2821): oral psilocybin (up to 25/30 mg), unconjugated psilocin Tmax mean 1.9 h for 25 mg, dose-proportional increases in psilocin plasma concentrations; psilocybin rapidly dephosphorylated to psilocin, then metabolised to 4-HIAA or glucuronidated",
+      "url": "https://ascpt.onlinelibrary.wiley.com/doi/10.1002/cpt.2821",
+      "accessed": "2026-07-10"
+    }
+  },
+  "notes": "Psilocin (4-hydroxy-N,N-dimethyltryptamine) - the psychoactive species behind magic-mushroom / psilocybin experiences and a Schedule I controlled substance. Modelled as a clean LINEAR one-compartment oral drug from the modern controlled psilocybin PK studies (Liechti group + a 2025 systematic review): psilocin plasma concentrations are dose-proportional over 7-59.2 mg psilocybin, so superposition holds and linear: true is supported across the plotted range.\n\nWHY MODEL PSILOCIN DIRECTLY (the prodrug is not the species). Psilocybin itself is a phosphate-ester PRODRUG that is almost entirely dephosphorylated to psilocin PRE-SYSTEMICALLY (by intestinal/hepatic alkaline phosphatase and esterases) before reaching the circulation - plasma psilocybin is barely detectable. This is the oseltamivir situation (near-complete first-pass conversion), where the systemic-formation metabolite engine cannot represent the parent->metabolite step because the parent never meaningfully circulates. So instead of a parent->metabolite pair, psilocin is modelled as a single oral compound in its own right, and the psilocybin->psilocin relationship is surfaced to the viewer via displayNote. (Contrast allopurinol->oxypurinol, where the parent genuinely circulates and forms most of the metabolite systemically - that pair IS drawn.)\n\nTHE UNITS / MOLAR CHOICE (why no explicit 0.719 factor). Doses are quoted as PSILOCYBIN (MW 284.3) but the plotted, measured species is PSILOCIN (MW 204.3) - a molar ratio of 0.719. The source studies dose psilocybin and compute the apparent Vz/F and CL/F against that psilocybin dose while measuring psilocin, so the molar conversion AND the ~55% psilocin bioavailability are BOTH already embedded in the apparent V/F. Entering the dose as psilocybin mg with F = 1 (apparent-volume convention) therefore reproduces the plasma psilocin curve directly, with no explicit molar or F correction (applying 0.719 or 0.55 again would double-count). The displayNote tells the viewer the dose axis is psilocybin and the concentration axis is psilocin.\n\nLARGE APPARENT VOLUME. Vz/F ~505-1267 L pooled (~7-18 L/kg) - psilocin is lipophilic and widely distributed. 900 L (~12.9 L/kg) is the Cmax-consistent value in that range.\n\nCONCENTRATION IS NOT EFFECT. As with LSD, the subjective effect lags and outlasts plasma psilocin (receptor-level and effect-site kinetics dominate); the curve is plasma psilocin only. Magnitude check: built 25 mg-psilocybin curve peaks ~15-20 ng/mL near 2 h (reported dose-normalised Cmax ~0.8 ng/mL/mg -> ~20 ng/mL at 25 mg). EDUCATIONAL ILLUSTRATION ONLY - not for dosing."
+}

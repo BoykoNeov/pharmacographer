@@ -85,8 +85,34 @@ all pass.
 
 Follow the phases in handoff §13 — engine + tests before UI. Current state:
 **Phase 7 data expansion + all three chart refinements done; static-site deploy
-is the sole remaining Phase 7 item. SEED SET now 30 compounds (was 10; the file count on disk
-is authoritative). A fifth 2026-07-10 pass (renal / metabolite / ion axes) added three (27→30, 392
+is the sole remaining Phase 7 item. SEED SET now 35 compounds (was 10; the file count on disk
+is authoritative). A sixth 2026-07-10 pass added an ILLICIT / RECREATIONAL slate (30→35, 403
+tests green, advisor-reviewed): four clean linear 1-comp singles — `lsd` (Liechti-group human PK,
+Dolder 2016/2017 + Holze 2021; apparent-volume convention V/F ~40 L, true F ~71%; the microgram-dose
+/ ~1–4 ng/mL axis; dose-proportional 5–200 µg; ~2.6 h main phase + documented-not-rendered ~8.9 h
+terminal; 200 µg → 3.35 ng/mL), `psilocin` (model the ACTIVE species, not the psilocybin prodrug —
+psilocybin dephosphorylates pre-systemically, oseltamivir posture; `displayNote` says dose=psilocybin/
+curve=psilocin; the MW 284→204 molar 0.719 AND ~55% F are BOTH folded into the psilocybin-normalised
+apparent Vz/F ~900 L so F=1 with no explicit factor; dose-proportional 7–59 mg; 25 mg → 17.5 ng/mL),
+`methamphetamine` (Desoxyn/crystal meth; 1-comp per Schepers 2003; Vd 3.73 L/kg IV, t½ ~10 h that is
+URINE-pH CONDITIONAL 6–31 h [lamotrigine posture, not a dose-nonlinearity]; oral F ~0.67 softest;
+oral available + iv_bolus inferred; meth→amphetamine NOT drawn — CYP2D6-bimodal fm, procainamide
+disqualifier; 10 mg → 21.6 ng/mL), `dextroamphetamine` (Dexedrine/speed; firm FDA-label anchor 15 mg
+→ 36.6 ng/mL; Vd 4.4 L/kg Cmax-consistent, t½ ~10 h; oral + iv_bolus inferred; 35.6 ng/mL built) —
+plus the METABOLITE centerpiece `ketamine`→norketamine (Special K; 2-COMP parent α t½ ~14.5 min/β 2.5 h
+via diazepam-style offline Q/Vp from CL/Vc/Vss/β; FDA Ketalar + Clements 1982 + Mion 2013 + Kamp 2020;
+IV/IM ONLY because oral first-pass F ~17% makes norketamine pre-systemic [oseltamivir]; fm ~80% a SINGLE
+citable N-demethylation number; norketamine active ⅓-potency, t½ ~5 h > parent = elimination-limited/
+accumulates, Vd 1.39 L/kg derived nordiazepam-style; drawn on iv_bolus AND iv_infusion; TIMING CAVEAT —
+model peaks ~3.3 h vs label ~30 min [slow metabolite accumulation-dominated by β-phase parent; magnitude
++ long tail faithful, peak late, allopurinol posture]; 100 mg IV → C0 1.43 µg/mL, norketamine ~0.44).
+NOT shipped, documented in docs/DATA_GUIDE.md: `cocaine`→benzoylecgonine DEFERRED (double disqualifier —
+dose-dependent CL≈2.51−0.67·dose saturable-esterase nonlinearity AND genuinely 2-comp; ketamine shipped
+in its place; the BE forensic-marker pair was representable off a 2-comp parent [fm ~40–45%, BE t½ ~6 h,
+BE Vd ~0.75 L/kg from the measured BE:cocaine AUC ratio 10.1] had CL been dose-independent), `mdma`
+EXCLUDED (linear:false — CYP2D6 autoinhibition, dose-disproportionate AUC, omeprazole class), `thc`
+DEFERRED (deep multi-comp, days-long fat-driven terminal), `heroin`→6-MAM→morphine DEFERRED (two-step
+sequential cascade the single-metabolite engine can't represent). A fifth 2026-07-10 pass (renal / metabolite / ion axes) added three (27→30, 392
 tests green, advisor-reviewed slate): `pregabalin` (clean linear 1-comp; the LINEAR counterpoint to
 gabapentin's saturable dose-DEPENDENT absorption — FDA Lyrica label F ">=90% and independent of dose",
 no protein binding, ~90% renal unchanged, Vd 0.5 L/kg, t½ 6.3 h, oral only; 300 mg → engine 6.5 vs

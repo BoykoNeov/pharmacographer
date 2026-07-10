@@ -1,0 +1,125 @@
+{
+  "id": "ketamine",
+  "schemaVersion": 1,
+  "names": { "inn": "Ketamine", "brand": ["Ketalar"], "synonyms": ["Ketamine", "Special K", "K"] },
+  "model": "two_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 2.5,
+      "range": [2.3, 3.1],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "ketalar_label",
+      "conditions": "Terminal (beta-phase) elimination half-life ~2.5 h (FDA Ketalar label; Clements 1982 gives 186 min = 3.1 h). This is the terminal slope carried for the caption/provenance rows; the engine recomputes beta from the disposition2c micro-parameters (round-trips to ~2.5 h). Distinct from the fast distribution (alpha) phase - see disposition2c and notes."
+    },
+    "vd": {
+      "value": 2.86,
+      "range": [2.3, 3.6],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "clements_1982",
+      "conditions": "Steady-state volume of distribution Vss ~200 L (~2.86 L/kg) for the 70 kg reference subject; reported ~200-252 L across sources. The derived Vc + Vp = 1.0 + 1.86 = 2.86 L/kg reproduces this by construction (Vp is derived as Vss - Vc). Scaled to absolute litres against the 70 kg reference subject at derivation time."
+    }
+  },
+  "disposition2c": {
+    "clearance": {
+      "value": 1.13,
+      "unit": "L/h/kg",
+      "derived": false,
+      "sourceRef": "mion_2013",
+      "conditions": "Total plasma clearance ~79 L/h for a 70 kg adult (1.13 L/h/kg), the weighted-mean adult value; the FDA label range 12-20 mL/min/kg brackets it (1.13 L/h/kg = 18.8 mL/min/kg). Ketamine clearance is high and hepatic-blood-flow-limited (see notes). Sets AUC = Dose/CL."
+    },
+    "centralVd": {
+      "value": 1.0,
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "ketalar_label",
+      "conditions": "Central (initial distribution) volume Vc ~70 L (~1.0 L/kg) - the commonly reported ketamine central volume. Sets the immediate post-bolus concentration C(0) = Dose/Vc. Softer than the terminal disposition (as for any 2-comp compound the Vss cross-check constrains CL/beta, not Vc), so the distribution-phase peak amplitude is somewhat illustrative."
+    },
+    "interCompartmentalClearance": {
+      "value": 1.305,
+      "unit": "L/h/kg",
+      "derived": true,
+      "sourceRef": "clements_1982",
+      "conditions": "DERIVED, not reported directly: Q = k12.Vc, computed offline (diazepam-style) from CL, Vc, Vss and the terminal beta so the engine round-trips both the labelled distribution half-life (alpha t1/2 ~10-15 min) and the terminal (beta t1/2 ~2.5 h). sourceRef names the primary structural PK source; the full arithmetic is in notes. ~91 L/h at 70 kg."
+    },
+    "peripheralVd": {
+      "value": 1.86,
+      "unit": "L/kg",
+      "derived": true,
+      "sourceRef": "clements_1982",
+      "conditions": "DERIVED, not reported directly: Vp = Vss - Vc = 2.86 - 1.0 = 1.86 L/kg, with the k12/k21 split fixed by Vp/Vc. sourceRef names the primary structural PK source; full arithmetic in notes. ~130 L at 70 kg."
+    }
+  },
+  "routes": {
+    "iv_bolus": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    },
+    "iv_infusion": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "metabolites": [
+    {
+      "id": "norketamine",
+      "name": "Norketamine (N-desmethylketamine)",
+      "active": true,
+      "fractionFormed": {
+        "value": 80,
+        "range": [70, 90],
+        "unit": "percent",
+        "derived": false,
+        "sourceRef": "ketalar_label",
+        "conditions": "~80% of a ketamine dose is metabolised (N-demethylated, primarily by CYP2B6 and CYP3A4) to the active metabolite norketamine - a single citable fraction (unlike the genotype-bimodal fm that blocks procainamide->NAPA). Point value 80% (range 70-90). Onward hydroxylation to hydroxynorketamine / dehydronorketamine is not modelled."
+      },
+      "vd": {
+        "value": 1.39,
+        "range": [1.0, 1.9],
+        "unit": "L/kg",
+        "derived": true,
+        "sourceRef": "kamp_2020",
+        "conditions": "DERIVED to be consistent with norketamine's own clearance and half-life: Vd_m = CL_m / k_m = 13.5 L/h / (ln2 / 5 h) ~= 97 L ~= 1.39 L/kg, from the norketamine elimination clearance CLM ~13.5 L/h/70 kg (Kamp 2020 model-based analysis) and t1/2 ~5 h. This makes norketamine exposure effectively clearance-defined (AUC_m = fm.Dose/CL_m); it is NOT an independently measured volume."
+      },
+      "halfLife": {
+        "value": 5,
+        "range": [4, 5],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "ketalar_label",
+        "conditions": "Norketamine plasma half-life ~5 h in humans (FDA Ketalar label / Mion 2013). Longer than the parent ketamine's ~2.5 h terminal, so norketamine is ELIMINATION-rate-limited: its own slower disposition governs the terminal decline (the engine's terminal rate = min(k_parent, k_metabolite) reproduces this), and it 'persists more than 5 h after administration.'"
+      },
+      "notes": "Norketamine (N-desmethylketamine) is the major circulating metabolite of ketamine and is pharmacologically ACTIVE - about 1/3 as potent as ketamine at the NMDA receptor (FDA label). It is COMPUTED end-to-end by the metabolite engine off the two-compartment parent's alpha/beta modes and DRAWN as a dashed line for both IV routes. Because its own half-life (~5 h) exceeds the parent ketamine's terminal (~2.5 h), it is ELIMINATION-rate-limited: it accumulates and outlives the parent (the classic active-long-lived-metabolite story, compare oxypurinol). TIMING CAVEAT: the FDA label observes norketamine peaking ~30 min after a bolus (rapid formation while ketamine is highest during the alpha-distribution phase), whereas the single-compartment systemic-formation model peaks LATER (~3.3 h) because, with a slow (~5 h) metabolite elimination, most norketamine forms from the sustained beta-phase parent (which carries ~2/3 of the formation AUC) and accumulates - a one-compartment metabolite off a fast-alpha 2-comp parent cannot localise the early peak. The magnitude (~0.4 mcg/mL for a 100 mg bolus) and the long active tail are faithful; only the peak timing runs late (the allopurinol->oxypurinol timing-caveat posture). fm ~80% is directly citable, and the metabolite Vd is derived from its clearance and half-life (nordiazepam posture)."
+    }
+  ],
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "ketalar_label": {
+      "type": "FDA label",
+      "title": "KETALAR (ketamine hydrochloride) injection, CIII - FDA/DailyMed Structured Product Label, clinical pharmacology (biphasic: alpha/distribution phase ~45 min, half-life 10-15 min = the anesthetic effect; beta phase terminal half-life 2.5 h; N-dealkylation to active metabolite norketamine by CYP2B6/CYP3A4; norketamine ~1/3 as active as ketamine; ~80% metabolised to norketamine; norketamine plasma half-life ~5 h)",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=14e8f864-8b8a-4e7e-8439-e510d3107063",
+      "accessed": "2026-07-10"
+    },
+    "clements_1982": {
+      "type": "Journal article",
+      "title": "Clements JA, Nimmo WS, Grant IS. Bioavailability, pharmacokinetics, and analgesic activity of ketamine in humans. J Pharm Sci. 1982;71(5):539-542 (PMID 7097501): two-compartment disposition, terminal half-life 186 min, intramuscular bioavailability 93%, oral bioavailability 17% (extensive first-pass), analgesic plasma threshold ~160 ng/mL",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/7097501/",
+      "accessed": "2026-07-10"
+    },
+    "mion_2013": {
+      "type": "Journal article",
+      "title": "Mion G, Villevieille T. Ketamine Pharmacology: An Update. CNS Neurosci Ther. 2013 (PMC6493357): two-compartment linear disposition, central volume ~70 L, steady-state Vd ~200-252 L (~2.3-3.6 L/kg), clearance ~79 L/h (12-20 mL/min/kg, hepatic-blood-flow limited), distribution half-life 11-16 min, elimination half-life 2-3 h, ~80% metabolised to norketamine (active, ~1/3 potency), norketamine half-life ~5 h",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6493357/",
+      "accessed": "2026-07-10"
+    },
+    "kamp_2020": {
+      "type": "Journal article",
+      "title": "Kamp J, Olofsen E, Henthorn TK, van Velzen M, Niesters M, Dahan A, et al. Pharmacokinetics of Ketamine and its Major Metabolites Norketamine, Hydroxynorketamine, and Dehydronorketamine: A Model-Based Analysis. Br J Anaesth. 2020;125(5):750-761 (S0007091220305717): norketamine formation clearance ~12.4 and elimination clearance ~13.5 L/h/70 kg",
+      "url": "https://www.sciencedirect.com/science/article/pii/S0007091220305717",
+      "accessed": "2026-07-10"
+    }
+  },
+  "notes": "Ketamine - a dissociative anaesthetic (Ketalar, FDA-approved 1970) that is also a major recreational/club drug ('Special K', Schedule III) and, as esketamine, an antidepressant. Modelled as the diazepam template: a genuine TWO-COMPARTMENT parent (fast distribution then a slower terminal) plus a drawn ACTIVE metabolite (norketamine). This is the metabolite centerpiece of the illicit-drugs slate and one of the cleaner parent->metabolite pairs in the whole set.\n\nWHY KETAMINE (and why on IV/IM, not oral). Ketamine is LINEAR over the clinical range (the FDA label and popPK models use a two-compartment LINEAR disposition; clearance is high and hepatic-blood-flow-limited, so mildly flow-dependent at extremes but dose-proportional in range - the propofol documented-linearity posture). Crucially the metabolite is only representable on the INTRAVENOUS/INTRAMUSCULAR route: oral ketamine has huge hepatic first-pass (F ~17%, Clements 1982), so orally most norketamine forms PRE-SYSTEMICALLY (the oseltamivir disqualifier) - a systemic-formation engine could not represent it. On IV/IM (Ketalar's real clinical route, and a real recreational route) there is no first-pass and norketamine forms from systemic ketamine, so the pair is valid and is drawn. Oral is therefore intentionally omitted (the diazepam posture - no route offered where the model would be wrong).\n\nDISPOSITION2C - what is sourced vs derived. As with diazepam, Q and Vp are not reported directly, so only CL and Vc are read from sources and Q, Vp are derived offline from four macro-observables: CL ~1.13 L/h/kg (Mion 2013, ~79 L/h at 70 kg), Vc ~1.0 L/kg (~70 L, FDA/Mion), Vss ~2.86 L/kg (Clements/Mion, ~200 L) and terminal beta t1/2 2.5 h. Working per-kg: k10 = CL/Vc = 1.13/h; beta = ln2/2.5 = 0.2773/h; Vp = Vss - Vc = 1.86 L/kg fixes k12/k21 = Vp/Vc = 1.86; solving alpha.beta = k10.k21 and alpha+beta = k10+k12+k21 gives k21 = 0.702/h, k12 = 1.305/h; Q = k12.Vc = 1.305 L/h/kg. The engine round-trips these back to alpha t1/2 ~14.5 min (FDA label says 10-15 min) and beta t1/2 2.5 h, and Vc + Vp = 2.86 L/kg reproduces Vss. As for every 2-comp compound, Vc is the softest input and sets the distribution-peak amplitude C(0) = Dose/Vc, so the early spike height is somewhat illustrative while the terminal phase is well grounded.\n\nMETABOLITE (norketamine). fm ~80% is a single directly-citable number (~80% N-demethylated to norketamine, FDA label) - much cleaner than cocaine's or procainamide's soft/bimodal fm. Norketamine is active (~1/3 potency), and because its own half-life (~5 h) exceeds the parent's terminal (~2.5 h) it is elimination-rate-limited - it accumulates and outlives ketamine, the classic active-long-lived-metabolite story (compare oxypurinol). Its Vd is derived from CLM/t1/2_m (Kamp 2020), making exposure clearance-defined (AUC_m = fm.Dose/CL_m); it is not independently measured. The norketamine line is drawn on both IV bolus and IV infusion (the metabolite gate is iv_bolus || oral || iv_infusion).\n\nROUTES. IV bolus (induction/recreational) and IV infusion (analgesia, antidepressant, TCI) are both genuinely available clinical routes. No oral (pre-systemic metabolite formation - above). Racemic ketamine is modelled; esketamine (Spravato, the S-enantiomer nasal antidepressant) is a separate product not modelled here. NMDA-antagonist mechanism; emergence phenomena are a well-known effect but concentration is not effect. Magnitude check: a 100 mg IV bolus into Vc ~70 L gives C(0) = 1.43 mcg/mL, redistributing fast (alpha t1/2 ~15 min); the drawn norketamine line rises to ~0.44 mcg/mL and outlasts the parent (the modelled metabolite peak is ~3.3 h - later than the label's ~30 min; see the norketamine timing caveat above). EDUCATIONAL ILLUSTRATION ONLY - not for dosing."
+}
