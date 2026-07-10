@@ -209,8 +209,12 @@ representable. Rationale preserved so it isn't re-litigated:
   formation model would show a tiny parent line and could not legitimately produce a metabolite
   that is 75% of the dose. (Separately, "75% of dose" is a fraction-of-dose ≈ fm·F, not the engine's
   fm = fraction of parent *elimination*.) This is the mirror image of allopurinol: same prodrug
-  shape, opposite systemic/first-pass split. Stays parked — the mechanism, not a number, is the
-  blocker.
+  shape, opposite systemic/first-pass split. **UPDATE (2026-07-10):** the `firstPassFraction` engine
+  now *can* represent a purely-pre-systemic metabolite, so the mechanism is no longer the blocker —
+  but oseltamivir was then rejected on the **first-pass timing screen** (its carboxylate is
+  formation-rate-limited, Tmax ~6 h ≫ parent 0.5 h; the single-`ka` model would invert its shape).
+  See "Oral first-pass metabolism" below for the full timing-screen rejection; morphine shipped in
+  its place.
 
 The multi-compartment §12 engine extension unblocked diazepam, and cefotaxime then shipped as a
 one-compartment collapse; allopurinol→oxypurinol now adds the oral-parent path (all above).
@@ -218,7 +222,7 @@ one-compartment collapse; allopurinol→oxypurinol now adds the oral-parent path
 on a citable single-value `fm` (procainamide→NAPA formation is acetylator-bimodal, 7–34% urinary
 recovery, so `fm` is not one number).
 
-### Oral first-pass metabolism — engine capability LANDED (`firstPassFraction`, no compound yet)
+### Oral first-pass metabolism — engine capability LANDED (`firstPassFraction`); first compound: oral morphine (2026-07-10)
 
 The engine now models **pre-systemic (first-pass) metabolite formation** — the wall that had
 DEFERRED oseltamivir and every oral route whose bioavailability loss is first-pass conversion to a
@@ -258,7 +262,19 @@ for the curator:
 - **MW-adjust a molar fraction to mass**, exactly like `fm` (the caffeine/morphine convention): the
   engine's `ffp` multiplies parent *mass*, so a molar first-pass fraction is `× MW_m/MW_parent`.
 
-The honesty panel renders it: `metaboliteProvenanceEntries` emits a **"First-pass fraction (ffp)"**
+**The first-pass TIMING screen (the `ffp` analogue of the `F·D/V` ceiling test — check it FIRST,
+before sourcing anything else).** The `ffp` term routes the pre-systemic mass at the *parent's*
+absorption rate `ka`, i.e. it assumes **hepatic conversion is fast relative to absorption**, so the
+modelled metabolite peaks near the *parent's* Tmax. Before committing to an `ffp` pair, confirm the
+real data agree: **metabolite Tmax ≈ parent Tmax** (within, say, ≲1.5×). If the metabolite's
+appearance is *formation-rate-limited* (it peaks much later than the parent), the single-`ka`
+instant-conversion model **inverts its shape** — drawing an early spike where reality is a slow rise
+— and no prose caveat rescues a chart that teaches the wrong temporal story. This is a
+*refuse-don't-mislead* screen, not a document-with-caveat one. It killed the flagship candidate
+(oseltamivir, below); it passed morphine (glucuronidation is fast: subcutaneous glucuronide Tmax
+~0.25–0.6 h ≈ parent). One datum decides it.
+
+The honesty panel renders `ffp`: `metaboliteProvenanceEntries` emits a **"First-pass fraction (ffp)"**
 row (between fm and Vd) with its measured/derived badge + citation, so a sourced `ffp` reaches the
 bibliography exactly like `fm`. (This was wired with the engine — a sourced parameter whose citation
 never rendered would silently undercut the gate above.)
@@ -266,10 +282,35 @@ never rendered would silently undercut the gate above.)
 **`ffp` is an illustrative population constant** (a literature fraction, like the 70 kg reference
 subject), not a patient covariate — the bright line holds. Frame it that way in the compound prose.
 
-This makes the **oseltamivir** deferral above a *curation* decision rather than an *engine* limit:
-the systemic-formation engine could not represent it, but a first-pass term can (parent `fm ≈ 0`,
-`ffp` carrying the ≥75%-of-dose carboxylate). It stays parked only until a curation pass sources the
-split against the honesty gate.
+**First shipped `ffp` compound: oral morphine → M3G + M6G (2026-07-10).** Oral morphine was added to
+the already-shipped IV morphine as the first `ffp` curation — and the *general* case (`fm > 0` AND
+`ffp > 0`: systemic glucuronidation *plus* first-pass), stronger than oseltamivir's degenerate
+`fm ≈ 0` would have been. Each glucuronide's `ffp` is derived from the **same single population** as
+its `fm` (Hasselström 1993): `ffp_i(molar) = fm_i(molar) × (1 − F)` — the first-pass loss `1 − F`
+(F = 29.2%) apportioned by that glucuronide's molar formation-clearance share — then MW-adjusted
+`×1.617`: **M3G 65.6%, M6G 11.9%**. `fm·F + ffp = fm` is a **construction identity** (because
+`ffp := fm·(1−F)`), so the built-curve match (oral M3G AUC 2.159 ≈ IV 2.158) is an engine-*wiring*
+check — the oral systemic + pre-systemic paths sum correctly — **not** a validation of the `ffp`
+value. That rests on the assumption that first-pass UGT2B7 selectivity matches systemic; it doesn't
+exactly (first pass is purely hepatic, no renal-unchanged escape), so real first-pass glucuronidation
+is a slightly larger share and `ffp` here is a **mild under-estimate** — real oral glucuronide sits
+modestly *above* IV, not equal. Independent magnitude check (Osborne 1990): modelled oral
+M3G:morphine AUC ratio ~29 (mass) sits at/below the reported ~30 molar (~50 mass), so the glucuronide
+total exposure is **conservative, not over-drawn** — the tall ~500 ng/mL M3G Cmax is only the
+intrinsic-t½ compressing that AUC into a sharp peak (the documented no-enterohepatic caveat, same as
+IV). Mass balance closes (`ffp` molar 0.480 ≤ 1 − F = 0.708). See `compounds/morphine.json` notes.
+
+**Oseltamivir → carboxylate — still DEFERRED, now for a sharper reason (the timing screen, not the
+engine).** The `ffp` engine *can* represent a purely-pre-systemic metabolite (`fm ≈ 0`,
+`ffp` ≈ ≥75%-of-dose carboxylate), so the engine limit is gone — but oseltamivir **fails the
+first-pass timing screen above**: its carboxylate is formation-rate-limited (single-dose oral
+data: carboxylate Tmax ~6 h, t½ 6.2 h, vs **parent Tmax 0.5 h**), an ~8–12× violation on the
+*dominant* line. The single-`ka` model would peak the carboxylate at ~0.8 h — inverting its
+signature slow-rising, persistent shape into an early spike. (AUC stays faithful, Cmax lands only
+~24% high, but the *shape* is wrong.) Deferred pending a future `ffp` extension that **decouples the
+metabolite input rate from the parent `ka`** (a separate formation rate). This was evaluated as the
+intended flagship `ffp` compound and rejected on the timing datum — the reason morphine was shipped
+in its place.
 
 ### Flip-flop (ka < ke) candidate — acamprosate (found, pending a curation judgment call)
 
@@ -799,11 +840,18 @@ M3G Penson 2001 PMID 11745739). Key curation calls:
   ×1.617: M3G 57.3% → **92.7%**, M6G 10.4% → **16.8%**. Their sum >100% (109.5%) is EXPECTED and
   correct for heavier metabolites (molar sum 67.7% < 100%) — do not "fix" it. Same direction as
   cotinine (×1.086), inverse of caffeine's lighter xanthines (×0.928).
-- **IV-BOLUS ONLY — oral deferred (oseltamivir criterion).** Morphine's ~29% oral F is largely
-  first-pass glucuronidation, so much of M3G/M6G forms PRE-systemically — the same criterion that
-  keeps nicotine IV-only. Oral is dropped rather than shipped with glucuronide lines drawn too low.
-- **Magnitude (built engine):** 10 mg IV → C(0) 49 ng/mL; M3G peaks 151 ng/mL @2.3 h, M6G 24 ng/mL
+- **ORAL + IV BOLUS (oral ADDED 2026-07-10 via the `ffp` engine — the deferral is reversed).**
+  Morphine's ~29% oral F is largely first-pass glucuronidation, so much of M3G/M6G forms
+  PRE-systemically — previously the oseltamivir/nicotine deferral criterion, now *represented* by the
+  per-metabolite `firstPassFraction` term (M3G 65.6%, M6G 11.9%; see the Oral first-pass section
+  above for the derivation, the fm·F + ffp = IV-fm anchor, and the timing screen morphine passes but
+  oseltamivir failed). Oral is morphine's centrepiece contribution twice over: the parallel-glucuronide
+  pair *and* the first shipped general-case (`fm > 0` + `ffp > 0`) first-pass compound.
+- **Magnitude (built engine):** IV 10 mg → C(0) 49 ng/mL; M3G peaks 151 ng/mL @2.3 h, M6G 24 ng/mL
   @2.6 h (AUC ratio 5.7, ≈ the mass-fm ratio) — M3G ≫ M6G, both peaking just after the fast parent.
+  ORAL ~22.5 mg base (≈30 mg sulfate) → parent Cmax ~22.8 ng/mL @0.8 h (reported ~28.5), and the
+  glucuronides tower over it (M3G ~22×, M6G ~3.3× the parent) peaking ~0.9–1.1 h — the visible
+  first-pass teaching contrast. Oral glucuronide AUC = IV glucuronide AUC (2.159 vs 2.158 built).
 
 **Digitoxin — the long-t½ / small-Vd / high-protein-binding counterpoint to digoxin
 (`compounds/digitoxin.json`).** Two cardiac glycosides at opposite ends of two axes at once: t½

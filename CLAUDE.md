@@ -95,8 +95,32 @@ Follow the phases in handoff §13 — engine + tests before UI. Current state:
 is the sole remaining Phase 7 item. SEED SET now 39 compounds (was 10; the file count on disk
 is authoritative).**
 
+**ORAL MORPHINE → M3G + M6G via `ffp` — FIRST first-pass compound SHIPPED (2026-07-10, advisor-reviewed,
+422 tests).** The `ffp` curation pass. Oseltamivir was EVALUATED as the intended flagship and REJECTED
+on a NEW reusable screen — the **first-pass TIMING screen** (the `ffp` analogue of the `F·D/V` ceiling
+test): the `ffp` term routes pre-systemic mass at the PARENT's `ka` (conversion-fast-vs-absorption
+assumption), so it is faithful only when **metabolite Tmax ≈ parent Tmax**. Oseltamivir's carboxylate is
+formation-rate-limited (single-dose oral: carboxylate Tmax ~6 h ≫ parent 0.5 h, an ~8–12× violation on
+the DOMINANT line — the single-`ka` model would invert its slow-rise into an early spike), a
+refuse-don't-mislead case; deferred pending an `ffp` extension that decouples the metabolite input rate
+from the parent `ka`. **MORPHINE passed** (glucuronidation is fast; SC glucuronide Tmax ~0.25–0.6 h ≈
+parent) and is the STRONGER validation — the GENERAL case (`fm>0` AND `ffp>0`: systemic glucuronidation
+PLUS first-pass), not oseltamivir's degenerate `fm≈0`. Oral added to the already-shipped IV morphine
+(routes now oral + iv_bolus; **default landing route now ORAL** — matches every oral+IV compound; IV curve
+byte-identical, `ffp` oral-only). Each glucuronide's `ffp` = `fm_i(molar)·(1−F)` MW-adjusted ×1.617 →
+**M3G 65.6%, M6G 11.9%**, all from single-population Hasselström 1993 (`fm` + F 29.2%). KEY HONESTY CATCHES
+(advisor completion-review): (1) `fm·F + ffp = fm` is a CONSTRUCTION IDENTITY (`ffp:=fm·(1−F)`), so the
+built-curve match (oral M3G AUC 2.159 ≈ IV 2.158) is an engine-WIRING check, NOT a validation of `ffp` —
+reworded from "elegant anchor"; (2) first pass is purely HEPATIC (no renal-unchanged escape), so `ffp` is
+a MILD UNDER-estimate and real oral glucuronide sits modestly ABOVE IV, not equal (direction documented);
+(3) magnitude checked vs Osborne 1990 (model oral M3G:morphine AUC ~29 mass ≤ reported ~30 molar/~50 mass
+→ glucuronide exposure CONSERVATIVE; the tall ~500 ng/mL M3G Cmax is the intrinsic-t½ compressing a
+conservative AUC into a sharp peak — the documented no-enterohepatic caveat, same as IV). New source
+`osborne_1990` + `atrux_tallau_2022` (oral Tmax 0.8 h). Seed set unchanged at 39 (route add, not new
+compound). **Oseltamivir's deferral is now the TIMING screen, not the engine.**
+
 **ORAL FIRST-PASS METABOLISM — engine capability LANDED (2026-07-10, advisor-reviewed, 419 tests;
-engine-first spike, NO compound this pass).** Removes the wall that DEFERRED oseltamivir + every oral
+engine-first spike, NO compound at capability-landing).** Removes the wall that DEFERRED oseltamivir + every oral
 route whose bioavailability loss is first-pass conversion (oral morphine/nicotine/ketamine, psilocin).
 New optional per-metabolite **`firstPassFraction` (`ffp`)** routes the pre-systemic (gut/hepatic
 first-pass) mass to the metabolite as a single ADDITIVE oral-only Bateman term
