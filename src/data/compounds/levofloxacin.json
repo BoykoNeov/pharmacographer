@@ -1,0 +1,63 @@
+{
+  "id": "levofloxacin",
+  "schemaVersion": 1,
+  "names": { "inn": "Levofloxacin", "brand": ["Levaquin"], "synonyms": ["Levofloxacin"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 6,
+      "range": [6, 8],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "'the mean terminal plasma elimination half-life of levofloxacin ranges from approximately 6 to 8 hours' (FDA LEVAQUIN label); ~6 h in younger adults, ~7.6 h in healthy elderly (66-80 y). Point value 6 h (young healthy adults); band 6-8 h spans the label's stated range. Levofloxacin is cleared largely unchanged by the kidney, so the half-life lengthens as renal function falls (an educational point, not a patient-specific renal adjustment)."
+    },
+    "vd": {
+      "value": 82,
+      "range": [74, 112],
+      "unit": "L",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "'the mean volume of distribution of levofloxacin generally ranges from 74 to 112 L' (FDA LEVAQUIN label), indicating widespread tissue distribution. Stored in ABSOLUTE litres (the label reports an absolute volume for its adult population), not rescaled to the 70 kg subject. Point value 82 L is taken near the low end of the reported 74-112 L range, which is where the single-dose peak lands (see the magnitude check in notes): it reproduces the labeled 500 mg Cmax, whereas the mid/high end would under-predict it."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 0.99,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "'levofloxacin is rapidly and essentially completely absorbed after oral administration. The absolute bioavailability of a 500 mg tablet and a 750 mg tablet of LEVAQUIN are both approximately 99%' (FDA LEVAQUIN label). Near-complete, dose-stable absorption (food only slightly delays it), so superposition of identical repeated doses is valid and oral vs IV exposure is nearly identical."
+      },
+      "tmax": {
+        "value": 1.5,
+        "range": [1, 2],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "'peak plasma concentrations are usually attained one to two hours after oral dosing' (FDA LEVAQUIN label). Representative point value 1.5 h."
+      }
+    },
+    "iv_infusion": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    },
+    "iv_bolus": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "fda_label": {
+      "type": "FDA label",
+      "title": "LEVAQUIN (levofloxacin) tablets / oral solution - FDA Structured Product Label, Clinical Pharmacology / Pharmacokinetics (absolute oral bioavailability ~99% for 500 mg and 750 mg; mean Cmax 5.1 +/- 0.8 mcg/mL after 500 mg and 9.3 +/- 1.6 mcg/mL after 750 mg single oral doses; peak plasma concentrations at 1-2 h; mean volume of distribution 74-112 L; terminal elimination half-life ~6-8 h; 24-38% protein binding; linear and predictable pharmacokinetics after single and multiple oral or IV dosing; excreted largely unchanged in urine)",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/fda/fdaDrugXsl.cfm?setid=529ac72c-c4a0-4001-8cf9-b94f5bf7265c",
+      "accessed": "2026-07-10"
+    }
+  },
+  "notes": "A clean LINEAR one-compartment fluoroquinolone antibacterial, curated entirely from the FDA LEVAQUIN (levofloxacin) label. Reported PK: near-complete oral absorption (F ~99%), Tmax 1-2 h, mean Cmax 5.1 mcg/mL (500 mg) and 9.3 mcg/mL (750 mg), volume of distribution 74-112 L, terminal half-life ~6-8 h, 24-38% protein binding, linear and predictable kinetics, and elimination largely unchanged by the kidney.\n\nWHY LEVOFLOXACIN - the fluoroquinolone the set was missing, and a clean one. Ciprofloxacin (the more familiar fluoroquinolone) was VETTED FIRST and DEFERRED (see docs/DATA_GUIDE.md): cipro is genuinely two-compartment and its labeled Cmax cannot be reconciled with its ~2.5 L/kg tissue Vd under a one-compartment model - the F.D/V ceiling falls below the reported Cmax, so a one-compartment collapse is invalid and no clean single-population 2-comp source was at hand. Levofloxacin CLEARS that same ceiling test: with F ~99% and a volume of 74-112 L, F.D/V for a 500 mg dose is ~6 mg/L, comfortably above the reported 5.1 mcg/mL Cmax, so a one-compartment model reproduces the peak. It has a much smaller distribution phase than cipro and is well described as one-compartment for this purpose.\n\nLINEARITY. The label states pharmacokinetics 'are linear and predictable after single and multiple oral or IV dosing regimens'; renal + limited hepatic elimination is first-order and non-saturable at therapeutic doses. A single half-life is meaningful and superposition of repeated doses is valid. linear: true.\n\nVOLUME / MAGNITUDE CHECK (ceiling test). For a one-compartment model, F.D/V is a hard ceiling on the peak (an IV bolus hits it; oral/infusion land below it). Point Vd 82 L (near the low end of the labeled 74-112 L range) gives an F.D/V ceiling of ~6 mg/L for 500 mg, and the one-compartment oral curve (F = 0.99, ke = ln2/6 h, ka from Tmax 1.5 h) peaks at ~5.1 mcg/mL - matching the labeled 500 mg Cmax. The mid/high end of the Vd range would under-predict the peak; 82 L is the Cmax-consistent choice within the cited range (the diphenhydramine posture). The label's 750 mg Cmax (9.3) is slightly supra-proportional to the 500 mg value in that dataset (wide SDs), so the 500 mg point is used as the primary magnitude anchor.\n\nROUTES. Oral (F ~0.99) and IV are both real products (LEVAQUIN tablets/oral solution and IV infusion). Because absorption is essentially complete, oral and IV exposures nearly coincide - the teaching point of a ~100% bioavailable drug (shared with metronidazole). The marketed IV form is an infusion; iv_infusion is the realistic IV route and iv_bolus is offered with F = 1 by definition as the instantaneous-input idealisation.\n\nEDUCATIONAL ILLUSTRATION ONLY - not for dosing."
+}

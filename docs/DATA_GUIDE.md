@@ -35,6 +35,20 @@ to one number. This guide is how we keep that honest.
   the *terminal* slope but distorts the *early* curve shape. When you collapse a
   multi-compartment drug, say so in `notes` — the shape is an approximation even
   when every number is sourced.
+- **The `F·D/V` ceiling test — run it BEFORE writing JSON.** For a one-compartment
+  model, `F·D/V_reported` is a *hard ceiling* on the peak concentration: an IV
+  bolus hits it exactly, and oral / infusion land strictly below it (via the
+  Bateman / accumulation factor). So the cheap pre-write gate is: compute
+  `F·D/V_reported` and compare to the reported Cmax. If the ceiling sits
+  **comfortably above** Cmax, a one-compartment collapse works — pick the volume
+  *within the cited source range* that lands the peak on Cmax (the diphenhydramine
+  posture) and move on. If the ceiling is **below** Cmax, the drug is too
+  distributed for a one-compartment model at that volume — no `ka`/`ke` choice can
+  rescue it (the reported Vd is a tissue Vss larger than the plasma-peak volume);
+  **defer or model it two-compartment**. This is cheaper than building the curve
+  and it is why ciprofloxacin and sildenafil are deferred below. Confirm the final
+  peak against the built engine curve regardless — `npm test` proves structure and
+  derivation, never magnitude.
 
 ## What "linear" means here, and what we exclude
 
@@ -71,6 +85,44 @@ vetting. The rationale is preserved here so it isn't re-litigated:
   _which_ t½ — the 40 h phase being the very saturable-binding nonlinearity we'd
   be modelling around. Shipping would stack a pediatric CL/F on a contested t½.
   Stays parked until a clean adult V/F (or apparent oral clearance) surfaces.
+
+### Deferred for the `F·D/V` ceiling — ciprofloxacin and sildenafil (genuine multi-compartment)
+
+Both cleared the linearity gate but FAILED the `F·D/V` ceiling test (above), for the
+same root cause: the source reports a tissue Vss too large for a one-compartment
+curve to reproduce the labeled Cmax, and no clean single-population two-compartment
+model was at hand. Documented so they aren't re-litigated:
+
+- **Ciprofloxacin — deferred (needs a two-compartment model).** A clean, familiar
+  fluoroquinolone, but genuinely two-compartment. The FDA label gives F ~70%, Cmax
+  500 mg = 2.4 mcg/mL, t½ ~4 h, and dose-proportionality (linear), but **no Vd**;
+  literature IV Vd is 2.1–2.7 L/kg. A one-compartment collapse cannot fit both
+  landmarks: the label Cmax implies an apparent V/F ≈ 1.6 L/kg, while the AUC /
+  terminal slope implies ≈ 3 L/kg — a ~2× disagreement, which is exactly the
+  two-compartment signature (Vc ≪ Vss). Using Vss ~2.5 L/kg under-predicts the peak
+  by ~40%. The available population-PK models are ICU/hospitalised-skewed with wide
+  cross-study ranges (Vc ~22–143 L, Vp ~75–212 L), so a coherent single-population
+  Vc/Vp/CL/Q set for a healthy adult was not sourceable in this pass. **Levofloxacin
+  was shipped instead** as the clean fluoroquinolone (F ~99%, small distribution
+  phase, ceiling test clears). Cipro stays parked until a citable single-population
+  two-compartment model surfaces.
+- **Sildenafil — deferred (one-compartment ceiling fails; not cleanly 2-comp).** A
+  clean PDE5-inhibitor label (Viagra): F 41% (25–63%), Vss 105 L, terminal t½ ~4 h,
+  Tmax ~1 h, dose-proportional, mean Cmax ~440 ng/mL for 100 mg. But `F·D/Vss =
+  0.41·100000 µg / 105 L ≈ 390 ng/mL < 440` — the **ceiling itself is below the
+  labeled Cmax**, so no within-source volume works and the drug is mildly
+  two-compartment (Vss is tissue volume). The two honest escapes are both worse than
+  deferring: (a) overriding to a Cmax-fit V ~80 L trades a visible ~25% peak error
+  for a hidden ~50% AUC over-prediction that would distort the multi-dose
+  accumulation view; (b) a two-compartment model is not sourceable — the label
+  reports a single ~4 h terminal half-life with no distribution phase, so Vc/Vp/Q
+  cannot be pinned even diazepam-style. (Do NOT rescue it with "the low peak is
+  within the 25–63% F spread" — that conflates inter-individual variability, which
+  is the half-life slider's job, with a mean-value miss; a model at mean F and mean
+  Vss should reproduce the mean Cmax.) Stays parked pending a citable
+  distribution-phase parameterisation. Its active N-desmethyl metabolite (~50%
+  potency, plasma ~40% of parent) would also need a citable `fm`, not a plasma
+  ratio.
 
 ### Metabolite-pair candidates — one shipped, two still deferred
 
@@ -201,6 +253,50 @@ concentrations.
   chronic steady-state 3–15 µg/mL accumulates higher).
 - **Propofol (`compounds/propofol.json`) — the SECOND three-compartment compound; see the
   three-compartment section below.**
+
+### Phase-7 seed expansion (antimicrobials) — 3 compounds added 2026-07-10
+
+A third pass added **metronidazole, levofloxacin, acyclovir** (20 → 23 compounds; 384 tests
+green), all clean linear one-compartment antimicrobials. This pass introduced the `F·D/V`
+**ceiling test** (see Sourcing rules) as an explicit pre-write gate — it decided all three
+of these AND the two deferrals (ciprofloxacin, sildenafil) above. Each shipped compound was
+magnitude-checked against the built engine curve.
+
+- **Metronidazole (`compounds/metronidazole.json`) — clean linear one-compartment, oral +
+  IV, ~100% oral bioavailability.** A distinct antibacterial class (5-nitroimidazole) and a
+  near-textbook clean drug: complete, food-insensitive absorption means oral and IV Cmax
+  nearly coincide (the ~100%-F teaching point, contrast atenolol ~50% and acamprosate ~11%).
+  FDA Flagyl tablets label for disposition + oral params (t½ ~8 h, Tmax 1–2 h,
+  dose-proportional 250→6 / 500→12 / 2000→40 mcg/mL, <20% protein binding); Vd from the
+  Clinical Pharmacokinetics of Metronidazole review (label prints none). Vd 0.55 L/kg — near
+  the low end of the reported 0.51–1.1 L/kg Vss range, the Cmax-consistent choice: the engine
+  500 mg oral peak is 11.4 mcg/mL vs the labeled ~12 (a shallow distribution phase makes Vss
+  slightly overstate the plasma-peak volume). The active hydroxy metabolite is noted but NOT
+  modelled — the label gives no clean single fraction-formed (a plasma/AUC presence, not fm),
+  the same reason procainamide→NAPA stays deferred.
+- **Levofloxacin (`compounds/levofloxacin.json`) — the clean fluoroquinolone (shipped in
+  ciprofloxacin's place).** FDA Levaquin label throughout: F ~99%, Tmax 1–2 h, Cmax 5.1 mcg/mL
+  (500 mg) / 9.3 mcg/mL (750 mg), Vd 74–112 L (stored in absolute litres, like the 3-comp
+  compounds), t½ ~6–8 h, 24–38% protein binding, explicitly linear. **This is the ceiling
+  test's positive case:** `F·D/V = 0.99·500/82 ≈ 6 mg/L`, comfortably above the 5.1 mcg/mL
+  Cmax, so the one-compartment collapse reproduces the peak (engine 500 mg oral peak 5.08 vs
+  5.1) — where cipro's ceiling failed. Vd 82 L is the Cmax-consistent value within the labeled
+  74–112 L range; the 500 mg Cmax is the magnitude anchor (the 750 mg datum is slightly
+  supra-proportional in that dataset, wide SDs). Oral + IV both real; near-identical exposure
+  (like metronidazole).
+- **Acyclovir (`compounds/acyclovir.json`) — an antiviral (new class); shipped IV-ONLY.** A
+  renally-cleared IV drug reinforcing the atenolol/vancomycin/gentamicin renal-elimination
+  thread. FDA acyclovir-injection label (t½ 2.5 h at CrCl >80; steady-state peak/trough 9.8 /
+  0.7 mcg/mL for 5 mg/kg q8h 1-h infusion; dose-proportional; 9–33% protein binding; 62–91%
+  renal); Vd ~0.7 L/kg Vss from the de Miranda & Blum clinical-pharmacology review (label
+  prints none). Vd 0.55 L/kg is the Cmax-consistent value below the tissue Vss (engine
+  steady-state peak 8.9 vs labeled 9.8 mcg/mL, ~9% under; acyclovir is mildly two-compartment).
+  Two deliberate route choices: **oral is OMITTED** because oral acyclovir has *saturable*
+  absorption (F falls with dose — the valacyclovir rationale; a plainly-linear oral line would
+  be quietly wrong on the absorption side, though disposition stays linear); and **iv_bolus is
+  `available: false` (inferred)** because acyclovir must be infused slowly — a rapid bolus can
+  crystallise in the renal tubules. Clearance is deliberately NOT stored (fixed Vd + t½ makes
+  ke = CL/Vd a circular cross-check — the cetirizine rule).
 
 ### Three-compartment compounds — remifentanil and propofol shipped
 

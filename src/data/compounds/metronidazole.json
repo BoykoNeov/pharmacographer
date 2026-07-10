@@ -1,0 +1,69 @@
+{
+  "id": "metronidazole",
+  "schemaVersion": 1,
+  "names": { "inn": "Metronidazole", "brand": ["Flagyl"], "synonyms": ["Metronidazole"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 8,
+      "range": [6, 10],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "the FDA Flagyl (metronidazole tablets) label states 'the average elimination half-life of metronidazole in healthy subjects is eight hours' in adults with normal hepatic and renal function. Point value 8 h; band 6-10 h spans the customary reported spread. A two-compartment analysis of the same data resolves this into a shallow distribution phase (t half approximately 1.2 h) and a slower elimination phase (t half approximately 9.8 h); collapsed to one compartment here (see notes)."
+    },
+    "vd": {
+      "value": 0.55,
+      "range": [0.51, 1.1],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "metronidazole_review",
+      "conditions": "the FDA label characterises distribution only qualitatively ('metronidazole is widely distributed') and prints no number; the volume of distribution at steady state of 0.51-1.1 L/kg is from the Clinical Pharmacokinetics of Metronidazole review. Point value 0.55 L/kg is taken near the low end of that reported range, which is where the single-dose peak concentration lands (see the magnitude check in notes): metronidazole has a shallow distribution phase, so the plasma-relevant volume that governs Cmax sits below the tissue Vss - the same Cmax-consistent-volume choice within a cited range made for diphenhydramine. Metronidazole is only <20% protein-bound and distributes to roughly total body water, consistent with a volume near 0.55 L/kg. Scaled to absolute litres against the 70 kg reference subject at derivation time."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 1.0,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "'following oral administration, metronidazole is well absorbed, with peak plasma concentrations occurring between one and two hours after administration' (FDA Flagyl tablets label); reported oral bioavailability is >90% and approaches 100%, and food does not significantly reduce the extent of absorption. Modelled as F = 1 (essentially complete absorption); superposition of identical repeated doses is valid because absorption is complete and dose-independent."
+      },
+      "tmax": {
+        "value": 1.5,
+        "range": [1, 2],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "'peak plasma concentrations occurring between one and two hours after administration' (FDA Flagyl tablets label). Representative point value 1.5 h."
+      }
+    },
+    "iv_infusion": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    },
+    "iv_bolus": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "fda_label": {
+      "type": "FDA label",
+      "title": "METRONIDAZOLE tablets, USP - FDA Structured Product Label, Clinical Pharmacology / Pharmacokinetics (elimination half-life ~8 h in healthy subjects; well absorbed orally with peak plasma concentrations at 1-2 h; plasma concentrations proportional to dose - 250 mg gives ~6 mcg/mL, 500 mg ~12 mcg/mL, 2000 mg ~40 mcg/mL peak; <20% protein binding; parent and hydroxy metabolite both microbiologically active; 60-80% of a dose excreted in urine)",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/fda/fdaDrugXsl.cfm?setid=ac7e80ce-6174-4246-a955-a92adc516571",
+      "accessed": "2026-07-10"
+    },
+    "metronidazole_review": {
+      "type": "Journal article",
+      "title": "Clinical Pharmacokinetics of Metronidazole, Clinical Pharmacokinetics (volume of distribution at steady state 0.51-1.1 L/kg; two-compartment disposition with distribution half-life ~1.2 h and elimination half-life ~9.8 h; linear dose-concentration relationship over the 200-2000 mg therapeutic range; hydroxy metabolite retains ~30-65% of parent antimicrobial activity)",
+      "url": "https://link.springer.com/article/10.2165/00003088-198308010-00003",
+      "accessed": "2026-07-10"
+    }
+  },
+  "notes": "A clean LINEAR one-compartment 5-nitroimidazole antibacterial/antiprotozoal, curated from the FDA Flagyl (metronidazole tablets) label for disposition and oral parameters, with the volume of distribution taken from the Clinical Pharmacokinetics of Metronidazole review (the label gives no numeric Vd). Reported PK: near-complete oral absorption (F approaches 100%, food-insensitive), Tmax 1-2 h, elimination half-life ~8 h, <20% protein binding, dose-proportional plasma concentrations over 200-2000 mg, and renal elimination of parent plus metabolites (60-80% of dose).\n\nWHY METRONIDAZOLE - a distinct antibacterial class (nitroimidazole) and a near-textbook clean linear one-compartment oral+IV drug. It complements the beta-lactam (amoxicillin, cefotaxime) and fluoroquinolone-free antibiotic coverage, and its ~100% oral bioavailability is a useful contrast to the incompletely-absorbed atenolol (~50%) and the low-F flip-flop acamprosate (~11%): here oral and IV Cmax are nearly identical because absorption is complete.\n\nLINEARITY. The label reports 'plasma concentrations of metronidazole are proportional to the administered dose' with a linear dose-concentration relationship over the 200-2000 mg therapeutic range, and elimination is first-order (hepatic oxidation + renal excretion, non-saturable at therapeutic doses). A single half-life is meaningful and superposition of repeated doses is valid. linear: true.\n\nONE-COMPARTMENT COLLAPSE. A detailed two-compartment analysis resolves a shallow distribution phase (distribution t half ~1.2 h) ahead of the ~9.8 h elimination phase. That distribution phase is minor, so metronidazole is modelled as one compartment (the same documented monophasic-collapse posture as ibuprofen and cefotaxime): faithful to the terminal slope and to Cmax, with a slightly idealised early shape.\n\nVOLUME / MAGNITUDE CHECK (ceiling test). For a one-compartment model F.D/V is a hard ceiling on the peak (an IV bolus hits it; oral lands below). The point Vd 0.55 L/kg (38.5 L for the 70 kg subject) is near the low end of the reported 0.51-1.1 L/kg Vss range. A 500 mg oral dose (F = 1, ke = ln2/8 h, ka from Tmax 1.5 h) peaks at 11.4 mcg/mL against the built engine curve, ~5% below the label's ~12 mcg/mL for 500 mg (the reported Vss range is the tissue steady-state volume; the plasma peak constrains the effective volume to the low end - the monophasic-collapse tradeoff, the same Cmax-consistent-within-range choice made for diphenhydramine). Using the mid-range 0.7-0.9 L/kg would under-predict the labeled Cmax.\n\nACTIVE HYDROXY METABOLITE (not modelled). Metronidazole is metabolised (chiefly by side-chain oxidation) to a hydroxy metabolite that retains microbiological activity (~30-65% of parent potency) and has a longer half-life. It is NOT modelled as a parent->metabolite pair here because the FDA label gives no clean single fraction-formed: it reports the hydroxy metabolite's urinary presence and steady-state AUC in special populations but not the fraction of the parent dose converted, so fm is not citable as one number (the same reason procainamide->NAPA stays deferred). Noted for a possible future metabolite pair if a citable fm surfaces.\n\nROUTES. Oral (F ~1) and IV are both real products. The marketed IV form (Flagyl I.V.) is given as a slow infusion, so iv_infusion is the realistic IV route; iv_bolus is offered with F = 1 by definition as the instantaneous-input idealisation. Both IV routes reproduce essentially the same exposure as the oral route at equal dose, which is the teaching point of a ~100% bioavailable drug.\n\nEDUCATIONAL ILLUSTRATION ONLY - not for dosing."
+}

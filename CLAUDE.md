@@ -85,7 +85,23 @@ all pass.
 
 Follow the phases in handoff §13 — engine + tests before UI. Current state:
 **Phase 7 data expansion + all three chart refinements done; static-site deploy
-is the sole remaining Phase 7 item. SEED SET now 20 compounds (was 10). A
+is the sole remaining Phase 7 item. SEED SET now 23 compounds (was 10). A second
+2026-07-10 pass (antimicrobials) added three clean linear 1-comp drugs (all 384 tests green),
+gated by the new `F·D/V` CEILING TEST (for a 1-comp model F·D/V is a hard ceiling on the peak;
+if it sits below the reported Cmax the drug is too distributed for 1-comp — defer or go 2-comp;
+see docs/DATA_GUIDE.md): `metronidazole` (5-nitroimidazole, oral+IV, ~100% F so oral≈IV Cmax;
+FDA Flagyl label + Clin Pharmacokinet review for the label-absent Vd; 0.55 L/kg Cmax-consistent,
+500 mg oral → 11.4 mg/L vs labeled ~12; active hydroxy metabolite noted-not-modelled, no citable
+fm), `levofloxacin` (the clean FLUOROQUINOLONE shipped in ciprofloxacin's place — F ~99%, small
+distribution phase; FDA Levaquin label, Vd 82 L absolute within labeled 74–112 L, 500 mg oral →
+5.08 vs labeled 5.1; the ceiling test's positive case where cipro's failed), and `acyclovir`
+(ANTIVIRAL, new class; shipped IV-ONLY — oral OMITTED for saturable absorption / the valacyclovir
+rationale, iv_bolus `available:false`/inferred because it must be infused slowly to avoid renal
+crystallisation; FDA acyclovir-injection label + de Miranda review for Vd; 0.55 L/kg, steady-state
+5 mg/kg q8h peak 8.9 vs labeled 9.8). Two candidates DEFERRED same-root-cause (1-comp ceiling
+below Cmax = genuine multi-compartment, no clean single-population 2-comp source): `ciprofloxacin`
+(Cmax↔AUC imply ~2× different V/F) and `sildenafil` (F·D/Vss 390 < Cmax 440; override to V~80
+would hide a ~50% AUC over-prediction). The earlier
 2026-07-10 pass added three (killer-param-vetted then magnitude-checked, all 377 tests green):
 `atenolol` (clean linear 1-comp; the RENAL counterpoint to hepatic metoprolol — hydrophilic,
 >85% renal unchanged, no CYP2D6 polymorphism, ~50% F is an absorption limit not saturable
