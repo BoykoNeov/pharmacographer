@@ -153,9 +153,16 @@ representable. Rationale preserved so it isn't re-litigated:
   metabolite Vd is derived from CL_m/t½_m (not measured), making nordiazepam exposure
   clearance-defined. Oral is omitted (2-comp oral is deferred; leaving it out keeps the picker
   from offering a route the engine throws on).
-- **Procainamide → NAPA — out, 2-compartment + genotype-dependent fm.** Parent is a
-  2-compartment model; NAPA formation is acetylator-dependent (urinary recovery
-  7–34%, bimodal fast/slow), so `fm` is not a single citable number.
+- **Procainamide → NAPA — SHIPPED 2026-07-11** (`compounds/procainamide.json`; the 40th
+  compound and the pharmacogenetics pair — reverses this former rejection, see the procainamide
+  section below). Both original objections dissolved: (1) the "2-compartment" objection was an
+  IV-only property — procainamide given ORALLY reads as one-compartment (absorption masks the
+  ~5 min distribution phase, the cefotaxime/ibuprofen collapse), so it ships oral-only 1-comp and
+  the biphasic IV route is omitted; (2) the "bimodal fm" is handled by anchoring a single
+  illustrative FAST-acetylator phenotype (fm 0.40 formation-clearance, Lima 1979) with the
+  slow-acetylator case as documented prose contrast — the polymorphism becomes the teaching point,
+  not a disqualifier. NAPA's own disposition is directly measured (it was marketed as acecainide),
+  so no assumed-volume problem.
 - **Cefotaxime → desacetylcefotaxime — SHIPPED 2026-07-09** (`compounds/cefotaxime.json`;
   the second parent→metabolite pair and the FIRST shipped compound to exercise the
   engine's ORIGINAL one-compartment-parent Bateman-metabolite path — diazepam's parent
@@ -906,6 +913,51 @@ screen — the recipe for a metabolite the kidneys clear FASTER than the liver f
   mass-fm legitimately exceeds 1 for a metabolite heavier than the parent (moles conserved on
   conjugation, not mass), so `[0,1]` was simply the wrong bound for this engine's mass-based `fm`. The
   same widening was applied to `ffp`.
+
+**Procainamide → NAPA — the PHARMACOGENETICS pair + phenotype-anchoring pattern (the 40th
+compound, 2026-07-11, advisor-reviewed; `compounds/procainamide.json`).** A NEW compound (user-
+authorised expansion beyond the "metabolites for existing compounds" task — the best pair in the
+acetylator/CYP2D6 category). Procainamide is acetylated to NAPA, an ACTIVE metabolite, at a
+genetically-polymorphic rate (NAT2 fast vs slow acetylators) — the textbook pharmacogenetics story.
+
+- **It is the CEFOTAXIME pattern, NOT the acetaminophen recipe (don't blur them).** NAPA t½ ~7 h >
+  parent ~2.4 h → **elimination-rate-limited** (its own slower disposition governs its decline;
+  terminal slope = min(k_parent, k_m) = k_m), and NAPA was marketed as the antiarrhythmic
+  **acecainide**, so its disposition (Vd ~1.4 L/kg, t½ ~7 h, ~85% renal-unchanged) is **directly
+  measured** — NO assumed-volume / identifiability problem. The APAP formation-limited gate does not
+  apply; the only special gate is the polymorphic fm.
+- **PHENOTYPE-ANCHORING (the reusable pattern for a bimodal/polymorphic fm).** The engine takes one
+  fm, but acetylation is bimodal — so anchor a SINGLE illustrative phenotype and keep every input
+  consistent to it. Modelled the **FAST acetylator** (the striking case: more NAPA, NAPA exceeds
+  parent): fm 0.40 (Lima 1979 formation-clearance fraction) AND parent t½ 2.4 h AND CL 34.8 L/h are
+  ALL fast-acetylator values; NAPA's disposition is phenotype-independent. The slow case (fm ~0.20,
+  t½ ~3.6–5.2 h) is the documented prose contrast. **Bright line:** an illustrative phenotype is like
+  the 70 kg reference subject — an educational population choice, never patient genotyping.
+- **The band-must-stay-within-the-phenotype catch (advisor completion-review — automated checks
+  can't see it).** For a 1-comp compound, `disposition.halfLife.range` drives the variability
+  slider. An early draft set the range `[2.2, 3.6]` — but 3.6 h is the *slow*-acetylator mean, so the
+  slider would have dragged the parent to a slow t½ while fm stayed pinned at the fast 0.40 (an
+  inconsistent phenotype state; the 1-comp metabolite reshapes with the plotted ke), silently
+  contradicting the "slider varies half-life, not acetylator status" framing. Fixed by narrowing the
+  range to the FAST-acetylator variability (2.4 ± 0.7 → [1.7, 3.1]) so the band never reaches the
+  slow value. **General rule:** when you anchor one phenotype, the half-life range (which becomes the
+  interactive band) must stay WITHIN that phenotype — do not let it span to the other phenotype's
+  value, or the slider exposes a state the fixed fm contradicts.
+- **1-comp ORAL collapse (reverses the old 2-comp rejection).** IV procainamide is genuinely
+  2-compartment (~5 min distribution), but oral absorption masks it, so oral reads 1-comp
+  (cefotaxime/ibuprofen posture). Shipped oral-only (F 83%, Tmax 90–120 min → ka); the biphasic IV
+  route omitted rather than misrepresented. **No `ffp`:** procainamide is nearly completely absorbed
+  and first-pass acetylation is minimal, so the <100% F is malabsorption, not pre-systemic conversion
+  — NAPA forms systemically only.
+- **fm — mass conversion + lower-bound distinction.** fm = acetylation clearance fraction (fast 0.40),
+  MW-adjusted ×277.37/235.33 = ×1.179 (NAPA heavier) → 47.2% mass. The FDA-label "24–33% metabolised
+  to NAPA" and Wierzchowiecki's 22.5% urinary NAPA are urinary-recovery LOWER bounds (the cefotaxime
+  desacetyl distinction), reflected in the fm range low end.
+- **Magnitude (built).** 750 mg oral fast-acetylator: parent peaks ~2.9 mg/L @1.5 h; NAPA peaks
+  ~1.7 mg/L @6.5 h (later, elimination-limited) and its molar AUC ~1.7× the parent (mass ~1.9×) —
+  reproducing "NAPA exceeds procainamide in fast acetylators." Sources (all opened): FDA DailyMed
+  label, Lima 1979 (PMID 458558, fm), Wierzchowiecki 1980 (PMID 6161089, t½s), acecainide review
+  (PMID 1693889, NAPA active/class III), Bauer Applied Clinical PK (F, NAPA Vd).
 
 **Digitoxin — the long-t½ / small-Vd / high-protein-binding counterpoint to digoxin
 (`compounds/digitoxin.json`).** Two cardiac glycosides at opposite ends of two axes at once: t½

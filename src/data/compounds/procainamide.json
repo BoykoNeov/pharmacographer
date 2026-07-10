@@ -1,0 +1,115 @@
+{
+  "id": "procainamide",
+  "schemaVersion": 1,
+  "names": { "inn": "Procainamide", "brand": ["Pronestyl", "Procanbid"], "synonyms": ["Procainamide hydrochloride", "PA"] },
+  "description": "A class I antiarrhythmic (sodium-channel blocker) once widely used for ventricular and atrial arrhythmias. The liver acetylates it to an active metabolite, NAPA, at a rate set by an inherited 'acetylator' trait — a textbook example of pharmacogenetic variability.",
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 2.4,
+      "range": [1.7, 3.1],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "wierzchowiecki_1980",
+      "conditions": "Procainamide elimination half-life 2.4 ± 0.7 h in FAST acetylators after a single 750 mg oral dose in healthy subjects (Wierzchowiecki 1980) — the illustrative phenotype modelled here (see notes). The range [1.7, 3.1] is that 2.4 ± 0.7 h FAST-acetylator variability, and it is deliberately kept WITHIN the fast phenotype: the variability band/slider (which reads this range) must not drag the parent to a slow-acetylator half-life while fm stays pinned at the fast value 0.40 — that would be an internally inconsistent phenotype state, and the slider varies half-life WITHIN the modelled population, not acetylator status. The SLOW acetylators are the separate documented contrast (3.6 ± 1.0 h same study, up to ~5.2 h elsewhere, with fm ~0.20) — see notes/metabolism, kept out of the band on purpose. The FDA label quotes a general 3–4 h (not split by phenotype). Consistent with Lima 1979's fast-acetylator total clearance 34.8 L/h and the ~2 L/kg volume (ln2·140 L / 34.8 ≈ 2.8 h). Clearance is NOT stored (t½ gives ke; storing CL too would be a circular cross-check) — the fast-acetylator CL is recorded here for transparency."
+    },
+    "vd": {
+      "value": 2.0,
+      "range": [1.7, 2.5],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "Apparent volume of distribution 'approximately 2 liters per kilogram body weight' (FDA procainamide-HCl label). Not affected by acetylator phenotype (Lima 1979). Scaled to absolute litres against the 70 kg reference subject at derivation time (≈140 L). Procainamide's IV kinetics are genuinely two-compartment (a rapid distribution phase, ~5 min per the label); the oral route absorbs slowly enough to mask that phase, so a one-compartment model fits the oral profile (see notes — the same documented monophasic collapse as cefotaxime/ibuprofen), and ~2 L/kg is the volume that reproduces the observed oral concentrations."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 0.83,
+        "range": [0.75, 0.95],
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "bauer_clinpk",
+        "conditions": "Oral bioavailability ~83% for immediate- and sustained-release procainamide (Bauer, Applied Clinical Pharmacokinetics; range 75–95%). Procainamide is nearly completely ABSORBED; the <100% F is incomplete absorption, NOT first-pass acetylation (hepatic acetylation acts on circulating drug, and first-pass conversion to NAPA is minimal) — so there is NO pre-systemic (firstPassFraction) term: NAPA forms systemically via fm·CL·C_p only. Drives the oral parent curve (C ~ F·Dose/Vd) and the systemic NAPA formation."
+      },
+      "tmax": {
+        "value": 1.5,
+        "range": [1.5, 2.0],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "Peak plasma procainamide at 90–120 minutes after oral immediate-release tablets/capsules (FDA label); 1.5 h used, from which ka is derived. Absorption is slower than procainamide's intrinsic distribution phase, which is why the oral profile reads as one-compartment (notes)."
+      }
+    }
+  },
+  "metabolites": [
+    {
+      "id": "n-acetylprocainamide",
+      "name": "N-acetylprocainamide (NAPA)",
+      "active": true,
+      "description": "The active metabolite of procainamide, formed by acetylation in the liver — itself a Class III antiarrhythmic (it prolongs repolarisation rather than blocking sodium channels). Cleared by the kidneys and longer-lived than procainamide, so it builds up in kidney failure.",
+      "fractionFormed": {
+        "value": 47.2,
+        "range": [33, 50],
+        "unit": "percent",
+        "derived": true,
+        "sourceRef": "lima_1979",
+        "conditions": "In FAST acetylators the fraction of procainamide clearance that proceeds by acetylation to NAPA is 0.40 (Lima 1979 — a formation-CLEARANCE fraction, the correct fm; in slow acetylators it is 0.20, roughly half — the pharmacogenetic teaching point). This is a MOLAR fraction, MW-adjusted to the engine's mass basis: NAPA (MW 277.37) is heavier than procainamide (235.33) — acetylation adds an acetyl group — so mass-fm = 0.40 × 277.37/235.33 = 0.40 × 1.179 = 0.472 = 47.2%. derived: true (molar figure MW-adjusted), the morphine/caffeine convention. NOTE the reported URINARY RECOVERY of NAPA (FDA label 24–33% of dose for fast acetylators; Wierzchowiecki 22.5%) is LOWER — it is a lower bound on the fraction formed, because NAPA is further eliminated rather than fully recovered (the cefotaxime desacetyl-recovery distinction); the range low end (33% mass ≈ molar 0.28) reflects that recovery floor, the point value the formation-clearance fraction. Modelled for a fast acetylator; the slow-acetylator value (~half) is the documented variability, not swept by the half-life slider — see notes."
+      },
+      "vd": {
+        "value": 1.4,
+        "range": [1.3, 1.5],
+        "unit": "L/kg",
+        "derived": false,
+        "sourceRef": "bauer_clinpk",
+        "conditions": "NAPA's OWN steady-state volume of distribution ~1.4 L/kg (Bauer, Applied Clinical Pharmacokinetics; ~1.46 L/kg by a three-compartment fit) — a true metabolite volume, directly measured because NAPA was itself marketed as the antiarrhythmic acecainide and given directly to humans. Smaller than procainamide's ~2 L/kg. Its own one-compartment disposition, not the parent's. Scaled to absolute litres against the 70 kg reference subject (≈98 L)."
+      },
+      "halfLife": {
+        "value": 7.0,
+        "range": [6.0, 8.0],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "wierzchowiecki_1980",
+        "conditions": "NAPA elimination half-life 7.0 ± 1.0 h, directly measured after an oral NAPA (acecainide) dose in healthy subjects (Wierzchowiecki 1980; Bauer quotes ~6 h). This is LONGER than procainamide's ~2.4 h, so NAPA is ELIMINATION-rate-limited (its own elimination k_m is slower than the parent formation rate): the metabolite line tracks NAPA's own slower disposition, and the engine's terminal slope = min(k_parent, k_metabolite) = k_metabolite reproduces this (the cefotaxime/desacetyl pattern, opposite to acetaminophen's formation-rate-limited conjugates). NAPA is cleared almost entirely by the kidneys (≈85% excreted unchanged, glomerular filtration + tubular secretion), so its half-life lengthens dramatically in renal impairment (~41 h) — the reason NAPA ACCUMULATES and carries torsades-de-pointes risk in renal failure. The stored value is the normal-renal-function half-life."
+      },
+      "notes": "N-acetylprocainamide (NAPA, acecainide) is procainamide's ACTIVE metabolite and pharmacologically DISTINCT from it: procainamide is a class Ia sodium-channel blocker, but NAPA is a pure class III agent (it prolongs the action-potential duration / QT without the sodium-channel block). It was itself developed and marketed as the antiarrhythmic acecainide, so its disposition (Vd ~1.4 L/kg, t½ ~7 h, ~85% renal-unchanged) is DIRECTLY MEASURED, not inferred from parent dosing — there is no metabolite-volume identifiability problem here (contrast acetaminophen's conjugates). Drawn as a dashed 'active metabolite' line.\n\nELIMINATION-RATE-LIMITED. NAPA's half-life (~7 h) exceeds procainamide's (~2.4 h), so — like desacetylcefotaxime and unlike the acetaminophen conjugates — its plasma decline reflects its OWN slower elimination, and it ACCUMULATES relative to the parent. In a fast acetylator NAPA plasma levels come to exceed procainamide's (modelled molar AUC ratio ~1.8×), the classic clinical observation. Because NAPA is renally cleared, in renal impairment its half-life balloons to ~41 h and it accumulates to high, long-lasting, potentially pro-arrhythmic (torsades) concentrations — the honest reason the intrinsic normal-renal half-life is stored (the renal-failure value is a separate condition, not NAPA's baseline disposition).\n\nfm — MASS CONVERSION + PHENOTYPE. The formation fraction is the acetylation clearance fraction (fast 0.40, Lima 1979), MW-adjusted ×1.179 (NAPA heavier) → 47.2% mass. It is acetylator-PHENOTYPE-dependent (slow ~0.20, ~half), which is exactly this compound's teaching value — but the engine takes one fm, so a single illustrative FAST-acetylator phenotype is modelled (see compound notes for the bright-line framing)."
+    }
+  ],
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": true },
+  "sources": {
+    "fda_label": {
+      "type": "FDA label",
+      "title": "Procainamide Hydrochloride Injection — DailyMed Structured Product Label, clinical pharmacology: apparent volume of distribution approximately 2 L/kg (reached with a ~5 min distribution half-time); oral peak plasma at 90–120 minutes; elimination half-life 3–4 h with normal renal function; 30–60% excreted unchanged as procainamide; percent metabolised to NAPA 24–33% (fast acetylators) and 16–21% (slow acetylators) — urinary recovery.",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=d58751df-cd8b-45a6-8a32-af19e747e23a",
+      "accessed": "2026-07-11"
+    },
+    "lima_1979": {
+      "type": "Journal article",
+      "title": "Lima JJ, Conti DR, Goldfarb AL, Tilstone WJ, Golden LH, Jusko WJ. Clinical pharmacokinetics of procainamide infusions in relation to acetylator phenotype. J Pharmacokinet Biopharm. 1979;7(1):69–85 (PMID 458558). Total procainamide clearance 34.8 L/h (fast acetylators) vs 22.6 L/h (slow); fraction of procainamide clearance proceeding by acetylation to NAPA 0.4 (fast) vs 0.2 (slow); volume of distribution not affected by acetylator phenotype.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/458558/",
+      "accessed": "2026-07-11"
+    },
+    "wierzchowiecki_1980": {
+      "type": "Journal article",
+      "title": "Wierzchowiecki M, Michałowska D, Łowicki Z, Ochotny R, Grześkowiak A, Tomaszkiewicz T. Pharmacokinetic studies of procainamide (PA) and N-acetylprocainamide (NAPA) in healthy subjects. Int J Clin Pharmacol Ther Toxicol. 1980;18(6):272–276 (PMID 6161089). Single oral doses (PA 750 mg, n=10; NAPA 900 mg, n=6): procainamide half-life 2.4 ± 0.7 h (fast acetylators) vs 3.6 ± 1.0 h (slow); 24 h urinary NAPA 22.5 ± 5.8% (fast) vs 8.8 ± 5.4% (slow); NAPA half-life 7.0 ± 1.0 h.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/6161089/",
+      "accessed": "2026-07-11"
+    },
+    "acecainide_review_1990": {
+      "type": "Journal article",
+      "title": "Harron DW, Brogden RN. Acecainide (N-acetylprocainamide). A review of its pharmacodynamic and pharmacokinetic properties, and therapeutic potential in cardiac arrhythmias. Drugs. 1990;39(5):720–740 (PMID 1693889). N-acetylprocainamide is a Class III antiarrhythmic (active), eliminated primarily by renal excretion.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/1693889/",
+      "accessed": "2026-07-11"
+    },
+    "bauer_clinpk": {
+      "type": "Textbook",
+      "title": "Bauer LA. Applied Clinical Pharmacokinetics — Procainamide / N-acetyl Procainamide chapter (hosted at basicmedicalkey): oral bioavailability ~83% (immediate- and sustained-release); procainamide volume of distribution ~2.7 L/kg (whole body), fast-acetylator half-life ~2.7 h, slow ~5.2 h, linear pharmacokinetics at therapeutic doses; NAPA volume of distribution ~1.4 L/kg, half-life ~6 h (normal renal function), ~41 h in renal failure, eliminated renally.",
+      "url": "https://basicmedicalkey.com/procainamiden-acetyl-procainamide/",
+      "accessed": "2026-07-11"
+    }
+  },
+  "metabolism": "Procainamide is cleared two ways: about half is excreted unchanged by the kidneys, and much of the rest is acetylated in the liver to N-acetylprocainamide (NAPA), an active metabolite drawn here as a dashed line. NAPA is not just a breakdown product — it is a Class III antiarrhythmic in its own right (it prolongs repolarisation, a different mechanism from procainamide's sodium-channel block), and it was even marketed separately as acecainide, which is why its own kinetics are directly known. NAPA outlives procainamide (half-life ~7 h vs ~2.4 h), so it accumulates and, in a fast acetylator, its plasma level comes to exceed the parent's — the model shows the NAPA line rising above procainamide over time. The acetylation rate is set by an inherited enzyme (NAT2): 'fast acetylators' convert roughly twice as much procainamide to NAPA as 'slow acetylators', a classic pharmacogenetic difference. This curve is drawn for an illustrative FAST acetylator; a slow acetylator would form about half as much NAPA (and clear procainamide more slowly). Because NAPA is cleared by the kidneys, it accumulates dramatically in kidney failure (half-life ~41 h) — the main reason procainamide/NAPA can cause the dangerous arrhythmia torsades de pointes in that setting. This is an educational illustration of inherited metabolic variability, not a patient-specific prediction.",
+  "notes": "The 40th compound and the classic PHARMACOGENETICS teaching pair: one parent forming one ACTIVE metabolite (NAPA) at a genetically-polymorphic rate. A NEW compound (user-authorised expansion beyond the 'metabolites for existing compounds' task — it was the best pair in the acetylator/CYP2D6 category the user picked, and NAPA's directly-measured disposition makes it the cleanest).\n\nWHY THIS IS NOT THE ACETAMINOPHEN RECIPE (advisor-flagged — don't blur the two). NAPA is the CEFOTAXIME pattern, not the formation-rate-limited APAP pattern: NAPA's half-life (~7 h) is LONGER than procainamide's (~2.4 h), so it is ELIMINATION-rate-limited and its own disposition governs its decline — and because NAPA was marketed as acecainide, that disposition (Vd ~1.4 L/kg, t½ ~7 h) is DIRECTLY MEASURED, so there is NO assumed-volume / identifiability problem (contrast the acetaminophen conjugates, whose Vd had to be assumed). The APAP formation-limited gate (metabolite t½ below parent) does NOT apply here; the only special gate is the polymorphic fm.\n\nMODEL — ONE-COMPARTMENT ORAL (a documented collapse). Procainamide given intravenously is genuinely two-compartment (a rapid ~5 min distribution phase; the reason the old rejection log flagged the pair as '2-compartment'). But given ORALLY the absorption is slower than that distribution phase, which masks it, so the oral profile reads as one-compartment — the same monophasic-collapse posture as cefotaxime/ibuprofen. So the compound is shipped ORAL-ONLY at one-compartment (F 83%, Tmax 1.5 h → ka); the genuinely-biphasic IV route is omitted rather than misrepresented by a one-compartment fit. Vd ~2 L/kg (FDA label) reproduces the oral concentrations.\n\nFAST-ACETYLATOR ILLUSTRATIVE PHENOTYPE (the bright-line framing). The engine takes a single fm, but acetylation is bimodal (NAT2 genotype), so ONE illustrative phenotype must be chosen. The FAST acetylator is modelled — it gives the striking, clinically-important picture (more NAPA formed, NAPA exceeding the parent, the accumulation story). All fast-acetylator inputs are kept mutually consistent (fm 0.40 AND parent t½ 2.4 h AND CL 34.8 L/h are all fast-acetylator values); NAPA's own disposition is phenotype-independent. The slow-acetylator case (fm ~0.20, parent t½ ~3.6–5.2 h) is documented in the prose as the pharmacogenetic contrast. This is an educational population choice — like the 70 kg reference subject — NOT patient genotyping; the variability slider varies only the parent half-life, it does NOT sweep acetylator status, so the phenotype framing stays illustrative and the bright line holds (no 'your genotype → your dose').\n\nfm — MASS CONVERSION + THE LOWER-BOUND DISTINCTION. The stored fm is the acetylation CLEARANCE fraction (fast 0.40, Lima 1979), MW-adjusted ×277.37/235.33 = ×1.179 (NAPA heavier than procainamide) → 47.2% mass. The FDA label's '24–33% metabolised to NAPA' and Wierzchowiecki's 22.5% urinary NAPA are LOWER bounds (urinary recovery < fraction formed, because NAPA is further eliminated) — the same recovery-vs-formation distinction as cefotaxime's desacetyl; the fm range low end reflects that floor.\n\nLINEARITY. Procainamide PK is dose-proportional at therapeutic doses (Bauer; FDA), so linear superposition is valid; concentration-dependent plasma-protein binding is minor. It is a narrow-therapeutic-index drug (therapeutic ~4–10 mg/L; NAPA adds its own window and toxicity), monitored clinically.\n\nSALT. Procainamide is dosed clinically as the hydrochloride (MW 271.79); this model works in mg of procainamide base (MW 235.33), as the PK parameters are reported for the base/moiety — a 750 mg procainamide-HCl dose is ≈650 mg base. Doses entered here are procainamide base.\n\nMAGNITUDE CHECK (built engine curve). 750 mg oral (fast acetylator): parent peaks ~2.9 mg/L at ~1.5 h (within the therapeutic 4–10 mg/L range once repeated dosing accumulates), then NAPA rises behind it and — being elimination-rate-limited (t½ 7 h ≫ parent 2.4 h) — peaks later (~6.5 h), lingers, and its molar AUC comes to ~1.7× the parent's (mass AUC ~1.9×): the NAPA-exceeds-procainamide picture reported in fast acetylators. Educational illustration only — not for dosing."
+}
