@@ -48,6 +48,19 @@ import type { Compound, Metabolite } from './schema.ts';
  */
 export const KE_CROSSCHECK_REL_TOL = 0.15;
 
+/**
+ * Plausibility ceiling for a metabolite's mass-basis formation (or first-pass)
+ * fraction. The engine's `fractionFormed`/`firstPassFraction` scale parent MASS
+ * cleared (dA_m/dt = fm·CL·C_p, no molar-mass term), and by this data set's
+ * convention they are MW-adjusted from the molar fraction — so for a metabolite
+ * HEAVIER than the parent they legitimately exceed 1: conjugation conserves
+ * MOLES, not mass, and a glucuronide (MW ~2.2× the parent) formed from most of a
+ * dose gives a mass-fm up to ~2.2 (e.g. acetaminophen glucuronide 119%). The
+ * ceiling therefore reflects the largest realistic single-step parent→metabolite
+ * mass gain, NOT 1; a value above it is a units/typo error, not chemistry.
+ */
+export const MAX_PLAUSIBLE_MASS_FRACTION = 3;
+
 /** One thing the derivation computed rather than read from a source. */
 export interface DerivedNote {
   /** Which resolved parameter this concerns: 'vd' | 'ke' | 'ka' | 'F'. */
@@ -743,10 +756,10 @@ export function deriveMetaboliteDisposition(
         note: `first-pass fraction ${fmt(metabolite.firstPassFraction.value)}% expressed as ${fmt(firstPassFraction)}`,
       });
     }
-    if (firstPassFraction < 0 || firstPassFraction > 1) {
+    if (firstPassFraction < 0 || firstPassFraction > MAX_PLAUSIBLE_MASS_FRACTION) {
       warnings.push({
         parameter: 'firstPassFraction',
-        message: `metabolite first-pass fraction ${fmt(firstPassFraction)} is outside [0, 1] — check the source and units`,
+        message: `metabolite first-pass fraction ${fmt(firstPassFraction)} is implausible (mass-fm may exceed 1 for a heavier-than-parent metabolite, but not by this much) — check the source and units`,
       });
     }
   }
@@ -754,10 +767,10 @@ export function deriveMetaboliteDisposition(
   // Formation must have at least one active pathway. `fractionFormed` may now be 0 —
   // a purely pre-systemic metabolite (all first-pass) is legitimate — but only when a
   // first-pass fraction carries it; the total (fm + ffp) must be positive.
-  if (fractionFormed < 0 || fractionFormed > 1) {
+  if (fractionFormed < 0 || fractionFormed > MAX_PLAUSIBLE_MASS_FRACTION) {
     warnings.push({
       parameter: 'fractionFormed',
-      message: `metabolite formation fraction ${fmt(fractionFormed)} is outside [0, 1] — check the source and units`,
+      message: `metabolite formation fraction ${fmt(fractionFormed)} is implausible (mass-fm may exceed 1 for a heavier-than-parent metabolite, but not by this much) — check the source and units`,
     });
   } else if (fractionFormed + (firstPassFraction ?? 0) <= 0) {
     warnings.push({

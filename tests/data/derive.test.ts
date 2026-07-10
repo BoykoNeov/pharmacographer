@@ -281,12 +281,24 @@ describe('deriveMetaboliteParams — metabolite disposition', () => {
     expect(deriveMetaboliteParams(m, 0.5).params.fractionFormed).toBeCloseTo(0.45, 12);
   });
 
-  it('warns when the formation fraction is outside (0, 1]', () => {
+  it('warns when the formation fraction is implausibly high (above the mass-fm ceiling)', () => {
     const m = metaboliteFrom({
-      fractionFormed: { value: 1.4, unit: 'fraction', derived: false, sourceRef: 'ref' },
+      fractionFormed: { value: 3.5, unit: 'fraction', derived: false, sourceRef: 'ref' },
     });
     const { warnings } = deriveMetaboliteParams(m, 0.5);
     expect(warnings.some((w) => w.parameter === 'fractionFormed')).toBe(true);
+  });
+
+  it('does NOT warn for a mass-fm above 1 (a metabolite heavier than the parent)', () => {
+    // The engine's fm is mass-based and MW-adjusted, so a metabolite heavier than
+    // the parent legitimately exceeds 1 — e.g. acetaminophen glucuronide at 119%
+    // (moles are conserved on conjugation, not mass). This must NOT warn.
+    const m = metaboliteFrom({
+      fractionFormed: { value: 119.1, unit: 'percent', derived: true, sourceRef: 'ref' },
+    });
+    const { params, warnings } = deriveMetaboliteParams(m, 0.5);
+    expect(params.fractionFormed).toBeCloseTo(1.191, 12);
+    expect(warnings.some((w) => w.parameter === 'fractionFormed')).toBe(false);
   });
 
   it('throws when the parent ke is not positive', () => {
@@ -327,9 +339,9 @@ describe('deriveMetaboliteParams — metabolite disposition', () => {
     );
   });
 
-  it('warns when the first-pass fraction is outside [0, 1]', () => {
+  it('warns when the first-pass fraction is implausibly high (above the mass-fm ceiling)', () => {
     const m = metaboliteFrom({
-      firstPassFraction: { value: 1.3, unit: 'fraction', derived: false, sourceRef: 'ref' },
+      firstPassFraction: { value: 3.5, unit: 'fraction', derived: false, sourceRef: 'ref' },
     });
     const { warnings } = deriveMetaboliteParams(m, 0.5);
     expect(warnings.some((w) => w.parameter === 'firstPassFraction')).toBe(true);

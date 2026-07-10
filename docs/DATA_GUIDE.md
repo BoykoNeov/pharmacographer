@@ -853,6 +853,60 @@ M3G Penson 2001 PMID 11745739). Key curation calls:
   glucuronides tower over it (M3G ~22×, M6G ~3.3× the parent) peaking ~0.9–1.1 h — the visible
   first-pass teaching contrast. Oral glucuronide AUC = IV glucuronide AUC (2.159 vs 2.158 built).
 
+**Acetaminophen → glucuronide + sulfate — the FORMATION-rate-limited metabolite recipe (added
+2026-07-10, advisor-reviewed; `compounds/acetaminophen.json`).** The two major conjugates were added
+to the already-shipped IV-only acetaminophen (glucuronide 55%, sulfate 30% of dose). This establishes
+the **third reusable metabolite screen**, alongside the `F·D/V` ceiling and the first-pass timing
+screen — the recipe for a metabolite the kidneys clear FASTER than the liver forms it:
+
+- **THE RECIPE (a formation-rate-limited metabolite whose Vd is unidentifiable).** When a metabolite
+  is cleared faster than it is formed, its plasma decline tracks the PARENT and its own volume is NOT
+  identifiable from parent-dosing data (population PK models FIX it, e.g. to 18% of parent central
+  volume). You still ship it honestly: **(1) cite `fm`** (urinary recovery); **(2) cite `CL_m`** — the
+  metabolite's elimination clearance; for a renally-cleared conjugate that IS its renal clearance;
+  **(3) ASSUME `Vd_m`** (extracellular-water order ~0.2 L/kg for a polar conjugate), `derived: true`
+  with conditions stating plainly it is *assumed because unidentifiable* — NOT dressed as measured (the
+  lithium lesson); **(4) DERIVE `t½_m = ln2·Vd_m/CL_m`.** Because t½ is derived to PRESERVE CL_m, the
+  Vd assumption **cancels** in `AUC_m = fm·D/CL_m` — the EXPOSURE is exact; the assumed Vd shifts only
+  the peak HEIGHT. This is the diazepam→nordiazepam posture (metabolite Vd derived, not measured),
+  applied where the volume is genuinely unidentifiable rather than merely unreported.
+- **THE GATE (run it with the ACTUAL numbers BEFORE writing).** The derived `t½_m` must come out
+  SHORTER than the parent's t½ — the formation-rate-limited regime, where the whole curve is pinned by
+  the two citable clearances and the metabolite correctly tracks the parent tail. If `t½_m` comes out
+  LONGER than the parent's, STOP: the metabolite is elimination-rate-limited, the Vd assumption
+  dominates the tail, and it is NOT shippable without a directly-measured metabolite disposition (the
+  morphine-needs-direct-IV situation). Acetaminophen passes: glucuronide 1.51 h, sulfate 0.94 h, both
+  ≪ parent 2.4 h.
+- **Store INTRINSIC, not apparent (the morphine rule, inverted).** The long apparent conjugate
+  half-lives (~15–26 h) come from RENAL-FAILURE patients where the renally-cleared conjugates
+  accumulate — do not store them. Store the intrinsic (short) value; formation-rate-limitation then
+  emerges naturally (terminal slope = min(k_parent, k_m) = k_parent). Contrast cefotaxime/desacetyl
+  (elimination-rate-limited: apparent t½ LONGER than parent, so apparent IS honest) — acetaminophen's
+  conjugates are the opposite regime, and morphine's glucuronides a third case (apparent long but an
+  enterohepatic artefact, intrinsic stored from direct-IV data).
+- **Parameters.** fm molar 55%/30% (NBK526213 monograph) MW-adjusted ×2.165/×1.530 → **119.1% /
+  45.9%** (mass; sum >100% expected for heavier conjugates). CL_m = Morris & Levy 1984 renal-clearance-
+  to-creatinine ratios (glucuronide 0.890, sulfate 1.43; 8 healthy adults) × standard CrCl ~120 mL/min
+  = **6.4 / 10.3 L/h** (sulfate faster — active tubular secretion, ratio >1). Vd_m assumed **0.2
+  L/kg**. Linearity + route-independence cross-checked against Clements/Prescott 1984. Magnitude
+  (built, 1000 mg IV): glucuronide mass AUC ~3.0× parent (molar ~1.4×, conservative low end of the
+  reported ~1.5–3), sulfate ~0.7× parent — glucuronide the dominant line, both peaking ~2–2.7 h then
+  tracking the parent tail.
+- **NAPQI stays in PROSE, never a line (refuse-don't-mislead).** The ~8–10% oxidative pathway forms
+  NAPQI, a reactive intermediate consumed at its site of formation (hepatic glutathione) — it does not
+  circulate, so it has NO citable plasma Vd/t½. Drawing it would require FABRICATED disposition. It is
+  named in the metabolism prose instead — itself a teaching point (the most toxicologically important
+  metabolite is invisible in plasma). General rule: a reactive/tissue-consumed intermediate with no
+  plasma disposition is a prose subject, never a Bateman line.
+- **Engine catch — the `fm > 1` guard was widened.** Acetaminophen glucuronide (mass-fm 119%) was the
+  first SINGLE metabolite exceeding 100%, tripping `derive.ts`'s `fractionFormed ∈ [0,1]` plausibility
+  WARNING (a warning, not a throw — it would have surfaced confusingly on the chart via `WarningsStrip`,
+  not failed a test — which is exactly why it needed a built-curve `warnings`-array check, not just a
+  passing loader test). The guard now uses a mass-basis ceiling (`MAX_PLAUSIBLE_MASS_FRACTION = 3`):
+  mass-fm legitimately exceeds 1 for a metabolite heavier than the parent (moles conserved on
+  conjugation, not mass), so `[0,1]` was simply the wrong bound for this engine's mass-based `fm`. The
+  same widening was applied to `ffp`.
+
 **Digitoxin — the long-t½ / small-Vd / high-protein-binding counterpoint to digoxin
 (`compounds/digitoxin.json`).** Two cardiac glycosides at opposite ends of two axes at once: t½
 ~6.5 days vs ~1.5 days; Vd ~0.5 L/kg vs ~5–7 L/kg. Digitoxin is far more lipophilic and ~97%
