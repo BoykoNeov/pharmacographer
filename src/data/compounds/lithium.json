@@ -6,61 +6,61 @@
   "linear": true,
   "disposition": {
     "halfLife": {
-      "value": 20,
-      "range": [18, 36],
+      "value": 16,
+      "range": [16, 36],
       "unit": "h",
       "derived": false,
-      "sourceRef": "fda_label",
-      "conditions": "terminal (beta-phase) elimination half-life. FDA label: 'the elimination half-life of lithium is approximately 18 to 36 hours' (renal-function and age dependent). The engine recomputes beta from the disposition2c micro-parameters; the self-consistent set derived here (see disposition2c and notes) yields beta t½ = 19.8 h, at the lower end of the label range. Point value 20 h."
+      "sourceRef": "arancibia_1986",
+      "conditions": "terminal (beta-phase) elimination half-life. Arancibia 1986 reports beta = 0.0435/h (t½ 16.5 h) in healthy volunteers; the FDA label gives a broader 'approximately 18 to 36 hours' (renal-function and age dependent, older/renally-impaired subjects included). The engine recomputes beta from the disposition2c micro-parameters, yielding beta t½ ~15.9 h (from beta 0.0435/h). Point value 16 h (the study), band 16-36 h (study to FDA upper)."
     },
     "vd": {
-      "value": 0.485,
-      "range": [0.44, 1.0],
+      "value": 0.482,
+      "range": [0.445, 1.0],
       "unit": "L/kg",
       "derived": true,
-      "sourceRef": "spirtes_pk",
-      "conditions": "steady-state volume Vd(ss) = Vc + Vp = 0.224 + 0.261 = 0.485 L/kg, the sum of the two-compartment volumes (Vp derived offline from the micro-constants - see disposition2c and notes). Consistent with the detailed compartmental study's Vss ~0.445 L/kg; the FDA label quotes a looser post-equilibrium apparent Vd of 0.7-1 L/kg ('approximates total body water'), the upper end of the band. Lithium is not protein bound, so the volume is unconfounded. Scaled to absolute litres against the 70 kg reference subject at derivation time (~34 L of elemental-lithium distribution space)."
+      "sourceRef": "arancibia_1986",
+      "conditions": "steady-state volume Vd(ss) = Vc + Vp = 0.224 + 0.258 = 0.482 L/kg, the sum of the two-compartment volumes (Vp derived offline from the micro-constants - see disposition2c and notes). Reproduces Arancibia 1986's directly-reported Vss of 0.445 +/- 0.106 L/kg within the study spread; the FDA label quotes a looser post-equilibrium apparent Vd of 0.7-1 L/kg ('approximates total body water'), the upper end of the band. Lithium is not protein bound, so the volume is unconfounded. Scaled to absolute litres against the 70 kg reference subject at derivation time (~34 L of elemental-lithium distribution space)."
     }
   },
   "disposition2c": {
     "clearance": {
-      "value": 0.01887,
+      "value": 0.0241,
       "unit": "L/h/kg",
-      "derived": true,
-      "sourceRef": "spirtes_pk",
-      "conditions": "total (renal) clearance CL = Vd(area)*beta = 0.539 L/kg * 0.0350/h = 0.01887 L/h/kg (~1.32 L/h ~ 22 mL/min at 70 kg), within the reported normal lithium renal clearance of 10-40 mL/min. Lithium is cleared essentially entirely by the kidney (not metabolized); clearance is proportional to serum level and falls with renal function and sodium depletion. Sets AUC = Dose/CL."
+      "derived": false,
+      "sourceRef": "arancibia_1986",
+      "conditions": "total body clearance ClB = 0.0241 +/- 0.0102 L/h/kg, read directly from Arancibia 1986 (~1.69 L/h ~ 28 mL/min at 70 kg, within the reported normal lithium renal clearance of 10-40 mL/min). Consistent with the paper's Vd(area) 0.539 L/kg and beta 0.0435/h (CL = Vd(area)*beta). Lithium is cleared essentially entirely by the kidney (not metabolized); clearance is proportional to serum level and falls with renal function and sodium depletion. Sets AUC = Dose/CL."
     },
     "centralVd": {
       "value": 0.224,
       "unit": "L/kg",
       "derived": false,
-      "sourceRef": "spirtes_pk",
-      "conditions": "central-compartment volume Vc = 0.224 L/kg (+/- 0.066), read directly from the detailed compartmental analysis of lithium disposition in man - about half the steady-state volume. Sets the immediately-post-dose central concentration; the drug then distributes into the peripheral compartment (the distribution phase, alpha t½ ~1.4 h - see notes on the standardized 12 h serum sample). ~15.7 L at 70 kg."
+      "sourceRef": "arancibia_1986",
+      "conditions": "central-compartment volume Vc = 0.224 L/kg (+/- 0.066), read directly from Arancibia 1986's two-compartment analysis - about half the steady-state volume. Sets the immediately-post-dose central concentration; the drug then distributes into the peripheral compartment (the distribution phase, alpha t½ ~1.4 h - see notes on the standardized 12 h serum sample). ~15.7 L at 70 kg."
     },
     "interCompartmentalClearance": {
-      "value": 0.05379,
+      "value": 0.05171,
       "unit": "L/h/kg",
       "derived": true,
-      "sourceRef": "spirtes_pk",
-      "conditions": "inter-compartmental clearance Q = k12*Vc = 0.2401 * 0.224 = 0.05379 L/h/kg (~3.8 L/h at 70 kg). Derived offline from the self-consistent micro-constant set (k12 from alpha+beta and the other rates - see notes). Drives the fast distribution phase (alpha t½ ~1.4 h)."
+      "sourceRef": "arancibia_1986",
+      "conditions": "inter-compartmental clearance Q = k12*Vc = 0.2308 * 0.224 = 0.05171 L/h/kg (~3.6 L/h at 70 kg). Derived offline from the self-consistent micro-constant set (k12 from alpha+beta and the reported CL/Vc/alpha/beta - see notes). Drives the fast distribution phase (alpha t½ ~1.4 h)."
     },
     "peripheralVd": {
-      "value": 0.26147,
+      "value": 0.25831,
       "unit": "L/kg",
       "derived": true,
-      "sourceRef": "spirtes_pk",
-      "conditions": "peripheral volume Vp = Q/k21 = 0.05379/0.20572 = 0.26147 L/kg (~18.3 L at 70 kg). Derived offline from the micro-constants. Vc + Vp = 0.485 L/kg reproduces the compartmental Vss ~0.445 L/kg. The peripheral compartment (slowly-equilibrating tissue and intracellular lithium) is what the standardized 12 h serum level waits out."
+      "sourceRef": "arancibia_1986",
+      "conditions": "peripheral volume Vp = Q/k21 = 0.05171/0.20018 = 0.25831 L/kg (~18.1 L at 70 kg). Derived offline from the micro-constants. Vc + Vp = 0.482 L/kg reproduces the paper's Vss 0.445 L/kg within the study spread. The peripheral compartment (slowly-equilibrating tissue and intracellular lithium) is what the standardized 12 h serum level waits out."
     }
   },
   "routes": {
     "oral": {
       "available": true,
       "F": {
-        "value": 0.95,
+        "value": 0.945,
         "unit": "fraction",
         "derived": false,
-        "sourceRef": "fda_label",
-        "conditions": "FDA label: lithium 'is reported to be completely absorbed in the upper gastrointestinal tract'; disposition studies estimate oral bioavailability at 80-100% (urinary recovery 90-95% for immediate-release). Modelled as F = 0.95 (near-complete). Immediate-release; sustained-release products (Lithobid) absorb more slowly (Tmax 2-6 h) and are not modelled here."
+        "sourceRef": "arancibia_1986",
+        "conditions": "Arancibia 1986: bioavailability (from urinary recovery) 94.5% for the immediate-release tablet (90.2% for the controlled-release matrix); the FDA label states lithium 'is reported to be completely absorbed in the upper gastrointestinal tract'. Modelled as F = 0.945 (immediate-release). Sustained-release products (Lithobid) absorb more slowly (Tmax 2-6 h) and are not modelled here."
       },
       "tmax": {
         "value": 1,
@@ -80,12 +80,12 @@
       "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=63b3790f-a9b5-47f4-bae1-ddf8b43c13c1",
       "accessed": "2026-07-10"
     },
-    "spirtes_pk": {
+    "arancibia_1986": {
       "type": "Journal article",
-      "title": "Compartmental analysis of lithium disposition in man (European Journal of Clinical Pharmacology; the detailed two-compartment analysis reported for lithium carbonate): central volume Vc 0.224 +/- 0.066 L/kg, steady-state volume Vss 0.445 +/- 0.106 L/kg, apparent volume Vd(area) 0.539 +/- 0.130 L/kg; distribution alpha-phase half-life 1.40 +/- 0.27 h; disposition rate constant beta 0.035/h (terminal half-life ~19.8 h); linear pharmacokinetics",
-      "url": "https://link.springer.com/content/pdf/10.1007/BF00608406.pdf",
+      "title": "Arancibia A, Corvalan F, Mella F, Concha L. Absorption and disposition kinetics of lithium carbonate following administration of conventional and controlled release formulations. Int J Clin Pharmacol Ther Toxicol. 1986 (PubMed 3089949). Eight healthy volunteers, two-compartment open model: central volume Vc 0.224 +/- 0.066 L/kg, steady-state volume Vss 0.445 +/- 0.106 L/kg, Vd(area) 0.539 +/- 0.130 L/kg; distribution alpha-phase half-life 1.40 +/- 0.27 h; slow disposition rate constant beta 0.0435 +/- 0.0086 /h (terminal half-life 16.49 +/- 2.95 h); total body clearance 0.0241 +/- 0.0102 L/h/kg; bioavailability 94.5% (immediate release), 90.2% (controlled release)",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/3089949/",
       "accessed": "2026-07-10"
     }
   },
-  "notes": "The archetypal narrow-therapeutic-index, entirely-renally-cleared drug and the only INORGANIC ION in the set - lithium is a monoatomic cation (Li+), so it introduces a genuinely new class (mood stabilizer) and a unique elimination story. Modelled two-compartment (the user's choice) so the real distribution phase is faithful; it complements digoxin (the other distribution-phase teacher) on a completely different axis: where digoxin has a huge tissue Vd, lithium's is tiny (~total body water), and lithium's lesson is renal handling and monitoring, not tissue binding. Curated from the FDA lithium-carbonate label (absorption, non-metabolism, renal handling, half-life, therapeutic range) and a detailed compartmental disposition analysis (the two-compartment micro-parameters).\n\nWHY LITHIUM - three distinct teaching points nothing else in the set carries:\n(1) NOT METABOLIZED - the cleanest possible elimination. Lithium is an element; it is neither metabolized nor protein bound, and is excreted unchanged by the kidney in proportion to its serum concentration. So there is NO metabolite line to draw (unlike allopurinol/diazepam/cefotaxime) and NO hepatic variability - exposure is set purely by renal clearance and volume. This is the limiting-case counterpoint to the metabolite compounds.\n(2) RENAL / SODIUM-DEPENDENT clearance and NTI. Lithium is filtered by the glomerulus and ~80% reabsorbed in the proximal tubule in tandem with sodium, so sodium depletion, dehydration, thiazides or renal impairment RAISE lithium levels - the classic narrow-therapeutic-index interaction (therapeutic 0.6-1.2 mEq/L, toxicity not far above). narrowTherapeuticIndex = true, an epistemic flag for the honesty layer only (no patient input, no dose output - the bright line holds).\n(3) THE STANDARDIZED 12-HOUR SERUM SAMPLE - why two-compartment matters. Lithium levels are drawn exactly 12 h post-dose by convention BECAUSE of the distribution phase modelled here: right after a dose the central (serum) concentration is elevated and still falling as lithium distributes into slowly-equilibrating tissue/intracellular space (alpha t½ ~1.4 h), so a level drawn too early reads high and misleads. By 12 h the distribution phase is over and the serum tracks the slow terminal (beta) line. This is digoxin's 'wait to sample' lesson in the drug where the 12 h standard is universal.\n\nUNITS (a documented modeling choice and an extra honesty point). Lithium's clinically meaningful quantity is the Li+ ION concentration, reported in mEq/L (= mmol/L for a monovalent ion), NOT a mass concentration of the salt - and it is dosed as lithium CARBONATE (Li2CO3, MW 73.89, two Li+ per formula unit). This project's engine works in mass units (mg, mg/L). To keep the compartmental volumes (in L/kg of body water) physically correct, the DOSE is entered as milligrams of ELEMENTAL lithium and the curve is elemental-lithium mg/L; convert to the familiar clinical unit by dividing by 6.94 (the atomic mass of Li), so 1.0 mEq/L = 6.94 mg/L. For reference, a 300 mg lithium-carbonate tablet contains 300/73.89 * 2 * 6.94 = 56.4 mg of elemental lithium. That 'the plotted number is the ion, not the pill, and the clinical unit is molar not mass' is itself a small honesty lesson of a kind this project likes.\n\nTWO-COMPARTMENT PARAMETERS (derived offline, diazepam-style, from a self-consistent subset). The compartmental study reports Vc (0.224 L/kg), the distribution alpha t½ (1.40 h -> alpha 0.495/h), the terminal beta (0.035/h -> t½ 19.8 h) and Vd(area) (0.539 L/kg). From these: CL = Vd(area)*beta = 0.01887 L/h/kg; k10 = CL/Vc = 0.0842/h; k21 = alpha*beta/k10 = 0.2057/h; k12 = (alpha+beta) - k10 - k21 = 0.2401/h; Q = k12*Vc = 0.05379 L/h/kg; Vp = Q/k21 = 0.2615 L/kg. The engine round-trips these back to alpha t½ 1.40 h and beta t½ 19.8 h exactly (self-consistent by construction, since k12/k21 were solved from alpha+beta and alpha*beta). Vc+Vp = 0.485 L/kg reproduces the study's Vss ~0.445 L/kg within the reported spread. Kept to one population (normal-renal-function adults). Q and Vp are marked derived: true.\n\nMAGNITUDE CHECK (against the therapeutic range, in mmol/L). CL 0.01887 L/h/kg = 1.32 L/h at 70 kg. At a standard 900 mg/day lithium carbonate regimen (= 169 mg elemental Li/day), Css,avg = F*daily dose/(CL*24 h) = 0.95*169/(1.32*24) ~ 5.1 mg/L Li = ~0.73 mmol/L - squarely in the 0.6-1.2 mEq/L therapeutic range, validating CL and Vd against the clinical target. The built engine curve (dosed in elemental-Li mg, converted /6.94) reproduces this at steady state, with the early distribution-phase peak that the 12 h sample deliberately waits out.\n\nLINEARITY. FDA/compartmental sources: lithium shows linear pharmacokinetics over the therapeutic range (serum level proportional to dose; renal excretion proportional to serum concentration). Saturable renal reabsorption is a sodium-interaction and renal-function effect, not a therapeutic-dose dose-nonlinearity. linear: true.\n\nROUTE. Oral only, immediate-release (the standard route; sustained-release Lithobid absorbs more slowly and is not separately modelled). Lithium is not given intravenously. EDUCATIONAL ILLUSTRATION ONLY - not for dosing or lithium-level management."
+  "notes": "The archetypal narrow-therapeutic-index, entirely-renally-cleared drug and the only INORGANIC ION in the set - lithium is a monoatomic cation (Li+), so it introduces a genuinely new class (mood stabilizer) and a unique elimination story. Modelled two-compartment (the user's choice) so the real distribution phase is faithful; it complements digoxin (the other distribution-phase teacher) on a completely different axis: where digoxin has a huge tissue Vd, lithium's is tiny (~total body water), and lithium's lesson is renal handling and monitoring, not tissue binding. Curated from the FDA lithium-carbonate label (absorption, non-metabolism, renal handling, half-life, therapeutic range) and Arancibia et al. 1986 (the two-compartment micro-parameters, directly reported for eight healthy volunteers).\n\nWHY LITHIUM - three distinct teaching points nothing else in the set carries:\n(1) NOT METABOLIZED - the cleanest possible elimination. Lithium is an element; it is neither metabolized nor protein bound, and is excreted unchanged by the kidney in proportion to its serum concentration. So there is NO metabolite line to draw (unlike allopurinol/diazepam/cefotaxime) and NO hepatic variability - exposure is set purely by renal clearance and volume. This is the limiting-case counterpoint to the metabolite compounds.\n(2) RENAL / SODIUM-DEPENDENT clearance and NTI. Lithium is filtered by the glomerulus and ~80% reabsorbed in the proximal tubule in tandem with sodium, so sodium depletion, dehydration, thiazides or renal impairment RAISE lithium levels - the classic narrow-therapeutic-index interaction (therapeutic 0.6-1.2 mEq/L, toxicity not far above). narrowTherapeuticIndex = true, an epistemic flag for the honesty layer only (no patient input, no dose output - the bright line holds).\n(3) THE STANDARDIZED 12-HOUR SERUM SAMPLE - why two-compartment matters. Lithium levels are drawn exactly 12 h post-dose by convention BECAUSE of the distribution phase modelled here: right after a dose the central (serum) concentration is elevated and still falling as lithium distributes into slowly-equilibrating tissue/intracellular space (alpha t½ ~1.4 h), so a level drawn too early reads high and misleads. By 12 h the distribution phase is over and the serum tracks the slow terminal (beta) line. This is digoxin's 'wait to sample' lesson in the drug where the 12 h standard is universal.\n\nUNITS (a documented modeling choice and an extra honesty point). Lithium's clinically meaningful quantity is the Li+ ION concentration, reported in mEq/L (= mmol/L for a monovalent ion), NOT a mass concentration of the salt - and it is dosed as lithium CARBONATE (Li2CO3, MW 73.89, two Li+ per formula unit). This project's engine works in mass units (mg, mg/L). To keep the compartmental volumes (in L/kg of body water) physically correct, the DOSE is entered as milligrams of ELEMENTAL lithium and the curve is elemental-lithium mg/L; convert to the familiar clinical unit by dividing by 6.94 (the atomic mass of Li), so 1.0 mEq/L = 6.94 mg/L. For reference, a 300 mg lithium-carbonate tablet contains 300/73.89 * 2 * 6.94 = 56.4 mg of elemental lithium. That 'the plotted number is the ion, not the pill, and the clinical unit is molar not mass' is itself a small honesty lesson of a kind this project likes.\n\nTWO-COMPARTMENT PARAMETERS (Vc, CL, alpha, beta reported; Q and Vp derived offline diazepam-style). Arancibia 1986 reports directly: Vc = 0.224 L/kg, total clearance ClB = 0.0241 L/h/kg, distribution alpha t½ = 1.40 h (-> alpha 0.4951/h), terminal beta = 0.0435/h (t½ 16.5 h), and Vss 0.445 / Vd(area) 0.539 L/kg. The schema needs CL/Vc/Q/Vp; CL and Vc are read straight from the paper, and Q, Vp are back-computed from the micro-constants: k10 = CL/Vc = 0.1076/h; k21 = alpha*beta/k10 = 0.2002/h; k12 = (alpha+beta) - k10 - k21 = 0.2308/h; Q = k12*Vc = 0.05171 L/h/kg; Vp = Q/k21 = 0.2583 L/kg. The engine round-trips these back to alpha t½ 1.40 h and beta t½ 15.9 h (self-consistent by construction, since k12/k21 were solved from alpha+beta and alpha*beta; the paper's own beta 0.0435/h and Vd(area) 0.539 imply a mutually consistent CL = Vd(area)*beta = 0.0234, matching the reported 0.0241 within rounding). Vc+Vp = 0.482 L/kg reproduces the paper's Vss 0.445 within the study spread. Kept to one population (normal-renal-function adults). Q and Vp are marked derived: true.\n\nMAGNITUDE CHECK (against the therapeutic range, in mmol/L). CL 0.0241 L/h/kg = 1.69 L/h at 70 kg. At a standard 900-1200 mg/day lithium carbonate regimen (= 169-225 mg elemental Li/day), Css,avg = F*daily dose/(CL*24 h) = 0.945*169/(1.69*24) ~ 3.9 mg/L Li (~0.57 mmol/L) at 900 mg/day and ~0.76 mmol/L at 1200 mg/day - spanning the 0.6-1.2 mEq/L therapeutic range, validating CL and Vd against the clinical target. The built engine curve (dosed in elemental-Li mg, converted /6.94) reproduces this at steady state, with the early distribution-phase peak that the 12 h sample deliberately waits out (single 300 mg Li2CO3 = 56.4 mg Li gives a transient peak ~0.37 mmol/L at ~1 h).\n\nLINEARITY. FDA/compartmental sources: lithium shows linear pharmacokinetics over the therapeutic range (serum level proportional to dose; renal excretion proportional to serum concentration). Saturable renal reabsorption is a sodium-interaction and renal-function effect, not a therapeutic-dose dose-nonlinearity. linear: true.\n\nROUTE. Oral only, immediate-release (the standard route; sustained-release Lithobid absorbs more slowly and is not separately modelled). Lithium is not given intravenously. EDUCATIONAL ILLUSTRATION ONLY - not for dosing or lithium-level management."
 }

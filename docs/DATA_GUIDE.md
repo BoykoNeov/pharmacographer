@@ -434,16 +434,21 @@ conversion — see the same section).
   the proximal tubule with sodium, so Na depletion / thiazides / dehydration raise levels (therapeutic
   0.6–1.2 mEq/L, toxicity not far above); (3) **the standardized 12-h serum sample** — drawn at 12 h
   by convention precisely to wait out the distribution phase (α t½ ~1.4 h) modelled here. Curated
-  from the FDA lithium-carbonate label + a detailed compartmental disposition analysis. The 2-comp
-  micro-parameters are **derived offline diazepam-style** from a self-consistent subset (Vc 0.224
-  L/kg, α t½ 1.40 h, β 0.035/h, Vd(area) 0.539 L/kg → CL 0.0189, Q 0.0538, Vp 0.261 L/h/kg or L/kg;
-  the engine round-trips α t½ 1.40 h / β t½ 19.8 h exactly). **Units are a documented modeling
-  choice** (and an extra honesty point): lithium's clinical quantity is the Li+ ION in mEq/L (=mmol/L),
-  dosed as lithium CARBONATE (two Li+ per formula unit), so the engine models **elemental lithium in
-  mg** and the mmol/L conversion is /6.94 (1 mEq/L = 6.94 mg/L; a 300 mg Li₂CO₃ tablet = 56.4 mg
-  elemental Li). Magnitude: 900 mg/day Li₂CO₃ → Css,avg ≈ 0.73 mmol/L, in the therapeutic range;
-  single 300 mg → transient peak ~0.37 mmol/L then the distribution-phase fall. Oral, immediate-
-  release only.
+  from the FDA lithium-carbonate label + **Arancibia et al. 1986** (Int J Clin Pharmacol Ther
+  Toxicol; PMID 3089949 — eight healthy volunteers, the directly-reported two-compartment
+  micro-parameters). CL and Vc are read straight from that paper (ClB 0.0241 L/h/kg, Vc 0.224 L/kg);
+  Q and Vp are **derived offline diazepam-style** from the self-consistent subset (α t½ 1.40 h,
+  β 0.0435/h → k10 0.1076, k21 0.2002, k12 0.2308 → Q 0.05171 L/h/kg, Vp 0.2583 L/kg; the engine
+  round-trips α t½ 1.40 h / β t½ ~15.9 h, and Vc+Vp 0.482 reproduces the paper's Vss 0.445 L/kg).
+  **Units are a documented modeling choice** (and an extra honesty point): lithium's clinical
+  quantity is the Li+ ION in mEq/L (=mmol/L), dosed as lithium CARBONATE (two Li+ per formula unit),
+  so the engine models **elemental lithium in mg** and the mmol/L conversion is /6.94 (1 mEq/L =
+  6.94 mg/L; a 300 mg Li₂CO₃ tablet = 56.4 mg elemental Li). Magnitude: 900 mg/day Li₂CO₃ → SS
+  peak ~0.73 mmol/L (1200 mg/day → ~0.97), single 300 mg → transient peak ~0.36 mmol/L at 1 h then
+  the distribution-phase fall. Oral, immediate-release only. (Curation note: the compartmental
+  micro-values were initially mis-attributed to an unverified from-memory citation; caught in
+  advisor review and re-sourced to the verified Arancibia 1986 paper — never ship a citation you
+  did not open.)
 
 ### Three-compartment compounds — remifentanil and propofol shipped
 

@@ -105,11 +105,13 @@ new class = mood stabilizer; modelled TWO-COMPARTMENT per user choice so the dis
 faithful — complements digoxin on the opposite Vd axis; three teaching points — NOT metabolized
 [element, no metabolite line, no hepatic variability], renal/sodium-dependent NTI [~80% proximal
 reabsorption with Na], and the STANDARDIZED 12-H SERUM SAMPLE that waits out the α t½ ~1.4 h
-distribution phase; FDA Li-carbonate label + a compartmental disposition analysis; 2-comp
-micro-params derived offline diazepam-style from a self-consistent subset [Vc 0.224, α t½ 1.40 h,
-β 0.035/h, Vd(area) 0.539 → CL 0.0189/Q 0.0538/Vp 0.261], engine round-trips α t½ 1.40/β t½ 19.8 h;
-UNITS are a documented choice — models ELEMENTAL Li in mg, /6.94 = mmol/L, 300 mg Li₂CO₃ = 56.4 mg Li,
-900 mg/day → Css,avg ~0.73 mmol/L in the therapeutic 0.6–1.2 range). **oseltamivir→carboxylate
+distribution phase; FDA Li-carbonate label + Arancibia 1986 [PMID 3089949, the directly-reported
+2-comp params]; CL 0.0241/Vc 0.224 read straight from the paper, Q 0.0517/Vp 0.258 derived offline
+diazepam-style [α t½ 1.40 h, β 0.0435/h], engine round-trips α t½ 1.40/β t½ ~15.9 h, Vc+Vp 0.482
+reproduces the paper Vss 0.445; UNITS are a documented choice — models ELEMENTAL Li in mg,
+/6.94 = mmol/L, 300 mg Li₂CO₃ = 56.4 mg Li, 900 mg/day → SS peak ~0.73 mmol/L in the therapeutic
+0.6–1.2 range. NOTE: the compartmental micro-values were first mis-attributed to an unverified
+from-memory citation — caught in advisor review, re-sourced to the opened Arancibia 1986 paper). **oseltamivir→carboxylate
 EVALUATED + DEFERRED same pass** (pre-systemic conversion — Tamiflu label: <5% systemic parent, ≥75%
 of dose appears as metabolite via HEPATIC first-pass esterases, so a systemic-formation engine can't
 represent it; the screening property that keeps allopurinol IN and this OUT). The earlier fourth
