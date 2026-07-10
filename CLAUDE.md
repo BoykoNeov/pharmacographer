@@ -92,8 +92,35 @@ all pass.
 
 Follow the phases in handoff §13 — engine + tests before UI. Current state:
 **Phase 7 data expansion + all three chart refinements done; static-site deploy
-is the sole remaining Phase 7 item. SEED SET now 36 compounds (was 10; the file count on disk
-is authoritative). A seventh 2026-07-10 pass (METHYLXANTHINES, 35→36, 399 tests green,
+is the sole remaining Phase 7 item. SEED SET now 37 compounds (was 10; the file count on disk
+is authoritative).**
+
+**ON-SCREEN COMPOUND PROSE (2026-07-10, 405 tests, `feat(ui)` `138f045`, pushed):** three
+user-facing text fields, distinct from the curator-only `notes` — `description` (REQUIRED,
+schema `.max(400)`: what the compound is + typical use), rendered in a **FIXED-HEIGHT "About" box
+ABOVE the chart (the fixed height is the no-jump mechanism — switching compound never moves the
+chart top)**; optional compound-level `metabolism` (uncapped) + per-metabolite `description`,
+rendered BELOW the chart (free to grow). New `CompoundInfo.tsx` (`CompoundAbout`+`CompoundMetabolism`),
+`.about`/`.metabolism` CSS, `tests/ui/compound-info.test.tsx` pins the no-jump contract. Backfilled
+`description` on all 36 prior compounds. **RULE: every compound MUST carry a `description`** (see
+Conventions + docs/DATA_GUIDE.md "User-facing prose"); for a toxin say what it IS, not a therapy.
+
+**NICOTINE → COTININE (2026-07-10, advisor-reviewed):** 37th compound — a toxin + drug + metabolite
+in one. Directly-parameterized THREE-comp (Gisleskog 2021 popPK, 930 subjects; CL 67.4 L/h, V1 117,
+V2 130, V3 53.4 L, Q2 38.6, Q3 216 L/h — nothing derived offline, remifentanil template), **IV-BOLUS
+ONLY** (oral DEFERRED on the oseltamivir criterion — ~40% oral F is pre-systemic first-pass to
+cotinine the systemic engine can't represent). **FIRST shipped 3-comp-PARENT metabolite** (cotinine,
+`metabolite3cConcentrationCurve` with real data). Teaching point INVERTS remifentanil: γ t½ ~4.5 h
+carries a REAL ~16% amplitude (α ~39% / β ~45% / γ ~16%), and the textbook "~2 h" is an APPARENT
+terminal blending β+γ from limited sampling — a single half-life UNDER-reports here (remifentanil
+over-reported). Q3 largest but V3 small ⇒ compartment 3 is the FAST one (α phase). fm MW-adjusted
+mass ≈80% = molar 70–80% × 176.21/162.23 = ×**1.086** (>1: cotinine HEAVIER than nicotine — inverse
+of caffeine's lighter metabolites). Cotinine Vd 56.5 L + t½ 12.2 h = De Schepper 1987 IV (directly
+measured); elimination-limited (12 h ≫ 4.5 h) = the biomarker teaching point. C(0)=Dose/V1: 2 mg IV
+→ 17 ng/mL, cotinine peaks ~17 ng/mL @7 h. VETTED-NEXT (docs/DATA_GUIDE.md): morphine→M6G+M3G
+(parallel glucuronides), digitoxin (long-t½ foxglove toxin).**
+
+**Earlier Phase 7 state (unchanged below):** SEED SET was 36 compounds. A seventh 2026-07-10 pass (METHYLXANTHINES, 35→36, 399 tests green,
 advisor-reviewed; later EXTENDED to draw ALL THREE caffeine metabolites — see next para) gave the
 existing `caffeine` its metabolites and shipped `theobromine`:
 caffeine→`paraxanthine`+`theobromine`+`theophylline` (CYP1A2 makes THREE parallel metabolites —

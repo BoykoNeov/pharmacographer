@@ -1,0 +1,128 @@
+{
+  "id": "nicotine",
+  "schemaVersion": 1,
+  "names": { "inn": "Nicotine", "synonyms": ["3-(1-methylpyrrolidin-2-yl)pyridine"] },
+  "description": "A stimulant alkaloid of the tobacco plant and the main addictive component of cigarettes. It is also a natural insecticide and, in replacement products (gum, patches), a stop-smoking aid — and a potent poison: tens of milligrams can be fatal.",
+  "model": "three_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 4.5,
+      "unit": "h",
+      "derived": true,
+      "sourceRef": "nicotine_poppk",
+      "conditions": "terminal (γ-phase) eigenvalue half-life = ln2/γ = 4.53 h, computed by the engine from the disposition3c micro-parameters (γ = 0.153/h). This is LONGER than the classic textbook nicotine half-life of ~2 h (Feyerabend 1985 reported a terminal 133 min from a 2-compartment fit): the rich 930-subject Gisleskog 2021 population model resolves a third, slow phase that limited-duration classic studies blended into an apparent ~2 h terminal (no range is given here because the ~2 h classic figure is a different, apparent quantity, not a statistical spread of this terminal γ). Unlike remifentanil's negligible-amplitude γ, this terminal carries a real ~16% of the initial concentration (IV-bolus amplitude split ≈ 39% α + 45% β + 16% γ — see notes), so it IS an observable phase; but a single 'half-life' still misleads, because ~84% of the curve has already decayed on the faster α (6.7 min) and β (57 min) phases before this terminal dominates."
+    },
+    "vd": {
+      "value": 300,
+      "unit": "L",
+      "derived": true,
+      "sourceRef": "nicotine_poppk",
+      "conditions": "steady-state volume of distribution Vd(ss) = V1 + V2 + V3 = 117 + 130 + 53.4 = 300.4 L (the sum of the three Gisleskog 2021 compartment volumes = Vss for a mammillary model) at the 70 kg reference, ≈ 4.3 L/kg — the widely-cited nicotine Vd. Carried for the caption/provenance rows; the plotted shape is set by the six disposition3c parameters (C(0) = Dose/V1). Already absolute litres (no per-kg scaling)."
+    }
+  },
+  "disposition3c": {
+    "clearance": {
+      "value": 67.4,
+      "unit": "L/h",
+      "derived": false,
+      "sourceRef": "nicotine_poppk",
+      "conditions": "central clearance CL for the 70 kg reference subject (Gisleskog 2021 population estimate) — 67.4 L/h ≈ 1.12 L/min, matching the classic Benowitz whole-body clearance of ~1.2 L/min. Mostly hepatic CYP2A6 metabolism (nicotine → cotinine); sets AUC = Dose/CL."
+    },
+    "centralVd": {
+      "value": 117,
+      "unit": "L",
+      "derived": false,
+      "sourceRef": "nicotine_poppk",
+      "conditions": "central volume V1 (Gisleskog 2021, 70 kg reference) — the concentration reference C(0) = Dose/V1. Read directly from the population model's typical value; no offline derivation."
+    },
+    "interCompartmentalClearance2": {
+      "value": 38.6,
+      "unit": "L/h",
+      "derived": false,
+      "sourceRef": "nicotine_poppk",
+      "conditions": "inter-compartmental clearance Q2 to the first (intermediate) peripheral compartment (Gisleskog 2021). Together with V2 it drives the β (intermediate) phase, t½ ≈ 57 min."
+    },
+    "peripheralVd2": {
+      "value": 130,
+      "unit": "L",
+      "derived": false,
+      "sourceRef": "nicotine_poppk",
+      "conditions": "first (intermediate) peripheral volume V2 (Gisleskog 2021, 70 kg reference)."
+    },
+    "interCompartmentalClearance3": {
+      "value": 216,
+      "unit": "L/h",
+      "derived": false,
+      "sourceRef": "nicotine_poppk",
+      "conditions": "inter-compartmental clearance Q3 to the second peripheral compartment (Gisleskog 2021) — the LARGEST inter-compartmental clearance (216 L/h ≈ 3.6 L/min). Because Q3 is large but its volume V3 is small, this compartment equilibrates FAST (it drives the rapid α distribution phase, t½ ≈ 6.7 min), not the terminal — a reminder that a compartment's speed is set by Q/V, not by whether it is labelled 'deep'."
+    },
+    "peripheralVd3": {
+      "value": 53.4,
+      "unit": "L",
+      "derived": false,
+      "sourceRef": "nicotine_poppk",
+      "conditions": "second peripheral volume V3 (Gisleskog 2021, 70 kg reference) — the smallest peripheral volume, rapidly equilibrated via the large Q3."
+    }
+  },
+  "routes": {
+    "iv_bolus": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "metabolites": [
+    {
+      "id": "cotinine",
+      "name": "Cotinine",
+      "active": true,
+      "description": "The main metabolite of nicotine and the standard biomarker of tobacco and nicotine exposure. It is far longer-lived than nicotine (half-life ~12–16 h vs a few hours), so it lingers and accumulates — which is why blood or saliva cotinine, not nicotine, is measured to detect smoking.",
+      "fractionFormed": {
+        "value": 80,
+        "range": [76, 87],
+        "unit": "percent",
+        "derived": true,
+        "sourceRef": "hukkanen_review",
+        "conditions": "About 70–80% of nicotine is converted to cotinine in humans (Hukkanen 2005 review, MOLAR fraction of nicotine metabolised, chiefly by CYP2A6). A molar fraction must be MASS-adjusted for the engine, whose fm multiplies parent MASS cleared (dA_m/dt = fm·CL·C_p, mg, no MW factor). Here the metabolite is HEAVIER than the parent — cotinine (MW 176.21) is nicotine (MW 162.23) with the pyrrolidine oxidised to a lactam — so mass-fm = molar × 176.21/162.23 = molar × 1.086 (a factor GREATER than 1, the opposite of caffeine's dimethylxanthine metabolites, which are lighter than caffeine). Point 80% mass ≈ 74% molar; range [76, 87]% mass spans the 70–80% molar band. derived: true (the molar figure MW-adjusted), the caffeine/allopurinol mass-fraction convention."
+      },
+      "vd": {
+        "value": 56.5,
+        "unit": "L",
+        "derived": false,
+        "sourceRef": "deschepper_1987",
+        "conditions": "cotinine's OWN volume of distribution, 56.5 L ≈ 0.81 L/kg, directly measured by De Schepper 1987 after INTRAVENOUS cotinine (5/10/20 mg in healthy non-smokers) — i.e. cotinine dosed on its own, so this is a true metabolite volume, not an apparent Vd/F (the Lelo-metabolite posture). Absolute litres."
+      },
+      "halfLife": {
+        "value": 12.2,
+        "range": [12, 16],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "deschepper_1987",
+        "conditions": "cotinine elimination half-life 12.2 h, De Schepper 1987 (dose-independent across 5/10/20 mg IV; mean residence time 15.9 h). Benowitz commonly cites ~16 h — hence the range [12, 16]. This is MUCH longer than nicotine's terminal phase (~4.5 h), so cotinine is ELIMINATION-rate-limited: it peaks well after nicotine and persists far longer, the disposition basis for its use as the exposure biomarker."
+      },
+      "notes": "Cotinine is the major nicotine metabolite (CYP2A6-mediated) and the standard biomarker of tobacco/nicotine exposure. It is COMPUTED end-to-end by the metabolite engine off the three-compartment nicotine parent (formation rate = the parent's disposition modes weighted by CL; own one-compartment elimination) and DRAWN as a dashed line — the FIRST shipped compound whose metabolite forms from a THREE-compartment parent (metabolite3cConcentrationCurve, previously engine-capability-only).\n\nWHY IV-ONLY MATTERS FOR THIS LINE. Cotinine is drawn only on the IV route because nicotine's oral bioavailability is ~40% — the ~60% first-pass loss is largely PRE-SYSTEMIC conversion to cotinine, which a systemic-formation engine cannot represent (it would draw an oral cotinine curve ~2–3× too low). That is the oseltamivir deferral criterion, so oral nicotine is not offered here at all (see compound notes). After IV nicotine there is no first pass, so essentially all cotinine forms systemically and this line is faithful.\n\nfm is MW-adjusted from the 70–80% MOLAR conversion (×176.21/162.23 = ×1.086 because cotinine is heavier than nicotine); its Vd and half-life are De Schepper's directly-measured IV cotinine values, not apparent Vd/F. AUC_m = fm·Dose/(k_m·Vd_m) is the free regression anchor and is independent of the parent's 3-compartment disposition."
+    }
+  ],
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": true },
+  "sources": {
+    "nicotine_poppk": {
+      "type": "Journal article",
+      "title": "Gisleskog PO, Perez Ruixo JJ, Westin Å, Hansson AC, Soons PA. Nicotine Population Pharmacokinetics in Healthy Smokers After Intravenous, Oral, Buccal and Transdermal Administration. Clin Pharmacokinet. 2021;60(4):541–561 (930 subjects; IV disposition a three-compartment model, typical 70 kg values CL 67.4 L/h, V1 117 L, Q2 38.6 L/h, V2 130 L, Q3 216 L/h, V3 53.4 L; oral F ~40%, ka ~1.55/h)",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/33354734/",
+      "accessed": "2026-07-10"
+    },
+    "hukkanen_review": {
+      "type": "Reference review",
+      "title": "Hukkanen J, Jacob P 3rd, Benowitz NL. Metabolism and disposition kinetics of nicotine. Pharmacol Rev. 2005;57(1):79–115 (about 70–80% of nicotine is converted to cotinine, chiefly by CYP2A6; nicotine ~90% metabolised; whole-body clearance ~1.2 L/min; classic terminal half-life ~2 h)",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/15734728/",
+      "accessed": "2026-07-10"
+    },
+    "deschepper_1987": {
+      "type": "Journal article",
+      "title": "De Schepper PJ, Van Hecken A, Daenens P, Van Rossum JM. Kinetics of cotinine after oral and intravenous administration to man. Eur J Clin Pharmacol. 1987;31(5):583–588 (IV cotinine 5/10/20 mg in healthy non-smokers: dose-independent half-life 12.2 h, mean residence time 15.9 h, total clearance 3.64 L/h, volume of distribution 56.5 L)",
+      "url": "https://link.springer.com/article/10.1007/BF00606635",
+      "accessed": "2026-07-10"
+    }
+  },
+  "notes": "A toxin, a drug, and a metabolite-pair teaching case in one file: nicotine is the addictive tobacco alkaloid, a historical insecticide, and a potent acute poison (an oral lethal dose is on the order of tens of mg in adults, less in children); it is also delivered therapeutically as nicotine-replacement therapy. Modelled here purely to illustrate disposition — EDUCATIONAL ILLUSTRATION ONLY, not a dosing or clinical tool, and expressly not any endorsement of tobacco use.\n\nMODEL. Directly-parameterised THREE-compartment disposition from Gisleskog 2021 — a 930-subject population analysis that fit IV nicotine to a three-compartment model and reported the typical 70 kg values outright (CL 67.4 L/h; V1 117 L; Q2 38.6 L/h, V2 130 L; Q3 216 L/h, V3 53.4 L). Like remifentanil (and unlike diazepam), NOTHING is derived offline — all six disposition3c values are read straight from the model, so the ill-conditioned central-volume problem of a back-computed 2-comp fit does not arise. Nicotine kinetics are LINEAR at the exposures achieved by smoking/NRT (Feyerabend 1985 showed the terminal half-life is unchanged before vs after a smoking load — no saturation); CYP2A6 can saturate only at far higher concentrations, out of scope, so linear: true.\n\nTHE TERMINAL-HALF-LIFE HONESTY POINT (the inverse of remifentanil). The engine's three eigenvalues are α t½ ≈ 6.7 min (distribution), β t½ ≈ 57 min (intermediate) and γ t½ ≈ 4.53 h (terminal). Their IV-bolus amplitudes are 38.6% α, 45.3% β, 16.1% γ. Two lessons: (1) the commonly-quoted 'nicotine half-life ~2 h' is an APPARENT terminal — with limited-duration sampling the true β (57 min) and γ (4.5 h) phases blur into a single ~2 h slope; the rich Gisleskog sampling resolves the real, slower γ. So here a single quoted half-life UNDER-reports the true terminal (remifentanil was the opposite: its quoted terminal OVER-stated a negligible-amplitude tail). (2) Which compartment is 'fast' is set by Q/V, not the label: Q3 (216 L/h) is the LARGEST inter-compartmental clearance yet, because its volume V3 (53.4 L) is small, that compartment equilibrates FASTEST and drives the α phase — the deep-sounding 'compartment 3' is actually the quick one. disposition.halfLife carries γ (4.5 h, the terminal eigenvalue) with the range low bound at the classic 2 h.\n\nMAGNITUDE. C(0) = Dose/V1: a 1 mg IV bolus gives ~8.5 ng/mL, a 2 mg bolus ~17 ng/mL (a cigarette delivers ~1–2 mg systemically), consistent with reported post-dose venous nicotine. NOTE the plotter's generic milligram dose field: realistic nicotine doses are ~0.5–2 mg, and tens of mg are lethal — the linear model will still plot a large entered dose, but the numbers are illustrative per the standing disclaimer.\n\nMETABOLITE (cotinine). fm MW-adjusted from the 70–80% molar conversion (mass-fm ≈ 80%, a factor ×1.086 because cotinine is HEAVIER than nicotine — the opposite direction from caffeine's lighter dimethylxanthine metabolites, a nice second worked example of the same rule). Cotinine's Vd (56.5 L) and half-life (12.2 h) are De Schepper 1987's directly-measured IV values. Because cotinine (12 h) outlives nicotine's terminal (~4.5 h) it is elimination-rate-limited and accumulates behind the parent — the disposition reason blood/saliva cotinine, not nicotine, is the exposure biomarker.\n\nROUTES. iv_bolus only, marked available:true — the disposition parameters ARE measured (the IV arm of the population study), so the route is data-backed, not inferred; but note there is no marketed intravenous nicotine MEDICINE — IV is the research route the kinetics were measured on, and the clean no-first-pass route where the cotinine metabolite is faithful. ORAL is deliberately NOT offered: nicotine's ~40% oral bioavailability reflects large first-pass conversion to cotinine that happens PRE-systemically, which a systemic-formation engine cannot represent (it would draw the oral cotinine line ~2–3× too low — the oseltamivir deferral criterion). nicotine's real consumer routes (inhalation, transdermal, buccal) have complex absorption not modelled here.\n\nNTI flag set: nicotine has a narrow margin between its stimulant dose and toxicity."
+}

@@ -672,6 +672,55 @@ Why it earns a slot next to remifentanil, not redundant with it:
   dose-proportionality at all concentrations (the ibuprofen-collapse / acamprosate-single-ka
   documented-approximation posture).
 
+**Nicotine (Gisleskog 2021) → cotinine — the third 3-comp compound, and the FIRST shipped
+compound whose metabolite forms from a 3-compartment parent.** A toxin + drug + metabolite-pair
+in one file (`compounds/nicotine.json`): the addictive tobacco alkaloid, a historical
+insecticide, an NRT drug, and a potent acute poison. Same directly-parameterized template as
+remifentanil/propofol — the Gisleskog 2021 *Clin Pharmacokinet* 930-subject population model fit
+IV nicotine to a three-compartment model and reports the typical 70 kg values outright (CL 67.4
+L/h; V1 117, V2 130, V3 53.4 L; Q2 38.6, Q3 216 L/h), so nothing is derived offline. Why it earns
+a slot:
+
+- **The terminal-half-life lesson, INVERTED from remifentanil.** Engine eigenvalues: α t½ ~6.7
+  min, β t½ ~57 min, γ t½ ~4.5 h, with an IV-bolus amplitude split **~39% / ~45% / ~16%**. Two
+  points: (1) the textbook "nicotine half-life ~2 h" is an *apparent* terminal — limited-duration
+  classic studies (Feyerabend 1985) blend the true β (57 min) and γ (4.5 h) into one ~2 h slope;
+  the rich Gisleskog sampling resolves the slower γ. So a single quoted half-life here *under*-reports
+  the true terminal (remifentanil was the opposite — its quoted terminal *over*-stated a
+  0.09%-amplitude tail). (2) "Fast" is set by Q/V, not the label: Q3 (216 L/h) is the *largest*
+  inter-compartmental clearance, but because V3 is small that compartment equilibrates *fastest*
+  and drives the α phase — the deep-sounding "compartment 3" is the quick one.
+- **First 3-comp-parent metabolite (cotinine).** Exercises `metabolite3cConcentrationCurve` with
+  real data (previously engine-capability-only). fm MW-adjusted from the 70–80% MOLAR conversion:
+  mass-fm ≈ 80% = molar × 176.21/162.23 = molar × **1.086** — a factor GREATER than 1 because
+  cotinine is HEAVIER than nicotine, the opposite direction from caffeine's lighter dimethylxanthine
+  metabolites (a clean second worked example of the molar→mass rule). Cotinine's Vd (56.5 L) and
+  t½ (12.2 h) are De Schepper 1987's directly-measured IV values. Because cotinine (12 h) outlives
+  nicotine's terminal (~4.5 h) it is elimination-rate-limited and lingers — the disposition reason
+  blood/saliva cotinine, not nicotine, is the exposure biomarker.
+- **IV-BOLUS ONLY — oral deferred on the oseltamivir criterion.** `iv_bolus available:true` (the
+  disposition IS the IV arm of the population study — measured, not inferred; there is simply no IV
+  nicotine *medicine*). **Oral is deliberately NOT offered:** nicotine's ~40% oral bioavailability
+  is largely first-pass conversion to cotinine that happens PRE-systemically, which a
+  systemic-formation engine cannot represent (it would draw the oral cotinine line ~2–3× too low on
+  the default view). That is exactly the oseltamivir deferral criterion — so oral is dropped rather
+  than shipped with a misleading metabolite curve, keeping the IV route where cotinine is faithful.
+
+### Metabolite/toxin candidates vetted this pass but NOT shipped (next)
+
+Two further candidates were vetted alongside nicotine and deferred to a later pass (documented so
+the reasoning survives), both clean and expected to ship:
+
+- **Morphine → morphine-6-glucuronide (M6G, active) + morphine-3-glucuronide (M3G, inactive).**
+  A strong parallel-glucuronidation pair that fits the N-metabolite engine (two metabolites off one
+  2-comp parent, not a chain). Deferred only for scope this pass. On shipping: keep to
+  normal-renal-function population (both glucuronides are renally cleared and accumulate in renal
+  failure), source a single-population morphine 2-comp fit + M6G/M3G formation fractions and
+  dispositions.
+- **Digitoxin** — the long-half-life plant cardiac glycoside (a foxglove toxin), a natural
+  long-t½ / high-protein-binding counterpoint to digoxin. Deferred pending a clean single-population
+  2-comp fit; verify linearity and that the ~6–8 day terminal is from one coherent source.
+
 ## The schema (one JSON file per compound)
 
 Each parameter is an object carrying provenance. Disposition parameters (Vd, t½,
