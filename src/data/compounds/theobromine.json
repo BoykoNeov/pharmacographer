@@ -1,0 +1,61 @@
+{
+  "id": "theobromine",
+  "schemaVersion": 1,
+  "names": { "inn": "Theobromine", "synonyms": ["3,7-dimethylxanthine", "xantheose"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 7.2,
+      "range": [6.1, 10],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "lelo_pk",
+      "conditions": "Lelo et al. 1986: theobromine plasma half-life 7.2 h (six healthy males, theobromine dosed directly). Consistent with the wider literature (Baggott 2013 psychopharmacology study and IARC review give ~6-12 h; point value 7.2 h, band 6.1-10 h). Longer than caffeine's (~4-5 h), as expected for a monodemethylated xanthine with lower clearance."
+    },
+    "vd": {
+      "value": 0.75,
+      "range": [0.62, 0.9],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "lelo_pk",
+      "conditions": "Derived from Lelo 1986's directly-measured theobromine disposition: plasma clearance 1.20 mL/min/kg and half-life 7.2 h give Vd = CL.t½/ln2 = 0.072 L/h/kg / 0.09627 /h = 0.748 L/kg. This is an apparent Vd/F from oral theobromine, treated as a true volume under the apparent-volume convention (F = 1; theobromine is well absorbed). Scaled to absolute litres against the 70 kg reference subject at derivation time (~52 L)."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 1.0,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "definition",
+        "conditions": "Set to 1 by the apparent-volume convention (the Lelo clearance and volume are apparent CL/F and Vd/F from oral dosing, so F is folded in and not double-counted). Theobromine is efficiently absorbed after oral intake (Baggott 2013); the plotted curve is true plasma concentration C = F.D/V."
+      },
+      "tmax": {
+        "value": 3.0,
+        "range": [2.0, 3.0],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "baggott_2013",
+        "conditions": "Baggott et al. 2013: peak plasma theobromine ~3 h after oral pure-theobromine capsules (2-3 h; a chocolate-based matrix peaks somewhat faster, ~2 h). Point value 3 h for the pure-compound capsule case; ka derived from this Tmax at derivation time."
+      }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "lelo_pk": {
+      "type": "Journal article",
+      "title": "Lelo A, Birkett DJ, Robson RA, Miners JO. Comparative pharmacokinetics of caffeine and its primary demethylated metabolites paraxanthine, theobromine and theophylline in man. Br J Clin Pharmacol. 1986;22(2):177-182 (PMID 3756065). Six healthy male volunteers, each compound given orally: theobromine plasma clearance 1.20 mL/min/kg, half-life 7.2 h (caffeine 2.07 mL/min/kg / 4.1 h for comparison).",
+      "url": "https://bpspubs.onlinelibrary.wiley.com/doi/abs/10.1111/j.1365-2125.1986.tb05246.x",
+      "accessed": "2026-07-10"
+    },
+    "baggott_2013": {
+      "type": "Journal article",
+      "title": "Baggott MJ, Childs E, Hart AB, de Bruin E, Palmer AA, Wilkinson JE, de Wit H. Psychopharmacology of theobromine in healthy volunteers. Psychopharmacology (Berl). 2013;228(1):109-118 (PMID 23420115). Oral doses 250/500/1000 mg pure theobromine; peak plasma ~2-3 h; half-life ~7-12 h; dark chocolate contains ~200-300 mg theobromine per 40 g.",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3672386/",
+      "accessed": "2026-07-10"
+    }
+  },
+  "notes": "Theobromine (3,7-dimethylxanthine) - the principal methylxanthine of cocoa and chocolate, a mild adenosine-antagonist stimulant/diuretic/vasodilator weaker than caffeine. Curated as a clean LINEAR one-compartment oral compound from Lelo et al. 1986 (the disposition, measured by dosing theobromine directly in the same six healthy volunteers used for the caffeine-metabolite study) and Baggott et al. 2013 (oral absorption / Tmax and dose context).\n\nWHY THEOBROMINE - the chocolate compound, and the counterpart to caffeine's metabolism. Theobromine is what most people actually consume the most of from cocoa (dark chocolate carries ~200-300 mg theobromine vs ~25-35 mg caffeine per 40 g). It is a slower, gentler xanthine than caffeine: lower clearance (1.20 vs 2.07 mL/min/kg) and a longer half-life (~7 h vs ~4-5 h), so it lingers - the pharmacological basis of chocolate's mild, prolonged, low-key stimulant character.\n\nTHE CAFFEINE CROSS-REFERENCE. Theobromine is ALSO one of caffeine's three primary demethylated metabolites (caffeine -> paraxanthine ~80% / theobromine ~11% / theophylline ~4%; Lelo 1986). In caffeine.json the single-metabolite engine draws only the dominant paraxanthine line, so theobromine is NOT drawn there; it is represented here instead, as its own compound with its own (dietary) dosing. The two appearances are consistent - same molecule, same Lelo-measured disposition - just entered from the two directions it reaches the bloodstream (eaten as cocoa, or formed from caffeine).\n\nNO METABOLITE LINE (a clean feature, not a gap). Theobromine is further metabolized (demethylation to 7-methylxanthine and 3-methylxanthine, and oxidation to 3,7-dimethyluric acid) and partly excreted unchanged, but no single downstream product dominates with a citable fraction-formed, so no metabolite is drawn - the same posture as pregabalin and lithium (renally-cleared / no-dominant-metabolite compounds). Modelling the parent alone is faithful.\n\nLINEARITY. Unlike its isomer theophylline - which is EXCLUDED from the set for capacity-limited (Michaelis-Menten) elimination at therapeutic concentrations (see docs/DATA_GUIDE.md) - theobromine's kinetics are first-order and dose-proportional over ordinary dietary/studied doses (250-1000 mg, Baggott 2013), so superposition holds and linear: true. This makes the theobromine/theophylline pair a neat teaching contrast: two dimethylxanthine isomers, one linear (shipped) and one nonlinear (excluded).\n\nSOFT INPUTS AND MAGNITUDE. The disposition rests on Lelo's directly-measured, self-consistent clearance and half-life (Vd = CL.t½/ln2, the cefotaxime posture - a coherent one-compartment set rather than a separately reported Vd). No single clean single-dose Cmax was sourced for an independent magnitude anchor, so the magnitude check is the built engine curve against the F.D/V ceiling and the known dietary range: a 500 mg oral dose gives an F.D/V ceiling of ~9.5 mg/L and a built engine oral peak of 7.1 mg/L at 3 h - below the ceiling and in the range consistent with plasma theobromine after a strong dark-chocolate / pure-theobromine dose. Oral only (the dietary route; theobromine's historical IV diuretic use has no clean modern single-population disposition beyond this oral dataset). EDUCATIONAL ILLUSTRATION ONLY - not for dosing."
+}

@@ -48,6 +48,38 @@
       "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
     }
   },
+  "metabolites": [
+    {
+      "id": "paraxanthine",
+      "name": "Paraxanthine (1,7-dimethylxanthine)",
+      "active": true,
+      "fractionFormed": {
+        "value": 74,
+        "range": [65, 78],
+        "unit": "percent",
+        "derived": true,
+        "sourceRef": "lelo_clearances",
+        "conditions": "Lelo et al. 1986 (partial-clearances paper): the partial clearance of caffeine to paraxanthine is 79.6 +/- 21.0% of caffeine's TOTAL plasma clearance (and 83.9 +/- 5.4% of the demethylation pathways alone). Because caffeine is ~97% metabolized (<=3% excreted unchanged renally), fraction of total elimination ~= fraction of metabolism. BUT a partial-clearance fraction is a MOLAR fraction (fraction of caffeine MOLECULES taking that path), whereas the engine's fm multiplies parent MASS eliminated (dA_m/dt = fm.CL.C_p, all in mg, no MW factor). Each mg of caffeine (MW 194.19) cleared to paraxanthine yields only 180.16/194.19 = 0.928 mg paraxanthine (MW 180.16), so the mass-basis fm = 0.796 x 0.928 = 0.74. Stored value 74% (derived: true - the molar 79.6% mass-adjusted by the MW ratio, matching the allopurinol convention of feeding the engine a mass fraction, e.g. '90 mg oxypurinol per 100 mg allopurinol'). Range 65-78% is the ~70-84% molar band likewise mass-adjusted. The molar SD is large (individual CYP1A2 activity varies widely). See notes: paraxanthine is only ONE of THREE parallel demethylation products."
+      },
+      "vd": {
+        "value": 0.59,
+        "range": [0.5, 0.65],
+        "unit": "L/kg",
+        "derived": false,
+        "sourceRef": "lelo_pk",
+        "conditions": "Derived from Lelo 1986's directly-measured paraxanthine disposition (paraxanthine administered on its own): plasma clearance 2.20 mL/min/kg and half-life 3.1 h give Vd = CL.t½/ln2 = 0.132 L/h/kg / 0.2236 /h = 0.59 L/kg. This is an apparent Vd/F from oral paraxanthine; it is treated as a true metabolite volume because paraxanthine (a dimethylxanthine like caffeine) is near-completely absorbed, so F ~= 1 and Vd/F ~= Vd. Its own one-compartment volume, not the parent's."
+      },
+      "halfLife": {
+        "value": 3.1,
+        "range": [2.5, 4.0],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "lelo_pk",
+        "conditions": "Lelo 1986: paraxanthine plasma half-life 3.1 h (six healthy males, paraxanthine dosed directly). This is SHORTER than the modelled caffeine half-life (5 h), so paraxanthine is FORMATION-rate-limited: its observed terminal decline tracks the slower parent (caffeine), not its own faster elimination, and it does NOT accumulate above the parent (contrast the elimination-rate-limited oxypurinol/nordiazepam). The engine's terminal-rate = min(k_parent, k_metabolite) reproduces this."
+      },
+      "notes": "Paraxanthine (1,7-dimethylxanthine) is the DOMINANT and pharmacologically ACTIVE metabolite of caffeine (adenosine-receptor antagonist and lipolytic, like the parent). It is computed as a Bateman curve off the one-compartment caffeine parent and drawn as a dashed line.\n\nTHE THREE-WAY SPLIT (honesty-critical). Caffeine is demethylated by hepatic CYP1A2 into THREE parallel primary metabolites, not one: paraxanthine (~80% of total clearance), THEOBROMINE (~11%), and THEOPHYLLINE (~4%), with the remaining ~15% going to 8-hydroxylation (1,3,7-trimethyluric acid) (Lelo 1986). The single-metabolite engine can draw only ONE line, so it draws paraxanthine - the dominant ~80% product - and the other two are NOT rendered. This is a deliberate, documented approximation (the cefotaxime/allopurinol single-metabolite posture): drawing only paraxanthine is honest precisely because it is the major fate, whereas drawing the minor theobromine or theophylline line while hiding the 80% one would mislead. The two undrawn products are represented elsewhere: THEOBROMINE ships as its own standalone compound (compounds/theobromine.json - it is the primary methylxanthine of chocolate as well as a caffeine metabolite), and THEOPHYLLINE is separately EXCLUDED from the set as a standalone because its elimination is capacity-limited (Michaelis-Menten) at therapeutic concentrations (see docs/DATA_GUIDE.md); at the low concentrations reached as a ~4% caffeine metabolite the nonlinearity would not bite, but drawing it would be inconsistent with that exclusion and is needless.\n\nSOURCE COHERENCE. The metabolite parameters come from Lelo et al. 1986, which measured caffeine AND all three demethylated metabolites in the SAME six healthy male volunteers (each compound dosed directly) - the one-population source. The parent caffeine disposition is kept from the FDA label (half-life 5 h, Vd 0.6 L/kg) as already shipped; Lelo's caffeine values (t½ 4.1 h, Vd ~0.73 L/kg) are compatible healthy-volunteer figures. Because paraxanthine is formation-rate-limited, its terminal tracks whichever caffeine half-life is modelled (4.1 or 5 h), so the small parent-source difference does not change the qualitative curve. The metabolite AUC (fm.D / (k_m.Vd_m)) is independent of the parent's disposition entirely.\n\nMAGNITUDE (built engine curves, mass-basis fm). After a single 200 mg oral caffeine dose the parent peaks 4.15 mg/L at 1 h and paraxanthine 1.02 mg/L at 6 h - lower and later, the formation-limited signature. With regular intake (100 mg every 4 h) paraxanthine builds substantially behind the parent (~1.9 mg/L against a ~4.9 mg/L parent over a 6-dose window); the ~1:1 caffeine/paraxanthine near-parity famous in habitual users is a chronic-steady-state phenomenon reached over days, beyond this short plotted course. Drawn on all routes (the metabolite gate is iv_bolus || oral || iv_infusion)."
+    }
+  ],
   "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
   "sources": {
     "fda_label": {
@@ -61,6 +93,18 @@
       "title": "Evans J, Richards JR, Battisti AS. Caffeine. StatPearls [Internet]. Treasure Island (FL): StatPearls Publishing; updated 2024 May 29 (adult oral absorption)",
       "url": "https://www.ncbi.nlm.nih.gov/books/NBK519490/",
       "accessed": "2026-07-01"
+    },
+    "lelo_pk": {
+      "type": "Journal article",
+      "title": "Lelo A, Birkett DJ, Robson RA, Miners JO. Comparative pharmacokinetics of caffeine and its primary demethylated metabolites paraxanthine, theobromine and theophylline in man. Br J Clin Pharmacol. 1986;22(2):177-182 (PMID 3756065). Six healthy male volunteers, each compound given orally on separate occasions: plasma clearances caffeine 2.07, paraxanthine 2.20, theobromine 1.20, theophylline 0.93 mL/min/kg; half-lives caffeine 4.1, paraxanthine 3.1, theobromine 7.2, theophylline 6.2 h.",
+      "url": "https://bpspubs.onlinelibrary.wiley.com/doi/abs/10.1111/j.1365-2125.1986.tb05246.x",
+      "accessed": "2026-07-10"
+    },
+    "lelo_clearances": {
+      "type": "Journal article",
+      "title": "Lelo A, Miners JO, Robson RA, Birkett DJ. Quantitative assessment of caffeine partial clearances in man. Br J Clin Pharmacol. 1986;22(2):183-186 (PMC1401107, PMID 3756066). Partial clearance of caffeine to paraxanthine is 79.6 +/- 21.0% of total plasma clearance (83.9 +/- 5.4% of demethylation), to theobromine 10.8% (12.1% of demethylation), to theophylline 3.7% (4.0% of demethylation); the caffeine->paraxanthine partial clearance is ~8-fold that to theobromine and ~23-fold that to theophylline.",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1401107/",
+      "accessed": "2026-07-10"
     }
   },
   "notes": "Curated for the 70 kg adult reference subject. The disposition (elimination half-life 5 h, Vd 0.6 L/kg) is taken from the FDA Structured Product Label for caffeine citrate (Sagent), which states the ADULT values explicitly while contrasting them with the very different neonatal PK (t½ ≈ 3–4 days, Vd 0.8–0.9 L/kg) that the product is actually indicated for (apnea of prematurity). Because this tool models a 70 kg adult, only the adult figures are used; the neonatal regime is out of scope. The label's absorption data (Cmax, Tmax 30 min–2 h) is measured in PRETERM NEONATES and its 'absolute bioavailability was not fully examined', so oral F and Tmax are instead sourced from StatPearls adult pharmacology: caffeine is nearly completely absorbed (~100%) with negligible first-pass, so F = 1; Tmax is set to a representative 1 h within the reported ~0.5–2 h adult spread (a curatorial point value, marked as such in conditions). ke is taken from the 5 h half-life. Caffeine is metabolised primarily by hepatic CYP1A2; at typical dietary/therapeutic intakes (roughly ≤ 250–400 mg) elimination is approximately first-order and doses superpose, so linear: true — the recurring-dose (e.g. a cup every few hours) teaching case is the point of this entry. At high doses caffeine metabolism saturates (Michaelis–Menten) and becomes nonlinear, a regime out of scope for this linear model, analogous to acetaminophen in overdose. IV routes (caffeine citrate injection is a real product) share the route-independent disposition; F = 1 by definition. Educational illustration only — not for dosing."

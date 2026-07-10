@@ -85,8 +85,23 @@ all pass.
 
 Follow the phases in handoff §13 — engine + tests before UI. Current state:
 **Phase 7 data expansion + all three chart refinements done; static-site deploy
-is the sole remaining Phase 7 item. SEED SET now 35 compounds (was 10; the file count on disk
-is authoritative). A sixth 2026-07-10 pass added an ILLICIT / RECREATIONAL slate (30→35, 403
+is the sole remaining Phase 7 item. SEED SET now 36 compounds (was 10; the file count on disk
+is authoritative). A seventh 2026-07-10 pass (METHYLXANTHINES, 35→36, 399 tests green,
+advisor-reviewed) gave the existing `caffeine` its dominant metabolite and shipped `theobromine`:
+caffeine→`paraxanthine` (CYP1A2 makes THREE parallel metabolites — paraxanthine ~80% / theobromine
+~11% / theophylline ~4%; the single-metabolite engine draws only the dominant paraxanthine, the
+cefotaxime/allopurinol posture; theobromine ships standalone, theophylline stays EXCLUDED [M-M
+nonlinear]); anchored to Lelo 1986 (caffeine + all 3 metabolites in the SAME 6 volunteers, the
+one-population source) + its partial-clearances companion. **KEY REUSABLE PRECEDENT — the fm MW
+conversion:** Lelo's "79.6% of total clearance" is a MOLAR fraction, but the engine's fm multiplies
+parent MASS (no MW field), so mass-fm = 0.796 × MW(paraxanthine 180.16)/MW(caffeine 194.19) = 0.74
+(stored 74, derived:true) — matches allopurinol's stored mass ratio "90 mg per 100 mg"; whenever fm
+is sourced as a clearance/molar fraction, MW-convert before storing. paraxanthine formation-rate-limited
+(t½ 3.1<parent 5 h). `theobromine` = the chocolate methylxanthine, clean linear 1-comp (Lelo t½ 7.2 h,
+Vd 0.75 L/kg=CL·t½/ln2; Baggott 2013 Tmax 3 h; apparent-volume F=1; NO metabolite line [no dominant
+citable fm — pregabalin posture]; cross-ref: also caffeine's minor ~11% metabolite, drawn here not
+there; linear counterpoint to excluded theophylline isomer; oral only; 500 mg → 7.1 mg/L). The earlier
+sixth 2026-07-10 pass added an ILLICIT / RECREATIONAL slate (30→35, 403
 tests green, advisor-reviewed): four clean linear 1-comp singles — `lsd` (Liechti-group human PK,
 Dolder 2016/2017 + Holze 2021; apparent-volume convention V/F ~40 L, true F ~71%; the microgram-dose
 / ~1–4 ng/mL axis; dose-proportional 5–200 µg; ~2.6 h main phase + documented-not-rendered ~8.9 h
