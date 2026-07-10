@@ -258,6 +258,11 @@ for the curator:
 - **MW-adjust a molar fraction to mass**, exactly like `fm` (the caffeine/morphine convention): the
   engine's `ffp` multiplies parent *mass*, so a molar first-pass fraction is `× MW_m/MW_parent`.
 
+The honesty panel renders it: `metaboliteProvenanceEntries` emits a **"First-pass fraction (ffp)"**
+row (between fm and Vd) with its measured/derived badge + citation, so a sourced `ffp` reaches the
+bibliography exactly like `fm`. (This was wired with the engine — a sourced parameter whose citation
+never rendered would silently undercut the gate above.)
+
 **`ffp` is an illustrative population constant** (a literature fraction, like the 70 kg reference
 subject), not a patient covariate — the bright line holds. Frame it that way in the compound prose.
 

@@ -87,6 +87,7 @@ const ROW_LABELS: Record<string, string> = {
   ka: 'Absorption rate constant (ka)',
   tmax: 'Time to peak (Tmax)',
   fractionFormed: 'Fraction formed (fm)',
+  firstPassFraction: 'First-pass fraction (ffp)',
 };
 
 /** Resolve a `sourceRef` against the compound's `sources` map and the sentinels. */
@@ -219,9 +220,10 @@ export interface MetaboliteProvenanceGroup {
 /**
  * Which metabolite row a runtime {@link DerivedNote} (axis 2) belongs under. The
  * metabolite derivation (`derive.ts` `deriveMetaboliteDisposition`) emits notes
- * keyed `vdM` (per-kg Vd scaling), `keM` (`ke = ln2/t½`) and `fractionFormed`
- * (percent → fraction). Like the parent's `ke`, the metabolite's `keM` has no row
- * of its own, so it attaches to the half-life it was computed from.
+ * keyed `vdM` (per-kg Vd scaling), `keM` (`ke = ln2/t½`), `fractionFormed`
+ * (percent → fraction) and `firstPassFraction` (percent → fraction, when present).
+ * Like the parent's `ke`, the metabolite's `keM` has no row of its own, so it
+ * attaches to the half-life it was computed from.
  */
 function metaboliteDerivationTargetKey(noteParameter: string): string | undefined {
   switch (noteParameter) {
@@ -231,6 +233,8 @@ function metaboliteDerivationTargetKey(noteParameter: string): string | undefine
       return 'halfLife';
     case 'fractionFormed':
       return 'fractionFormed';
+    case 'firstPassFraction':
+      return 'firstPassFraction';
     default:
       return undefined;
   }
@@ -242,11 +246,11 @@ function metaboliteDerivationTargetKey(noteParameter: string): string | undefine
  * {@link provenanceEntries}: the caller passes the built metabolite curves (which
  * exist only for an IV-bolus parent), so a route that draws no metabolite line
  * shows no metabolite rows. Each group's rows carry the metabolite's OWN
- * disposition — fraction formed, Vd, half-life — with the same measured-vs-derived
- * badge and citation machinery as the parent, and the metabolite's runtime
- * derivations grouped under their input row. The raw provenance-carrying
- * parameters are read from `compound.metabolites` (joined by `id`); the axis-2
- * notes come from the plotted curve.
+ * disposition — fraction formed, an optional pre-systemic first-pass fraction, Vd,
+ * half-life — with the same measured-vs-derived badge and citation machinery as the
+ * parent, and the metabolite's runtime derivations grouped under their input row.
+ * The raw provenance-carrying parameters are read from `compound.metabolites`
+ * (joined by `id`); the axis-2 notes come from the plotted curve.
  */
 export function metaboliteProvenanceEntries(
   compound: Compound,
@@ -260,6 +264,11 @@ export function metaboliteProvenanceEntries(
 
     const rows: ProvenanceRow[] = [
       makeRow('fractionFormed', meta.fractionFormed, compound),
+      // Optional pre-systemic (oral first-pass) fraction — surfaced so its citation
+      // reaches the honesty panel and the bibliography, at parity with fm.
+      ...(meta.firstPassFraction
+        ? [makeRow('firstPassFraction', meta.firstPassFraction, compound)]
+        : []),
       makeRow('vd', meta.vd, compound),
       makeRow('halfLife', meta.halfLife, compound),
     ];

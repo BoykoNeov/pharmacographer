@@ -404,6 +404,46 @@ describe('buildCurve — metabolites (IV-bolus parent)', () => {
     expect(build1c({ compound: oralWithMetabolite, route: 'iv_bolus', schedule: single(350) }).metabolites).toHaveLength(1);
   });
 
+  it('routes an oral first-pass fraction to the metabolite (oral only; IV bolus unchanged)', () => {
+    // End-to-end confirmation that a curator-set `firstPassFraction` flows through the
+    // real build path (it rides on the derived MetaboliteDisposition — no curve.ts change).
+    function oralWithFirstPass(ffp?: number) {
+      const raw = baseRawCompound();
+      (raw.routes as Record<string, unknown>).oral = {
+        available: true,
+        F: { value: 0.4, unit: 'fraction', derived: false, sourceRef: 'ref' },
+        tmax: { value: 1.5, unit: 'h', derived: false, sourceRef: 'ref' },
+      };
+      raw.metabolites = [
+        {
+          id: 'testmetabolite',
+          name: 'Testmetabolite',
+          active: true,
+          fractionFormed: { value: 0.5, unit: 'fraction', derived: false, sourceRef: 'ref' },
+          ...(ffp !== undefined
+            ? { firstPassFraction: { value: ffp, unit: 'fraction', derived: false, sourceRef: 'ref' } }
+            : {}),
+          vd: { value: 1.0, unit: 'L/kg', derived: false, sourceRef: 'ref' },
+          halfLife: { value: 40, unit: 'h', derived: false, sourceRef: 'ref' },
+        },
+      ];
+      return parseCompound(raw);
+    }
+
+    const without = build1c({ compound: oralWithFirstPass(), route: 'oral', schedule: single(350) });
+    const withFp = build1c({ compound: oralWithFirstPass(0.4), route: 'oral', schedule: single(350) });
+    // Same grid (both driven by the same parent/metabolite rates) → compare pointwise.
+    const i = Math.floor(withFp.metabolites![0]!.points.length / 2);
+    // The pre-systemic term adds metabolite mass on the oral route — strictly higher.
+    expect(withFp.metabolites![0]!.points[i]!.c).toBeGreaterThan(without.metabolites![0]!.points[i]!.c);
+    expect(withFp.metabolites![0]!.points[0]!.c).toBe(0); // C_m(0) = 0 survives.
+
+    // IV bolus bypasses first-pass — the metabolite is identical with or without ffp.
+    const ivWithout = build1c({ compound: oralWithFirstPass(), route: 'iv_bolus', schedule: single(350) });
+    const ivWithFp = build1c({ compound: oralWithFirstPass(0.4), route: 'iv_bolus', schedule: single(350) });
+    expect(ivWithFp.metabolites![0]!.points[i]!.c).toBeCloseTo(ivWithout.metabolites![0]!.points[i]!.c, 12);
+  });
+
   it('plots a metabolite for an IV infusion (zero-order input), starting at C_m(0) = 0', () => {
     const inf = build1c({ compound: metaboliteCompound(), route: 'iv_infusion', schedule: single(350) });
     expect(inf.metabolites).toHaveLength(1);

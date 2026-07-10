@@ -187,6 +187,32 @@ describe('metaboliteProvenanceEntries', () => {
     expect(groups[0]?.rows.map((r) => r.key)).toEqual(['fractionFormed', 'vd', 'halfLife']);
   });
 
+  it('surfaces an optional first-pass fraction row so its citation reaches the panel', () => {
+    // A first-pass fraction is a sourced parameter; the honesty gate ("is ffp for THIS
+    // metabolite citable?") only means anything if the citation actually renders.
+    const raw = metaboliteRawCompound();
+    (raw.sources as Record<string, unknown>).fpsrc = { type: 'test', title: 'First-pass source' };
+    (raw.metabolites as Record<string, unknown>[])[0]!.firstPassFraction = {
+      value: 30,
+      unit: 'percent',
+      derived: false,
+      sourceRef: 'fpsrc',
+    };
+    const compound = parseCompound(raw);
+    const [group] = metaboliteProvenanceEntries(compound, [{ id: 'testmeta', derived: [] }]);
+    // The ffp row appears (right after fm), carrying its own citation.
+    expect(group?.rows.map((r) => r.key)).toEqual(['fractionFormed', 'firstPassFraction', 'vd', 'halfLife']);
+    const fpRow = group?.rows.find((r) => r.key === 'firstPassFraction');
+    expect(fpRow?.label).toMatch(/first-pass/i);
+    expect(fpRow?.source.kind === 'source' && fpRow.source.ref).toBe('fpsrc');
+    // And its percent→fraction derivation groups under the ffp row (silent-contract check).
+    const { derived } = deriveMetaboliteParams(compound.metabolites![0]!, 0.1);
+    const [grouped] = metaboliteProvenanceEntries(compound, [{ id: 'testmeta', derived }]);
+    expect(
+      grouped?.rows.find((r) => r.key === 'firstPassFraction')?.derivations.some((n) => /%/.test(n)),
+    ).toBe(true);
+  });
+
   it('is empty when no metabolite was plotted (route-truthful)', () => {
     // A compound that declares a metabolite but whose curve drew none (e.g. an IV
     // infusion) passes an empty plotted list — no metabolite rows appear.

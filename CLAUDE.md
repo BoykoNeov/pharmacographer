@@ -110,8 +110,13 @@ BYTE (oracle asserts `.toBe`) — protects all 39 shipped compounds. A PURELY pr
 `ffp` carries formation (invariant: `fm + ffp > 0`, each in [0,1]). Files: `types.ts`
 (`MetaboliteDisposition.firstPassFraction?`), `metabolite.ts` (`presystemicMetaboliteConcentration` +
 oral-path add + header), `schema.ts` (optional `firstPassFraction` param + sourceRef check), `derive.ts`
-(resolve `ffp`, reworked plausibility guard). `curve.ts`/UI unchanged — `ffp` rides on the derived
-`MetaboliteDisposition`. Oracles (metabolite.test.ts): collapse `ffp→0` exact; new-term AUC ka-independent;
+(resolve `ffp`, reworked plausibility guard). `curve.ts` unchanged — `ffp` rides on the derived
+`MetaboliteDisposition`. **`provenance.ts` DID change** (advisor completion-review catch): `ffp` is a
+new sourced full-provenance parameter, so `metaboliteProvenanceEntries` now emits a `firstPassFraction`
+row (label "First-pass fraction (ffp)", between fm and Vd) with its own citation + percent→fraction
+derivation grouping — else the citation would live in the JSON but never render, silently undercutting
+the "is `ffp` citable?" honesty gate (acute for oseltamivir, whose whole story IS the first-pass
+carboxylate). Oracles (metabolite.test.ts): collapse `ffp→0` exact; new-term AUC ka-independent;
 **unified RK4 on the COMBINED ODE `dA_m/dt = fm·CL·C_p + ka·ffp·D·e^(−ka·t) − k_m·A_m`** (checks BOTH
 terms' sign+superposition at once); IV-ignores-ffp; pure-pre-systemic case. **HONESTY GATE (curation,
 docs/DATA_GUIDE.md):** the real gate is "is `ffp` for THIS specific metabolite CITABLE?" — partial
