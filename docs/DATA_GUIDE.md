@@ -124,7 +124,7 @@ model was at hand. Documented so they aren't re-litigated:
   potency, plasma ~40% of parent) would also need a citable `fm`, not a plasma
   ratio.
 
-### Metabolite-pair candidates — one shipped, two still deferred
+### Metabolite-pair candidates — three shipped, two still deferred
 
 The metabolites engine (`engine/metabolite.ts`) originally modelled an **IV-bolus
 parent** as a mono-exponential input to a Bateman-shaped metabolite, which **requires
@@ -174,11 +174,49 @@ representable. Rationale preserved so it isn't re-litigated:
   elimination-rate-limited (its own slower disposition governs the terminal); Vd 56 ± 24 L
   (wide). Drawn for both IV routes.
 
-The multi-compartment §12 engine extension unblocked diazepam, and cefotaxime has now
-shipped as a one-compartment collapse (both above). **Procainamide still waits** — not on
-the parent's compartmental structure (now representable) but on a citable single-value `fm`
-(procainamide→NAPA formation is acetylator-bimodal, 7–34% urinary recovery, so `fm` is not
-one number).
+- **Allopurinol → oxypurinol — SHIPPED 2026-07-10** (`compounds/allopurinol.json`; the third
+  parent→metabolite pair and the FIRST to exercise the engine's **oral-parent** metabolite path
+  on real data — cefotaxime's parent is IV, diazepam's is 2-comp). The flagship "active
+  metabolite dominates" case: allopurinol is short-lived (t½ ~1.5 h) and largely a prodrug for
+  oxypurinol, which peaks later, higher (~6.5 vs ~3 µg/mL for a 300 mg oral dose) and outlives
+  it by more than a day (t½ ~18 h). Curated from the FDA Zyloprim label (absorption ~90%, peak
+  timing and levels, half-lives, renal elimination) + the Day & Graham 2007 clinical-PK review
+  (bioavailability, volumes, fraction converted, dose-proportionality). The three gates: (1)
+  **linearity** clears with a documented edge — dose-proportional over 100–300 mg, oxypurinol
+  steady-state linear 50–600 mg/day with only a "weak indication of saturation" at 900 mg/day
+  (its tubular reabsorption is urate-like; propofol-style clinical-range approximation). (2)
+  **allopurinol's own Vd** — the review's apparent Vd/F 1.31 L/kg *under*-predicts the labeled
+  Cmax, so a Cmax-consistent ~0.65 L/kg true volume (with F = 0.90 explicit) is used (the
+  diphenhydramine posture). (3) **fm** is citable — the review's "90 mg oxypurinol per 100 mg
+  allopurinol" (~90%), a single number, not a urinary-recovery floor. **The honesty-critical
+  caveat is pre-systemic conversion:** allopurinol is metabolised by xanthine oxidase / aldehyde
+  oxidase, present in gut and liver, so some oxypurinol forms first-pass rather than from
+  circulating parent — a component the systemic-formation engine cannot separate. It shows up two
+  ways, both documented in the compound `notes`: the modelled metabolite peaks later (~7 h vs the
+  label's ~4.5 h), and the metabolite apparent volume is set ~20% below the review's ~0.53 L/kg
+  to reach the measured Cmax. The reconciliation: the model is anchored to the label's directly
+  measured oxipurinol Cmax, so the plotted magnitude matches even though the mechanism is partly
+  pre-systemic. This is the **screening property** for prodrug→active pairs: conversion must be
+  substantially systemic (allopurinol IN — parent genuinely circulates, ~90% absorbed) not
+  first-pass (oseltamivir OUT — see below).
+- **Oseltamivir → oseltamivir carboxylate (Ro 64-0802) — DEFERRED (pre-systemic conversion, not
+  representable).** A tempting prodrug→active-metabolite antiviral pair, but the FDA Tamiflu label
+  disqualifies it structurally: "at least **75% of an oral dose** reaches the systemic circulation
+  **as oseltamivir carboxylate**, while exposure to oseltamivir is **less than 5%** of the total
+  exposure after oral dosing," with ~90% conversion by **hepatic** carboxyl esterases (first-pass).
+  The engine forms the metabolite from the **systemic** parent's elimination, but here the parent
+  barely circulates (<5%) and ≥75% of the metabolite arises pre-systemically — so a systemic-
+  formation model would show a tiny parent line and could not legitimately produce a metabolite
+  that is 75% of the dose. (Separately, "75% of dose" is a fraction-of-dose ≈ fm·F, not the engine's
+  fm = fraction of parent *elimination*.) This is the mirror image of allopurinol: same prodrug
+  shape, opposite systemic/first-pass split. Stays parked — the mechanism, not a number, is the
+  blocker.
+
+The multi-compartment §12 engine extension unblocked diazepam, and cefotaxime then shipped as a
+one-compartment collapse; allopurinol→oxypurinol now adds the oral-parent path (all above).
+**Procainamide still waits** — not on the parent's compartmental structure (now representable) but
+on a citable single-value `fm` (procainamide→NAPA formation is acetylator-bimodal, 7–34% urinary
+recovery, so `fm` is not one number).
 
 ### Flip-flop (ka < ke) candidate — acamprosate (found, pending a curation judgment call)
 
@@ -362,6 +400,50 @@ nonlinearity that excludes phenytoin (an exclude-with-rationale, not a ship-with
   terminal with Vd 0.14 would imply an implausible ~0.04 L/h). CYP2C9/VKORC1 recorded under
   `variability` for context (they drive dose requirement and effect, never used to produce a dose).
   NTI flagged.
+
+### Phase-7 seed expansion (renal / metabolite / ion axes) — 3 compounds added 2026-07-10
+
+A fifth 2026-07-10 pass added **pregabalin, allopurinol (+oxypurinol), lithium** (27 → 30
+compounds; 392 tests green). Each was advisor-reviewed before any JSON was written, ceiling-
+tested where applicable, and magnitude-checked against the built engine curve. Allopurinol is
+covered in the metabolite-pair section above (the third shipped pair, first oral-parent
+metabolite); **oseltamivir was evaluated and deferred** in the same pass (pre-systemic
+conversion — see the same section).
+
+- **Pregabalin (`compounds/pregabalin.json`) — the LINEAR counterpoint to gabapentin's saturable
+  absorption.** About as clean a one-compartment drug as exists: no plasma protein binding at all,
+  ~90% renal excretion as unchanged drug (negligible metabolism), rigorously linear kinetics. The
+  teaching axis is the gabapentin contrast — gabapentin is absorbed by a saturable intestinal
+  transporter so its oral F *falls* with dose (dose-DEPENDENT, nonlinear, keeps it out of a linear
+  model), whereas pregabalin's F is ">=90% and independent of dose" (FDA Lyrica label) and Cmax/AUC
+  "increase linearly" across 25–900 mg. Same indication and molecular target (α2δ calcium-channel
+  subunit), dose-stable superposable curve. All from the FDA label except a bioequivalence-study
+  Cmax anchor. Vd 0.5 L/kg, t½ 6.3 h, Tmax 1.5 h, F 0.9, oral only. Magnitude: 300 mg oral →
+  engine peak 6.5 µg/mL vs reported ~7.4–7.8 (~13% under — pregabalin absorbs fast and eliminates
+  slowly, so the real Cmax sits right at the F·D/V ceiling and a smooth single-ka Bateman lands just
+  below it; acyclovir posture, documented). Like lithium, **no metabolite** (renally cleared
+  unchanged) — a clean feature, not a gap.
+- **Lithium (`compounds/lithium.json`) — the only INORGANIC ION in the set; a new class (mood
+  stabilizer) and the archetypal renal / NTI drug.** Modelled **two-compartment** (user's choice)
+  so the real distribution phase is faithful; it complements digoxin (the other distribution-phase
+  teacher) on the opposite axis — digoxin has a huge tissue Vd, lithium's is tiny (~total body
+  water). Three distinct teaching points: (1) **not metabolized** — an element, neither metabolized
+  nor protein bound, excreted unchanged renally in proportion to serum level, so there is NO
+  metabolite line and no hepatic variability (the limiting-case counterpoint to the metabolite
+  compounds); (2) **renal / sodium-dependent NTI** — filtered by the glomerulus, ~80% reabsorbed in
+  the proximal tubule with sodium, so Na depletion / thiazides / dehydration raise levels (therapeutic
+  0.6–1.2 mEq/L, toxicity not far above); (3) **the standardized 12-h serum sample** — drawn at 12 h
+  by convention precisely to wait out the distribution phase (α t½ ~1.4 h) modelled here. Curated
+  from the FDA lithium-carbonate label + a detailed compartmental disposition analysis. The 2-comp
+  micro-parameters are **derived offline diazepam-style** from a self-consistent subset (Vc 0.224
+  L/kg, α t½ 1.40 h, β 0.035/h, Vd(area) 0.539 L/kg → CL 0.0189, Q 0.0538, Vp 0.261 L/h/kg or L/kg;
+  the engine round-trips α t½ 1.40 h / β t½ 19.8 h exactly). **Units are a documented modeling
+  choice** (and an extra honesty point): lithium's clinical quantity is the Li+ ION in mEq/L (=mmol/L),
+  dosed as lithium CARBONATE (two Li+ per formula unit), so the engine models **elemental lithium in
+  mg** and the mmol/L conversion is /6.94 (1 mEq/L = 6.94 mg/L; a 300 mg Li₂CO₃ tablet = 56.4 mg
+  elemental Li). Magnitude: 900 mg/day Li₂CO₃ → Css,avg ≈ 0.73 mmol/L, in the therapeutic range;
+  single 300 mg → transient peak ~0.37 mmol/L then the distribution-phase fall. Oral, immediate-
+  release only.
 
 ### Three-compartment compounds — remifentanil and propofol shipped
 

@@ -1,0 +1,92 @@
+{
+  "id": "allopurinol",
+  "schemaVersion": 1,
+  "names": { "inn": "Allopurinol", "brand": ["Zyloprim", "Aloprim"], "synonyms": ["Allopurinol"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 1.5,
+      "range": [1, 2],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "FDA Zyloprim label: 'ZYLOPRIM has a plasma half-life of about 1 to 2 hours.' The Day 2007 review gives 1.2 +/- 0.3 h. Point value 1.5 h (mid-range). The SHORT parent half-life against the metabolite's very long one is the whole teaching point (see notes)."
+    },
+    "vd": {
+      "value": 0.65,
+      "range": [0.6, 0.76],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "Chosen Cmax-consistent: the value that lands the built 300 mg oral peak on the label's directly-measured allopurinol Cmax of ~3 mcg/mL at 1.5 h (the diphenhydramine posture). The Day 2007 review reports an apparent oral Vd/F of 1.31 +/- 0.41 L/kg, but that apparent volume UNDER-predicts the labeled peak (its F.D/V ceiling would sit barely above 3 mcg/mL, which a Tmax~=t½ absorption profile cannot reach); ~0.65 L/kg reproduces the measured peak and is treated as a true volume with F = 0.90 explicit. Scaled to absolute litres against the 70 kg reference subject at derivation time (~46 L). Built engine peak: 2.97 mcg/mL at 1.5 h."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 0.9,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "FDA Zyloprim label: 'ZYLOPRIM is approximately 90% absorbed from the gastrointestinal tract.' Modelled as F = 0.90. This true absorbed fraction (NOT the apparent-volume F=1 convention) is used because the metabolite formation amplitude scales with F - the oxypurinol line needs the real F to be right (see notes)."
+      },
+      "tmax": {
+        "value": 1.5,
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "FDA Zyloprim label: 'Peak plasma levels generally occur at 1.5 hours ... for ZYLOPRIM.' ka derived from this Tmax at derivation time."
+      }
+    }
+  },
+  "metabolites": [
+    {
+      "id": "oxypurinol",
+      "name": "Oxypurinol (oxipurinol / alloxanthine)",
+      "active": true,
+      "fractionFormed": {
+        "value": 90,
+        "range": [80, 95],
+        "unit": "percent",
+        "derived": false,
+        "sourceRef": "day_2007",
+        "conditions": "Day & Graham 2007 clinical-PK review: oxypurinol PK are derived 'assuming that 90 mg of oxypurinol is formed from every 100 mg of allopurinol' - i.e. ~90% conversion. Allopurinol is 'rapidly and extensively metabolized to oxypurinol, and the hypouricaemic efficacy of allopurinol is due very largely to this metabolite'; the parent is otherwise cleared by glomerular filtration (a minor unchanged-renal fraction). fm 90% is the fraction of allopurinol converted; because absorption is ~90% and pre-systemic conversion is modest, this is close to the fraction of SYSTEMIC parent elimination the engine models. See notes for the pre-systemic caveat."
+      },
+      "vd": {
+        "value": 0.42,
+        "range": [0.4, 0.6],
+        "unit": "L/kg",
+        "derived": false,
+        "sourceRef": "day_2007",
+        "conditions": "Day 2007 reports an apparent oxypurinol Vd/F of 0.59 +/- 0.16 L/kg where their 'F' is the ~90% fraction converted; removing that gives a true metabolite volume ~0.53 L/kg. Point value 0.42 L/kg, chosen (with fm 0.90 and the metabolite half-life) to reproduce the label's directly-measured oxipurinol Cmax ~6.5 mcg/mL. It sits ~20% below the review's ~0.53 L/kg because the systemic-only formation model must compress into a slightly smaller apparent volume to reach the measured peak that some pre-systemic formation helps create (see notes). Its own one-compartment volume, not the parent's."
+      },
+      "halfLife": {
+        "value": 18,
+        "range": [15, 23.3],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "FDA Zyloprim label: oxipurinol 'has a longer plasma half-life (approximately 15 hours)'; the Day 2007 review gives 23.3 +/- 6.0 h in normal renal function. Point value 18 h (between the label and review), band 15-23.3 h. This very long metabolite half-life (vs the parent's 1.5 h) means oxypurinol accumulates and outlives allopurinol by more than a day - the teaching point. Oxypurinol is elimination-rate-limited: its own slow disposition, not the parent's fast one, governs the observed terminal decline."
+      },
+      "notes": "Oxypurinol is the active metabolite that carries essentially all of allopurinol's therapeutic (xanthine-oxidase-inhibiting, urate-lowering) effect. It is COMPUTED end-to-end by the metabolite engine as a Bateman curve off the ONE-COMPARTMENT ORAL parent and DRAWN as a dashed line - making allopurinol the FIRST shipped compound to exercise the oral-parent metabolite path (cefotaxime's parent is IV; diazepam's is two-compartment). The parent-metabolite contrast is the most extreme in the set: oxypurinol peaks LATER, HIGHER (~6.5 vs ~3 mcg/mL) and outlasts the parent by more than a day (t½ ~18 h vs ~1.5 h). It is renally eliminated with tubular reabsorption 'similar to the reabsorption of uric acid' (FDA label), which is why renal impairment markedly prolongs it. TIMING CAVEAT: the label reports the oxipurinol peak at ~4.5 h, but the systemic-formation model peaks later (~7 h) because a portion of oxypurinol forms PRE-SYSTEMICALLY (first-pass xanthine oxidase) and so appears sooner than formation from circulating parent alone - the engine models only systemic formation, so it renders the peak height correctly but somewhat late. Qualitatively the story is unchanged (later, higher, long-lived vs the parent)."
+    }
+  ],
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "fda_label": {
+      "type": "FDA label",
+      "title": "ZYLOPRIM (allopurinol) tablets - FDA Structured Product Label, Clinical Pharmacology (approximately 90% absorbed from the GI tract; ~20% excreted in feces; peak plasma levels at 1.5 h for allopurinol and 4.5 h for oxipurinol; after a single 300 mg oral dose, maximum plasma levels ~3 mcg/mL allopurinol and ~6.5 mcg/mL oxipurinol; allopurinol plasma half-life ~1-2 h, oxipurinol ~15 h; allopurinol cleared by glomerular filtration, oxipurinol reabsorbed in the kidney tubules similar to uric acid; allopurinol metabolized to oxipurinol)",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=342832b5-1a32-4bea-bc49-ab0fd152154e",
+      "accessed": "2026-07-10"
+    },
+    "day_2007": {
+      "type": "Journal article",
+      "title": "Day RO, Graham GG, et al. Clinical Pharmacokinetics and Pharmacodynamics of Allopurinol and Oxypurinol. Clin Pharmacokinet 2007;46(8):623-644 (PMID 17655371): allopurinol oral bioavailability 79 +/- 20%, t½ 1.2 +/- 0.3 h, apparent oral Vd/F 1.31 +/- 0.41 L/kg; oxypurinol (assuming 90 mg formed per 100 mg allopurinol) t½ 23.3 +/- 6.0 h, CL/F 0.31 +/- 0.07 mL/min/kg, Vd/F 0.59 +/- 0.16 L/kg; allopurinol and oxypurinol plasma concentrations dose-proportional over 100-300 mg, oxypurinol steady-state linear 50-600 mg/day with weak saturation at 900 mg/day",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/17655371/",
+      "accessed": "2026-07-10"
+    }
+  },
+  "notes": "A clean LINEAR one-compartment xanthine-oxidase-inhibitor (the first-line urate-lowering drug for gout) and its active metabolite oxypurinol - the third shipped parent->metabolite pair (after diazepam->nordiazepam and cefotaxime->desacetylcefotaxime) and the FIRST to exercise the engine's ORAL-parent metabolite path on real data. Curated from the FDA Zyloprim label (absorption, peak timing and levels, half-lives, elimination route) and the Day & Graham 2007 clinical-PK review (bioavailability, volumes, fraction converted, dose-proportionality).\n\nWHY ALLOPURINOL - the ACTIVE-METABOLITE-DOMINATES story, the most extreme parent/metabolite contrast in the set. Allopurinol itself is short-lived (t½ ~1.5 h) and largely a prodrug for oxypurinol, which is where 'the hypouricaemic efficacy ... is due very largely' (Day 2007). Oxypurinol peaks later, higher (~6.5 vs ~3 mcg/mL) and persists far longer (t½ ~18 h vs ~1.5 h) - so within a day of a single dose the parent has essentially vanished while the active metabolite is still near its peak. This is the pedagogical opposite of a drug whose metabolite is a minor curiosity: here the metabolite line IS the therapeutic story, and it teaches formation-limited vs elimination-limited kinetics vividly (oxypurinol is elimination-rate-limited - its slow disposition, not the parent's fast one, sets the terminal slope; the engine's terminal-rate = min(k_parent, k_metabolite) reproduces this).\n\nLINEARITY (gate cleared, with a documented edge). Day 2007: allopurinol and oxypurinol plasma concentrations are dose-proportional over 100-300 mg, and steady-state oxypurinol rises linearly with allopurinol dose from 50 to 600 mg/day, with only a 'weak indication of saturation' at the top 900 mg/day rate. So over the ordinary therapeutic range the kinetics are first-order and superposable; the mild high-dose saturation (oxypurinol's tubular reabsorption is urate-like and can begin to saturate) is a documented approximation at the extreme, the same posture as propofol's clinical-range linearity. linear: true.\n\nfm AND THE PRE-SYSTEMIC CAVEAT (the honesty-critical parameter). The engine forms the metabolite from the SYSTEMIC parent (fraction fm of systemic allopurinol elimination becomes plasma oxypurinol). Day 2007's ~90% figure is fraction of DOSE converted; with ~90% oral absorption this is close to the fraction of absorbed (systemic) parent converted, so fm = 0.90 is used. Allopurinol is metabolized by xanthine oxidase and aldehyde oxidase, present in gut and liver, so SOME conversion is pre-systemic (first-pass) rather than from circulating parent - a component the systemic-formation model cannot separate. It manifests two ways, both documented: (1) the model peaks LATER than the label's ~4.5 h oxipurinol peak (~7 h in the built curve), because pre-systemic oxypurinol appears sooner than formation from circulating parent; (2) to reach the measured Cmax ~6.5 mcg/mL the metabolite apparent volume is set ~20% below the review's true ~0.53 L/kg. The reconciliation that keeps it honest: the model is anchored to the label's DIRECTLY MEASURED oxipurinol Cmax, so the plotted magnitude matches the observed one even though the mechanism is partly pre-systemic. (This is the screening property that keeps allopurinol IN - the parent genuinely circulates and forms most of the metabolite systemically - where oseltamivir, whose active metabolite forms almost entirely pre-systemically from a barely-circulating prodrug, is OUT: see docs/DATA_GUIDE.md.)\n\nSOFT INPUTS (both anchored to measured Cmax). The two directly-measured anchors are the label's Cmax values: allopurinol ~3 mcg/mL and oxipurinol ~6.5 mcg/mL after a single 300 mg oral dose. The parent volume (~0.65 L/kg) and the metabolite volume (~0.42 L/kg) are each chosen to land the built engine curve on the corresponding measured peak (the diphenhydramine posture). The Day 2007 apparent volumes (Vd/F 1.31 L/kg parent, Vd/F 0.59 L/kg metabolite) are apparent (F- and fm-inflated) and are noted in the parameter conditions; Cmax-consistent volumes are used so the plotted magnitudes match the label.\n\nMAGNITUDE CHECK. Built engine curve, 300 mg oral: allopurinol peaks 2.97 mcg/mL at 1.5 h (label ~3) and oxypurinol 6.50 mcg/mL at ~7 h (label ~6.5 mcg/mL, peak ~4.5 h - see the timing caveat above), with oxypurinol's long tail persisting for days.\n\nROUTE. Oral only (the standard gout route). An intravenous allopurinol (Aloprim) exists for patients who cannot take oral therapy, but it is given by infusion and the label's clean single-dose Cmax anchors are oral, so oral is the one shipped route; the metabolite is drawn on it (the metabolite gate is iv_bolus || oral || iv_infusion). EDUCATIONAL ILLUSTRATION ONLY - not for dosing."
+}

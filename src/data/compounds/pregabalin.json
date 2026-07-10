@@ -1,0 +1,58 @@
+{
+  "id": "pregabalin",
+  "schemaVersion": 1,
+  "names": { "inn": "Pregabalin", "brand": ["Lyrica"], "synonyms": ["Pregabalin"] },
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 6.3,
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "FDA Lyrica label: 'Pregabalin is eliminated from the systemic circulation primarily by renal excretion as unchanged drug with a mean elimination half-life of 6.3 hours in subjects with normal renal function.' Single reported point value (no range given by the label read this pass); renal function is the dominant covariate (half-life lengthens markedly in renal impairment), so the value is stated for normal renal function - one population."
+    },
+    "vd": {
+      "value": 0.5,
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "FDA Lyrica label: 'the apparent volume of distribution of pregabalin following oral administration is approximately 0.5 L/kg.' Pregabalin does not bind to plasma proteins, so ~0.5 L/kg (near total body water) is a plausible true volume; with oral bioavailability >=90% the apparent V/F is essentially the true V. Scaled to absolute litres against the 70 kg reference subject at derivation time (~35 L)."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 0.9,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "FDA Lyrica label: 'Pregabalin oral bioavailability is >=90% and is independent of dose.' This dose-INDEPENDENCE is the teaching axis of this compound (see notes - the explicit contrast with gabapentin's saturable, dose-DEPENDENT absorption). Modelled as F = 0.9 (fasting). Food decreases Cmax ~25-30% and delays Tmax to ~3 h; the fasting value is used."
+      },
+      "tmax": {
+        "value": 1.5,
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "FDA Lyrica label: under fasting conditions 'peak plasma concentrations occur within 1.5 hours.' Point value 1.5 h; ka derived from this Tmax at derivation time. Food delays Tmax to ~3 h (not modelled - fasting case)."
+      }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "fda_label": {
+      "type": "FDA label",
+      "title": "LYRICA (pregabalin) capsules, CV - FDA Structured Product Label, Clinical Pharmacology / Pharmacokinetics (oral bioavailability >=90% and independent of dose; peak plasma concentrations within 1.5 hours under fasting conditions; apparent volume of distribution ~0.5 L/kg; does not bind to plasma proteins; mean elimination half-life 6.3 h in normal renal function; ~90% of dose recovered in urine as unchanged pregabalin; following single (25-300 mg) and multiple (75-900 mg/day) dosing Cmax and AUC increase linearly)",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=3e1fb774-7460-44d2-bf96-a17c59999676",
+      "accessed": "2026-07-10"
+    },
+    "pregabalin_be_study": {
+      "type": "Journal article",
+      "title": "Single-Dose, Randomized, Open-Label, Two-Way, Crossover Bioequivalence Study of Two Formulations of Pregabalin 300 mg Hard Capsules in Healthy Volunteers Under Fasting Conditions (Drugs R&D 2015, PMC4488182): mean Cmax for a single 300 mg oral dose ~7.4 mcg/mL (reference and test formulations ~7375-7420 ng/mL); consistent with other single-dose reports of ~7.8 mcg/mL for 300 mg. Used only as the magnitude anchor.",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4488182/",
+      "accessed": "2026-07-10"
+    }
+  },
+  "notes": "A textbook-clean LINEAR one-compartment anticonvulsant / neuropathic-pain drug (also used for fibromyalgia and generalized anxiety), curated entirely from the FDA Lyrica label except the single-dose Cmax magnitude anchor (a bioequivalence study). Pregabalin is about as clean a one-compartment drug as exists: no plasma protein binding at all (so the volume is completely unconfounded), ~90% renal excretion as unchanged drug (negligible metabolism), and rigorously linear kinetics.\n\nWHY PREGABALIN - the LINEAR counterpoint to gabapentin's saturable absorption (the teaching axis). Gabapentin is absorbed by a saturable, capacity-limited intestinal transporter (system L amino-acid transport), so its oral bioavailability FALLS as the dose rises (~60% at 900 mg/day down to ~35% at 3600 mg/day) - its absorption is genuinely dose-DEPENDENT and nonlinear, which is exactly the kind of superposition problem that keeps a drug out of a linear model. Pregabalin was designed to fix this: it is absorbed rapidly and completely with an oral bioavailability that is '>=90% and independent of dose' (FDA label), and 'following single- (25 to 300 mg) and multiple-dose (75 to 900 mg/day) administration ... Cmax and AUC values increase linearly.' So the same neuropathic-pain indication and the same molecular target (the alpha-2-delta subunit of voltage-gated calcium channels) gives a DOSE-STABLE, superposable curve where gabapentin would not - pregabalin ships here and a linear gabapentin line would be quietly wrong on the absorption side. This is the pregabalin-vs-gabapentin lesson, the linear-absorption sibling of the atenolol-vs-metoprolol (renal vs hepatic) and metronidazole-vs-acamprosate (F spectrum) contrasts already in the set.\n\nLINEARITY. Renal excretion of unchanged drug with no saturable process at therapeutic doses; the label states Cmax and AUC increase linearly across the full 25-900 mg range. linear: true. Steady state is reached within 24-48 h (a short-half-life contrast to the long-accumulation ethosuximide/phenobarbital).\n\nNO METABOLITE. Pregabalin 'undergoes negligible metabolism in humans' - ~90% is recovered in urine as unchanged drug. Like lithium (a renally-cleared unmetabolized ion), there is no metabolite line to draw - which is itself a clean feature: exposure is set purely by renal clearance and volume, nothing downstream.\n\nMAGNITUDE CHECK. For a one-compartment model F.D/V is a hard ceiling on the oral peak. Vd 0.5 L/kg = 35 L; ceiling for a 300 mg dose = 0.9*300/35 ~ 7.7 mg/L. The built engine curve (F = 0.9, ke = ln2/6.3 h ~ 0.11/h, ka from Tmax 1.5 h ~ 2/h) peaks near 6.5 mcg/mL, about 13% below the reported single-dose Cmax of ~7.4-7.8 mcg/mL for 300 mg. This modest under-prediction is expected and documented: pregabalin absorbs fast (Tmax 1.5 h) and eliminates slowly (t½ 6.3 h), so very little is eliminated by the time of peak and the real Cmax sits right at the F.D/V ceiling - a smooth single-ka Bateman curve lands just below that ceiling (the same fast-in/slow-out shape gap noted for acyclovir, ~9% under). Keeping the label's ~0.5 L/kg volume rather than shrinking it to force the peak onto the ceiling is the honest choice; the ~13% gap is a model-shape artifact, not a sourcing error.\n\nROUTE. Oral only - pregabalin is marketed as capsules and an oral solution, with no intravenous product. Because absorption is nearly complete (F >=90%), no inferred IV curve is offered (the lamotrigine/ethosuximide posture): an inferred IV would add little contrast when oral bioavailability is already ~1.\n\nNot a narrow-therapeutic-index drug (it is a Schedule V controlled substance for misuse potential, a regulatory status unrelated to therapeutic-window width). EDUCATIONAL ILLUSTRATION ONLY - not for dosing."
+}

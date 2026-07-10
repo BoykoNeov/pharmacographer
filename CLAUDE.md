@@ -85,8 +85,34 @@ all pass.
 
 Follow the phases in handoff §13 — engine + tests before UI. Current state:
 **Phase 7 data expansion + all three chart refinements done; static-site deploy
-is the sole remaining Phase 7 item. SEED SET now 27 compounds (was 10; the file count on disk
-is authoritative — an earlier note miscounted it as "23" when there were 24 files). A fourth
+is the sole remaining Phase 7 item. SEED SET now 30 compounds (was 10; the file count on disk
+is authoritative). A fifth 2026-07-10 pass (renal / metabolite / ion axes) added three (27→30, 392
+tests green, advisor-reviewed slate): `pregabalin` (clean linear 1-comp; the LINEAR counterpoint to
+gabapentin's saturable dose-DEPENDENT absorption — FDA Lyrica label F ">=90% and independent of dose",
+no protein binding, ~90% renal unchanged, Vd 0.5 L/kg, t½ 6.3 h, oral only; 300 mg → engine 6.5 vs
+reported ~7.5 µg/mL, ~13% under because the real Cmax rides the F·D/V ceiling — acyclovir posture;
+no metabolite, renally cleared unchanged), `allopurinol`→`oxypurinol` (the THIRD parent→metabolite
+pair and FIRST to exercise the engine's ORAL-parent metabolite path on real data; the flagship
+"active metabolite dominates" case — parent t½ ~1.5 h largely a prodrug for oxypurinol which peaks
+later/higher/longer, ~6.5 vs ~3 µg/mL for 300 mg oral, t½ ~18 h; FDA Zyloprim label + Day/Graham 2007
+review; all three gates cleared — linearity dose-proportional 100–600 mg with weak saturation only at
+900 mg/day, Cmax-consistent parent Vd ~0.65 L/kg since the review's apparent 1.31 under-predicts,
+citable fm ~90%; HONESTY CAVEAT — some oxypurinol forms PRE-SYSTEMICALLY via gut/liver xanthine
+oxidase, which the systemic-formation engine can't separate, showing up as a modelled peak ~7 h vs
+label ~4.5 h and a metabolite Vd set ~20% below the sourced ~0.53 to hit the measured Cmax; anchored
+to the label's directly-measured Cmax so magnitude matches), and `lithium` (the only INORGANIC ION;
+new class = mood stabilizer; modelled TWO-COMPARTMENT per user choice so the distribution phase is
+faithful — complements digoxin on the opposite Vd axis; three teaching points — NOT metabolized
+[element, no metabolite line, no hepatic variability], renal/sodium-dependent NTI [~80% proximal
+reabsorption with Na], and the STANDARDIZED 12-H SERUM SAMPLE that waits out the α t½ ~1.4 h
+distribution phase; FDA Li-carbonate label + a compartmental disposition analysis; 2-comp
+micro-params derived offline diazepam-style from a self-consistent subset [Vc 0.224, α t½ 1.40 h,
+β 0.035/h, Vd(area) 0.539 → CL 0.0189/Q 0.0538/Vp 0.261], engine round-trips α t½ 1.40/β t½ 19.8 h;
+UNITS are a documented choice — models ELEMENTAL Li in mg, /6.94 = mmol/L, 300 mg Li₂CO₃ = 56.4 mg Li,
+900 mg/day → Css,avg ~0.73 mmol/L in the therapeutic 0.6–1.2 range). **oseltamivir→carboxylate
+EVALUATED + DEFERRED same pass** (pre-systemic conversion — Tamiflu label: <5% systemic parent, ≥75%
+of dose appears as metabolite via HEPATIC first-pass esterases, so a systemic-formation engine can't
+represent it; the screening property that keeps allopurinol IN and this OUT). The earlier fourth
 2026-07-10 pass (new classes + teaching axes) added three clean linear 1-comp drugs (all 389 tests
 green), each ceiling-tested + magnitude-checked against the built engine curve, every value pulled
 from a source opened that session: `ethosuximide` (succinimide, the new class + very-long-t½
