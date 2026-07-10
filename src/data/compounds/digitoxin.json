@@ -1,0 +1,68 @@
+{
+  "id": "digitoxin",
+  "schemaVersion": 1,
+  "names": { "inn": "Digitoxin", "brand": ["Crystodigin"], "synonyms": ["Digitoxin"] },
+  "description": "A cardiac glycoside from the foxglove plant (Digitalis), historically used for heart failure and atrial fibrillation. Chemically close to digoxin but far more fat-soluble and heavily protein-bound, it has an unusually long half-life of about a week and a narrow safety margin; it is now little used.",
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 156,
+      "range": [139, 192],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "macfarland_1984",
+      "conditions": "elimination half-life 6.5 days (156 h) after intravenous digitoxin measured by a SPECIFIC assay in 6 normal subjects (MacFarland 1984; oral 5.8 days in the same study). Ochs 1982 reports 8 days after a single 1 mg IV dose and a nearly identical 7.9-day accumulation half-life on chronic oral dosing. The range 139–192 h spans ~5.8–8 days. This extremely long terminal is digitoxin's defining feature — roughly 4–5× longer than digoxin's ~36 h — and reflects extensive hepatic metabolism/enterohepatic recycling of a heavily protein-bound drug rather than the renal elimination that clears digoxin."
+    },
+    "vd": {
+      "value": 0.47,
+      "range": [0.47, 0.76],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "macfarland_1984",
+      "conditions": "volume of distribution 0.47 L/kg (MacFarland 1984, specific assay; Ochs 1982 reports 0.76 L/kg). This is SMALL — roughly one-tenth of digoxin's 5–7 L/kg — because digitoxin is >90% (commonly cited ~97%) bound to plasma albumin, so little drug leaves the circulation for tissue. The small Vd is the mirror image of digoxin's huge muscle-bound Vd: the two glycosides make a clean high- vs low-protein-binding, small- vs large-Vd teaching pair. Scaled to absolute litres against the 70 kg reference subject (≈33 L). C(0) = Dose/Vd for an IV bolus."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 0.815,
+        "range": [0.8, 1.0],
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "macfarland_1984",
+        "conditions": "oral bioavailability 81.5% measured by a SPECIFIC digitoxin assay (MacFarland 1984). The authors note that earlier non-specific radioimmunoassays gave a falsely high ~98% because digitoxin metabolites cross-react — so 81.5% is the honest value and ~98% is the historical over-estimate (range spans the two). Digitoxin is essentially completely absorbed; the ~18% shortfall is early metabolism, not poor uptake."
+      },
+      "tmax": {
+        "value": 1.0,
+        "range": [0.5, 4.0],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "macfarland_1984",
+        "conditions": "digitoxin is RAPIDLY and near-completely absorbed (MacFarland; distribution complete within 4–6 h). No digitoxin-specific numeric Tmax is stated in the opened sources, so 1 h is a representative curatorial point value for a rapidly-absorbed oral cardiac glycoside (digoxin, its close analogue, peaks at ~1–3 h). This value is deliberately illustrative and NOT load-bearing: because digitoxin's elimination half-life is ~6.5 DAYS, absorption (ka ≫ ke) is essentially instantaneous on that timescale — the inverse of a flip-flop — so the plotted curve is indistinguishable across the whole 0.5–4 h Tmax range. The absorption limb is a negligible blip on the days-long disposition."
+      }
+    },
+    "iv_bolus": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": true },
+  "sources": {
+    "macfarland_1984": {
+      "type": "Journal article",
+      "title": "MacFarland RT, Marshall GD, Moore MR, et al. Pharmacokinetics and bioavailability of digitoxin determined by a specific assay. Eur J Clin Pharmacol. 1984;27(1):85–89 (PMID 6489430). Six normal subjects: IV elimination half-life 6.5 days, oral 5.8 days, volume of distribution 0.47 L/kg, systemic clearance 2.44 mL/min, oral bioavailability 81.5% by specific assay vs 98.0% by non-specific RIA.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/6489430/",
+      "accessed": "2026-07-10"
+    },
+    "ochs_1982": {
+      "type": "Journal article",
+      "title": "Ochs HR, Pabst J, Greenblatt DJ, Hartlapp J. Digitoxin accumulation. Br J Clin Pharmacol. 1982;14(2):225–229 (PMC1427752). Nine healthy volunteers received a single 1 mg IV dose then 0.07 mg orally daily for 28 days: single-dose half-life 8 days, accumulation half-life 7.9 days (nearly identical), volume of distribution 0.76 L/kg, clearance 0.049 mL/min/kg. Observed steady-state serum 15.4 ng/mL matched the 15.3 ng/mL predicted from single-dose data.",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1427752/",
+      "accessed": "2026-07-10"
+    }
+  },
+  "metabolism": "Digitoxin is cleared mainly by the liver (CYP3A4), which strips its sugars to the aglycone digitoxigenin and, by a minor pathway, converts a small fraction to digoxin; the products are conjugated and excreted, with substantial enterohepatic recycling that helps give digitoxin its very long persistence. No metabolite curve is drawn: there is no single dominant, cleanly citable metabolite fraction to model, and digitoxin's teaching value lies in the parent's ultra-long half-life and small, protein-binding-limited volume of distribution rather than in an active metabolite.",
+  "notes": "The long-half-life, small-volume counterpoint to digoxin — the two cardiac glycosides sit at opposite ends of two axes at once. Half-life: digitoxin ~6.5 days vs digoxin ~1.5 days. Volume of distribution: digitoxin ~0.5 L/kg vs digoxin ~5–7 L/kg. The difference traces to physical chemistry: digitoxin is far more lipophilic and ~97% bound to plasma albumin, so it stays in the circulation (small Vd) and is cleared slowly by hepatic metabolism rather than by the kidneys, whereas digoxin is polar, lightly bound, buried in muscle Na/K-ATPase (huge Vd), and renally excreted. That single teaching contrast is why digitoxin is worth shipping.\n\nMODEL — ONE COMPARTMENT (a deliberate, sourced choice). Digitoxin's plasma curve is mildly biphasic (distribution complete within 4–6 h), but no clean single-population two-compartment fit (α, Vc) is available, and the ~4–6 h distribution phase is negligible against a ~6.5-DAY terminal. MacFarland 1984's specific-assay numbers are internally one-compartment-consistent: CL = ln2·Vd/t½ = 0.693 × 0.47 L/kg × 70 kg / 156 h = 0.146 L/h = 2.44 mL/min — exactly the reported systemic clearance. Forcing a two-compartment model would mean inventing a distribution phase, so one-compartment is the honest read (the same posture as ibuprofen/cefotaxime). Clearance is therefore NOT stored: both t½ and Vd are directly measured, and storing CL as well would be a circular ke cross-check.\n\nLINEARITY. Digitoxin kinetics are dose- and route-independent: Ochs 1982 found the accumulation half-life (7.9 days) nearly identical to the single-dose half-life (8 days), and the observed steady-state serum concentration (15.4 ng/mL) matched the 15.3 ng/mL predicted from single-dose data — the signature of linear, first-order kinetics with clean superposition. linear: true.\n\nMAGNITUDE CHECK (built engine curve). A 1 mg IV dose (the loading dose Ochs actually gave) yields C(0) = 1 mg / (0.47 L/kg × 70 kg ≈ 33 L) ≈ 30 ng/mL, settling into the classic digitoxin therapeutic serum range of ~10–30 ng/mL — and note that this is ~10× the digoxin therapeutic range (~0.5–2 ng/mL), a direct consequence of the ~10× smaller volume of distribution. This validates Vd against the known therapeutic level.\n\nROUTES. Oral is the primary clinical route (F 81.5% by specific assay); IV bolus is offered because Ochs/MacFarland administered digitoxin intravenously to measure the disposition, and it gives the cleanest view of the ultra-long terminal. Note that digitoxin as a product is largely historical/discontinued in many countries (e.g. withdrawn in the US around 2001) — it is modelled here purely as an educational example of extreme long-half-life, high-protein-binding kinetics.\n\nNARROW THERAPEUTIC INDEX: narrowTherapeuticIndex = true (therapeutic serum ~10–30 ng/mL, with toxicity not far above). This is an epistemic flag for the honesty layer only — the app plots illustrative curves for a user-chosen dose and NEVER returns a dose or a level to target. The very long half-life makes digitoxin especially unforgiving of accumulation, an educational point, not a dosing instruction. Educational illustration only — not for dosing."
+}

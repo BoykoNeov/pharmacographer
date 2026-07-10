@@ -95,9 +95,9 @@ describe('buildCurve horizon (flip-flop oral, ka < ke)', () => {
 /**
  * `metaboliteTag` is the single source of truth for the "— (active) metabolite"
  * wording shared by the chart legend and the provenance panel, so the two can
- * never drift. It pins BOTH branches — the inactive branch in particular is not
- * reachable by any render test (no inactive metabolite ships, and the chart
- * legend renders empty under jsdom's static markup), so this is its only cover.
+ * never drift. It pins BOTH branches — the inactive branch is now live in the
+ * data (morphine's M3G is `active: false`), but the chart legend still renders
+ * empty under jsdom's static markup, so this unit remains its primary cover.
  */
 describe('metaboliteTag', () => {
   it('labels an active metabolite', () => {

@@ -706,20 +706,74 @@ a slot:
   the default view). That is exactly the oseltamivir deferral criterion — so oral is dropped rather
   than shipped with a misleading metabolite curve, keeping the IV route where cotinine is faithful.
 
-### Metabolite/toxin candidates vetted this pass but NOT shipped (next)
+**Morphine → M3G (major, inactive) + M6G (minor, active) — the parallel-glucuronidation
+centrepiece (`compounds/morphine.json`).** The first compound with an active AND an inactive
+metabolite drawn together (M3G is the FIRST `active: false` metabolite shipped — chart legend
+reads "— metabolite", not "— active metabolite"). Single-population sourcing: morphine disposition
+and BOTH formation fractions from Hasselström & Säwe 1993 (PMID 8491060, healthy volunteers);
+each glucuronide's OWN disposition from a direct-IV-metabolite study (M6G Hanna 1991 PMID 1997044;
+M3G Penson 2001 PMID 11745739). Key curation calls:
 
-Two further candidates were vetted alongside nicotine and deferred to a later pass (documented so
-the reasoning survives), both clean and expected to ship:
+- **One-compartment EFFECTIVE parent, not 2-comp.** Morphine's measured CL (1.27 L/h/kg) and Vss
+  (2.9 L/kg) give an *effective* half-life ln2·Vd/CL = 1.58 h (≈ the FDA label's "effective ~2 h"),
+  which carries essentially all its AUC. The sensitive-assay ~15.1 h terminal is a low-amplitude
+  deep phase and CANNOT be used as a 1-comp half-life (pairing 15 h with Vss 2.9 implies CL ~10×
+  too low → AUC ~10× too high). The macro-parameters are mutually consistent only for the effective
+  phase, so 1-comp at 1.58 h is the honest read; the 15 h tail is documented-not-modelled
+  (remifentanil/nicotine terminal-honesty + warfarin dual-half-life posture). CL not stored
+  (circular with the derived t½).
+- **Metabolite disposition = TRUE intrinsic, not apparent (the decisive call, advisor-reviewed).**
+  The glucuronides' APPARENT post-morphine half-lives (M3G 11.2 h, M6G 12.9 h; Hasselström) are far
+  LONGER than their INTRINSIC elimination (M3G 1.66 h; M6G 2.05 h; direct-IV studies). The long
+  apparent tails are formation-rate limitation (paced by morphine's ~15 h deep phase) PLUS
+  enterohepatic recirculation — neither representable by a linear systemic superposition engine.
+  Three options: (A) store true intrinsic disposition; (B) store the apparent ~12 h as the
+  metabolite's "elimination"; (C) build a multi-comp parent carrying the 15 h phase. **A shipped.**
+  B was rejected because it corrupts the honesty panel (presenting a formation/enterohepatic
+  artefact as M6G's elimination) and breaks the renal-accumulation teaching (M6G matters because its
+  OWN elimination slows in renal failure — storing 13 h makes that incoherent). C was rejected
+  because the 15 h phase is ~1% amplitude (won't reproduce the observed tail anyway) and
+  enterohepatic cycling is still unmodelable — a fabricated ill-conditioned parent for no gain. The
+  metabolite AMOUNTS stay faithful (AUC_m = fm·D/CL_m, parent-disposition-independent); only the
+  shape's long tail — the unmodelable part — is shortened, and that discrepancy becomes the teaching
+  caveat in the metabolism prose. **General rule this establishes:** when a metabolite's apparent
+  post-parent half-life is a formation/enterohepatic artefact and its intrinsic elimination is
+  separately measured (direct-IV), store the intrinsic value — the honesty panel must show real
+  disposition, not a lumped apparent constant. (Contrast cefotaxime/desacetyl, where the apparent
+  2.3 h IS elimination-rate-limited — longer than the parent — so the apparent value is honest.)
+- **fm mass-conversion (recurring precedent).** Hasselström's formation clearances are MOLAR; both
+  glucuronides (MW 461.46) are HEAVIER than morphine (285.34), so mass-fm = molar × 461.46/285.34 =
+  ×1.617: M3G 57.3% → **92.7%**, M6G 10.4% → **16.8%**. Their sum >100% (109.5%) is EXPECTED and
+  correct for heavier metabolites (molar sum 67.7% < 100%) — do not "fix" it. Same direction as
+  cotinine (×1.086), inverse of caffeine's lighter xanthines (×0.928).
+- **IV-BOLUS ONLY — oral deferred (oseltamivir criterion).** Morphine's ~29% oral F is largely
+  first-pass glucuronidation, so much of M3G/M6G forms PRE-systemically — the same criterion that
+  keeps nicotine IV-only. Oral is dropped rather than shipped with glucuronide lines drawn too low.
+- **Magnitude (built engine):** 10 mg IV → C(0) 49 ng/mL; M3G peaks 151 ng/mL @2.3 h, M6G 24 ng/mL
+  @2.6 h (AUC ratio 5.7, ≈ the mass-fm ratio) — M3G ≫ M6G, both peaking just after the fast parent.
 
-- **Morphine → morphine-6-glucuronide (M6G, active) + morphine-3-glucuronide (M3G, inactive).**
-  A strong parallel-glucuronidation pair that fits the N-metabolite engine (two metabolites off one
-  2-comp parent, not a chain). Deferred only for scope this pass. On shipping: keep to
-  normal-renal-function population (both glucuronides are renally cleared and accumulate in renal
-  failure), source a single-population morphine 2-comp fit + M6G/M3G formation fractions and
-  dispositions.
-- **Digitoxin** — the long-half-life plant cardiac glycoside (a foxglove toxin), a natural
-  long-t½ / high-protein-binding counterpoint to digoxin. Deferred pending a clean single-population
-  2-comp fit; verify linearity and that the ~6–8 day terminal is from one coherent source.
+**Digitoxin — the long-t½ / small-Vd / high-protein-binding counterpoint to digoxin
+(`compounds/digitoxin.json`).** Two cardiac glycosides at opposite ends of two axes at once: t½
+~6.5 days vs ~1.5 days; Vd ~0.5 L/kg vs ~5–7 L/kg. Digitoxin is far more lipophilic and ~97%
+albumin-bound, so it stays in the circulation (small Vd) and is cleared slowly by hepatic
+metabolism, not renally. Curation:
+
+- **One-compartment, NOT the 2-comp the vetting note guessed.** MacFarland 1984's specific-assay
+  numbers are internally 1-comp-consistent: CL = ln2·Vd/t½ = 0.693 × 0.47 L/kg × 70 / 156 h =
+  0.146 L/h = 2.44 mL/min = exactly the reported clearance. No clean single-population α/Vc exists,
+  and the 4–6 h distribution phase is negligible against a 6.5-DAY terminal — forcing 2-comp would
+  mean inventing a distribution phase, so 1-comp is the honest read (ibuprofen/cefotaxime posture).
+- **Linearity anchored to an opened statement (citation-verify).** Ochs 1982 (PMC1427752): the
+  accumulation half-life (7.9 d) ≈ single-dose (8 d), and observed SS serum 15.4 ng/mL ≈ 15.3
+  predicted from single-dose data — dose/route-independent, so `linear: true`.
+- **Parent-only, no metabolite line** (hepatic CYP3A4 → digitoxigenin + minor conversion to
+  digoxin; no single dominant citable fm — theobromine/pregabalin posture). Oral (F 81.5% by
+  specific assay — the honest value vs the ~98% non-specific-RIA over-estimate) + IV bolus; Tmax is
+  a flagged curatorial 1 h (no digitoxin-specific value published, and the ~6.5-day t½ makes the
+  curve utterly Tmax-insensitive, ka ≫ ke — the inverse of flip-flop). Digitoxin is largely
+  historical/discontinued; modelled purely as an extreme-long-half-life educational example. NTI.
+- **Magnitude (built engine):** 1 mg IV → C(0) 30 ng/mL (therapeutic 10–30, ~10× digoxin's
+  0.5–2 range, the direct consequence of the ~10× smaller Vd).
 
 ## The schema (one JSON file per compound)
 

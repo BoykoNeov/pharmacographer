@@ -92,8 +92,34 @@ all pass.
 
 Follow the phases in handoff §13 — engine + tests before UI. Current state:
 **Phase 7 data expansion + all three chart refinements done; static-site deploy
-is the sole remaining Phase 7 item. SEED SET now 37 compounds (was 10; the file count on disk
+is the sole remaining Phase 7 item. SEED SET now 39 compounds (was 10; the file count on disk
 is authoritative).**
+
+**MORPHINE (→ M3G + M6G) + DIGITOXIN (2026-07-10, advisor-reviewed, 408 tests):** 38th + 39th
+compounds — the two vetted-next candidates. **morphine** = the parallel-glucuronidation centrepiece
+and the FIRST compound with an active AND inactive metabolite drawn together (**M3G is the FIRST
+`active: false` metabolite shipped** — legend reads "— metabolite"). One-comp EFFECTIVE parent
+(CL 1.27 + Vss 2.9 → t½ 1.58 h ≈ FDA "effective ~2 h"; the ~15 h sensitive-assay terminal is a
+low-amplitude deep phase, CANNOT be a 1-comp t½ [would force CL ~10× too low], documented-not-modelled
+— remifentanil/warfarin posture); IV-BOLUS ONLY (oral deferred, oseltamivir criterion — ~29% oral F
+is pre-systemic first-pass glucuronidation). **KEY CURATION CALL (Option A):** the glucuronides'
+APPARENT post-morphine half-lives (M3G 11.2 / M6G 12.9 h, Hasselström) are formation-limited +
+enterohepatic artefacts (unmodelable by a superposition engine); their INTRINSIC elimination
+(M3G 1.66 h Penson 2001 / M6G 2.05 h Hanna 1991, direct-IV) is stored instead — B (store apparent
+as "elimination") REJECTED because it corrupts the honesty panel + breaks the renal-accumulation
+teaching; C (multi-comp parent) REJECTED (~1% amplitude phase + still unmodelable enterohepatic).
+AMOUNTS stay faithful (AUC_m=fm·D/CL_m); only the shape's tail is shortened → teaching caveat.
+**General rule:** intrinsic > apparent for the honesty panel; contrast cefotaxime where apparent IS
+elimination-limited (honest). fm ×1.617 (glucuronides HEAVIER, MW 461.46 vs 285.34): M3G 57.3→92.7%,
+M6G 10.4→16.8%, sum >100% expected. Single-population: Hasselström 1993 (parent + both molar fm).
+10 mg IV → C(0) 49 ng/mL, M3G 151 / M6G 24 ng/mL (AUC ratio 5.7). **digitoxin** = long-t½ / small-Vd /
+high-protein-binding (~97%) counterpoint to digoxin (t½ 6.5 d vs 1.5 d; Vd 0.5 vs 5–7 L/kg). ONE-COMP
+(MacFarland 1984 specific-assay CL/Vd/t½ internally 1-comp-consistent: CL=ln2·Vd/t½=2.44 mL/min exactly;
+NOT the 2-comp the old vetting note guessed — no clean α/Vc, distribution negligible vs 6.5-DAY terminal).
+linear:true anchored to Ochs 1982 (accumulation t½ 7.9 d ≈ single-dose 8 d; SS 15.4 ≈ predicted 15.3).
+Parent-only (no dominant citable fm). Oral (F 81.5% specific-assay, honest vs ~98% RIA over-estimate) +
+IV bolus; Tmax flagged curatorial 1 h (none published; ka≫ke makes curve Tmax-insensitive). Largely
+historical/discontinued. NTI. 1 mg IV → C(0) 30 ng/mL (10–30 range, ~10× digoxin).
 
 **ON-SCREEN COMPOUND PROSE (2026-07-10, 405 tests, `feat(ui)` `138f045`, pushed):** three
 user-facing text fields, distinct from the curator-only `notes` — `description` (REQUIRED,

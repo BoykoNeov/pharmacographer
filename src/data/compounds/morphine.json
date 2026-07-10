@@ -1,0 +1,123 @@
+{
+  "id": "morphine",
+  "schemaVersion": 1,
+  "names": { "inn": "Morphine", "brand": ["MS Contin", "Duramorph"], "synonyms": ["Morphine sulfate"] },
+  "description": "A natural opioid from the poppy and the reference painkiller for severe pain, acting on µ-opioid receptors. The liver converts it to two glucuronides in parallel — M6G, which is itself a potent painkiller, and M3G, which is not — and both are cleared by the kidneys.",
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 1.58,
+      "range": [1.3, 2.2],
+      "unit": "h",
+      "derived": true,
+      "sourceRef": "hasselstrom_1993",
+      "conditions": "EFFECTIVE (functional) half-life = ln2·Vd/CL from Hasselström & Säwe 1993's directly-measured clearance (21.1 mL/min/kg = 1.27 L/h/kg) and volume of distribution (2.9 L/kg): 0.693 × 2.9 / 1.27 = 1.58 h. This matches the FDA morphine-injection label's 'effective terminal half-life ~2 h' and carries essentially all of morphine's AUC. The SAME Hasselström study, with a sensitive assay, also resolves a much longer, LOW-AMPLITUDE terminal (~15.1 h); that deep phase is documented but NOT modelled here, because modelling 15 h as a one-compartment half-life would be inconsistent with the measured clearance (it would force CL ~10× too low and inflate AUC ~10×). Reporting the effective phase is the honest one-compartment choice (the same terminal-half-life honesty posture as remifentanil/nicotine, and the dual-half-life posture as warfarin). See notes; the ~15 h tail is also part of why the glucuronides appear so long-lived (metabolite notes)."
+    },
+    "vd": {
+      "value": 2.9,
+      "range": [2.1, 3.7],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "hasselstrom_1993",
+      "conditions": "volume of distribution 2.9 ± 0.8 L/kg (Hasselström & Säwe 1993, healthy volunteers; the FDA injection label states 3–4 L/kg). Morphine is only ~35% plasma-protein-bound. Sets C(0) = Dose/Vd for an IV bolus (10 mg IV → ~49 ng/mL at 70 kg). Scaled to absolute litres against the 70 kg reference subject (≈203 L)."
+    }
+  },
+  "routes": {
+    "iv_bolus": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "metabolites": [
+    {
+      "id": "morphine-3-glucuronide",
+      "name": "Morphine-3-glucuronide (M3G)",
+      "active": false,
+      "description": "The major glucuronide of morphine and the single largest product of its metabolism — yet it has no painkilling activity (and may be mildly excitatory). Like M6G it is cleared by the kidneys.",
+      "fractionFormed": {
+        "value": 92.7,
+        "range": [80, 100],
+        "unit": "percent",
+        "derived": true,
+        "sourceRef": "hasselstrom_1993",
+        "conditions": "Hasselström & Säwe 1993: the clearance of morphine to form M3G is 57.3% of morphine's total clearance — a MOLAR fraction (fraction of morphine molecules taking that path). The engine's fm multiplies parent MASS eliminated (dA_m/dt = fm·CL·C_p, in mg, no MW factor), so it must be MW-adjusted. M3G (MW 461.46) is HEAVIER than morphine (285.34) — glucuronidation adds a glucuronic-acid group — so each mg of morphine cleared this way yields 461.46/285.34 = 1.617 mg of M3G: mass-fm = 0.573 × 1.617 = 0.927 = 92.7%. This is the DOMINANT pathway (M3G ≫ M6G, ~5.5:1 by mass here). derived: true (molar figure MW-adjusted), the cotinine/caffeine mass-fraction convention. NOTE the two glucuronides' mass-fm sum (92.7 + 16.8 = 109.5%) EXCEEDS 100% — this is expected and correct for metabolites heavier than the parent (the underlying MOLAR fractions sum to 67.7% < 100%); it is not double-counting."
+      },
+      "vd": {
+        "value": 23.1,
+        "unit": "L",
+        "derived": false,
+        "sourceRef": "penson_2001",
+        "conditions": "M3G's OWN volume of distribution, 23.1 L (≈0.33 L/kg), directly measured after INTRAVENOUS M3G (7.5–30 mg/70 kg in 9 healthy volunteers; Penson 2001) — a true metabolite volume, not an apparent Vd/F. Small, as expected for a polar, low-lipophilicity glucuronide (little tissue distribution). Penson fit a two-compartment model; modelled one-compartment here (the metabolite engine's scope). Absolute litres."
+      },
+      "halfLife": {
+        "value": 1.66,
+        "range": [1.2, 2.2],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "penson_2001",
+        "conditions": "M3G's OWN elimination half-life 1.66 ± 0.47 h, measured after direct IV M3G in healthy volunteers with normal renal function (Penson 2001; clearance 169 mL/min). This is MUCH SHORTER than the ~11.2 h APPARENT half-life seen for M3G after MORPHINE dosing (Hasselström) — see the compound notes: after morphine, M3G is formation-rate-limited by morphine's slow deep phase and undergoes enterohepatic recycling, mechanisms a systemic superposition engine cannot represent, so its intrinsic ~1.7 h elimination is used here. M3G is renally cleared and its true elimination lengthens markedly in renal impairment."
+      },
+      "notes": "Morphine-3-glucuronide is the PRINCIPAL metabolite of morphine (hepatic UGT2B7 glucuronidation at the 3-position) and the largest single product of its metabolism, but it is NOT analgesic — it lacks µ-opioid activity and has been implicated in neuroexcitatory effects (hyperalgesia, myoclonus) at high concentrations. It is drawn (dashed, marked 'metabolite', not 'active metabolite') alongside the active M6G to make the parallel-glucuronidation teaching pair: one dominant inactive product and one minor active one, formed simultaneously off the shared parent clearance (fm_i·CL·C_p).\n\nDISPOSITION — TRUE vs APPARENT (the honesty point). The stored half-life (1.66 h) and volume (23.1 L) are M3G's OWN, measured by giving M3G intravenously (Penson 2001). After MORPHINE, M3G instead appears to decline with a ~11.2 h apparent half-life (Hasselström); that long tail is NOT M3G's elimination but a blend of (a) formation-rate limitation by morphine's low-amplitude ~15 h deep phase and (b) enterohepatic recirculation of the glucuronide — neither representable by this linear systemic engine. Storing the intrinsic ~1.7 h keeps the honesty panel truthful (a reader sees M3G's real elimination, which is what lengthens in renal failure), at the cost of a modelled tail shorter than the observed one. The AMOUNT is faithful regardless: AUC_m = fm·Dose/(k_m·Vd_m) is pinned by fm and M3G's own clearance, independent of the parent's disposition. fm is MW-adjusted from the 57.3% molar formation clearance (×461.46/285.34 = ×1.617 → 92.7% mass)."
+    },
+    {
+      "id": "morphine-6-glucuronide",
+      "name": "Morphine-6-glucuronide (M6G)",
+      "active": true,
+      "description": "The active glucuronide of morphine — a more potent µ-opioid agonist than morphine itself. Because it is cleared by the kidneys, it builds up in people with poor kidney function and contributes much of the pain relief (and the risk) there.",
+      "fractionFormed": {
+        "value": 16.8,
+        "range": [13, 21],
+        "unit": "percent",
+        "derived": true,
+        "sourceRef": "hasselstrom_1993",
+        "conditions": "Hasselström & Säwe 1993: the clearance of morphine to form M6G is 10.4% of morphine's total clearance — a MOLAR fraction. MW-adjusted for the engine's mass-basis fm exactly as for M3G: M6G (MW 461.46, morphine glucuronidated at the 6-position) is heavier than morphine (285.34), so mass-fm = 0.104 × (461.46/285.34) = 0.104 × 1.617 = 0.168 = 16.8%. This is the MINOR of the two glucuronides (M3G ≫ M6G, ~5.5:1 by mass), but the pharmacologically important one. derived: true (molar MW-adjusted); the sum with M3G exceeding 100% is expected for heavier metabolites (see the M3G fm note)."
+      },
+      "vd": {
+        "value": 29.38,
+        "unit": "L",
+        "derived": false,
+        "sourceRef": "hanna_1991",
+        "conditions": "M6G's OWN volume of distribution, 29.38 L (≈0.42 L/kg), directly measured after INTRAVENOUS M6G (30 µg/kg, 6 healthy volunteers; Hanna 1991) — a true metabolite volume, not an apparent Vd/F. Small, as expected for a polar glucuronide with little tissue distribution. (Hanna's reported clearance, 187.81 L/h, is internally inconsistent with its own Vd and half-life — 29.38 L / 2.05 h implies ~10 L/h — and is NOT used; only the self-consistent Vd and half-life are taken.) Absolute litres."
+      },
+      "halfLife": {
+        "value": 2.05,
+        "range": [1.5, 3.5],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "hanna_1991",
+        "conditions": "M6G's OWN elimination half-life 2.05 h, measured after direct IV M6G in healthy volunteers with normal renal function (Hanna 1991). Much SHORTER than the ~12.9 h APPARENT half-life seen for M6G after MORPHINE dosing (Hasselström): as with M3G, that long observed tail is formation-rate limitation (by morphine's deep ~15 h phase) plus enterohepatic recycling, not M6G's intrinsic elimination — see compound notes. THE CLINICAL POINT: M6G is renally cleared, so in renal impairment its true elimination lengthens dramatically and it ACCUMULATES to high, long-lasting concentrations — the main reason morphine can cause prolonged sedation/respiratory depression in renal failure. That accumulation is a renal-function effect on M6G's own elimination, which is exactly why the intrinsic (not the apparent) half-life is the honest thing to store."
+      },
+      "notes": "Morphine-6-glucuronide is the ACTIVE metabolite of morphine (hepatic UGT2B7 glucuronidation at the 6-position): a µ-opioid agonist MORE potent than morphine itself. Although it is the minor glucuronide (~1/5.5 the mass of M3G formed), it contributes substantially to analgesia — and, in renal impairment where it accumulates, to toxicity. Drawn as a dashed 'active metabolite' line beside the inactive M3G: the two together are the parallel-glucuronidation centrepiece (M6G active + M3G inactive, formed simultaneously off the shared parent clearance).\n\nDISPOSITION — TRUE vs APPARENT (see the M3G note for the full argument). Stored half-life 2.05 h and volume 29.38 L are M6G's OWN, from direct IV M6G (Hanna 1991); the ~12.9 h apparent half-life after morphine reflects formation-rate limitation by morphine's low-amplitude deep phase plus enterohepatic recycling (unmodelable here). The intrinsic ~2 h is stored so the honesty panel is truthful and the renal-accumulation teaching (M6G's own elimination is what slows in renal failure) stays coherent. AUC is faithful via AUC_m = fm·Dose/(k_m·Vd_m). fm MW-adjusted from the 10.4% molar formation clearance (×1.617 → 16.8% mass)."
+    }
+  ],
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "sources": {
+    "hasselstrom_1993": {
+      "type": "Journal article",
+      "title": "Hasselström J, Säwe J. Morphine pharmacokinetics and metabolism in humans. Enterohepatic cycling and relative contribution of metabolites to active opioid concentrations. Clin Pharmacokinet. 1993;24(4):344–354 (PMID 8491060). Healthy volunteers: systemic clearance 21.1 ± 3.4 mL/min/kg (1.27 L/h/kg), volume of distribution 2.9 ± 0.8 L/kg, terminal half-life 15.1 ± 6.5 h (sensitive assay), oral bioavailability 29.2 ± 7.2%; clearance of morphine to form M3G 57.3% and to M6G 10.4% of total clearance; apparent half-lives of morphine, M3G and M6G 15.1, 11.2 and 12.9 h.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/8491060/",
+      "accessed": "2026-07-10"
+    },
+    "fda_label": {
+      "type": "FDA label",
+      "title": "Morphine Sulfate Injection, USP — FDA Structured Product Label, clinical pharmacology (volume of distribution 3–4 L/kg; plasma clearance 20–30 mL/min/kg; ~35% protein bound; effective terminal half-life ~2 h, with a longer ~15 h terminal on extended sampling; hepatic glucuronidation to M3G [major, inactive] and M6G [minor, active]; ~10% excreted unchanged in urine).",
+      "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2016/020631s001lbl.pdf",
+      "accessed": "2026-07-10"
+    },
+    "hanna_1991": {
+      "type": "Journal article",
+      "title": "Hanna MH, Peat SJ, Woodham M, Knibb A, Fung C. Disposition of morphine-6-glucuronide and morphine in healthy volunteers. Br J Anaesth. 1991;66(1):103–107 (PMID 1997044). After IV M6G 30 µg/kg (6 healthy volunteers): volume of distribution 29.38 L, elimination half-life 2.05 h.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/1997044/",
+      "accessed": "2026-07-10"
+    },
+    "penson_2001": {
+      "type": "Journal article",
+      "title": "Penson RT, Joel SP, Bakhshi K, Clark SJ, Langford RM, Slevin ML. Limited phase I study of morphine-3-glucuronide. J Pharm Sci. 2001;90(11):1810–1816 (PMID 11745739). Three cohorts of three healthy volunteers received IV M3G 7.5, 15 and 30 mg/70 kg: elimination half-life 1.66 ± 0.47 h, clearance 169 ± 48 mL/min, volume of distribution 23.1 ± 4.8 L (two-compartment fit); virtually no cardiovascular/respiratory effects.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/11745739/",
+      "accessed": "2026-07-10"
+    }
+  },
+  "metabolism": "The liver enzyme UGT2B7 glucuronidates morphine at two positions in parallel: the 3-position gives morphine-3-glucuronide (M3G, the major product, with no painkilling activity), and the 6-position gives morphine-6-glucuronide (M6G, minor but a more potent painkiller than morphine itself). Both are cleared by the kidneys and accumulate in kidney failure — which is why M6G in particular can cause prolonged effects in people with poor renal function. Only the IV route is shown: after oral morphine most glucuronidation happens on first pass through the gut and liver before the drug reaches the bloodstream, which a systemic model cannot represent faithfully. One caveat on the shapes: each glucuronide is drawn declining with its own intrinsic ~2 h half-life, but after real morphine dosing they appear to linger for ~11–13 h because their formation is paced by a slow deep phase of morphine and because they are recycled through the gut (enterohepatic cycling) — mechanisms this linear model does not include.",
+  "notes": "The parallel-glucuronidation teaching centrepiece: one parent forming TWO metabolites simultaneously — M3G (major, inactive) and M6G (minor, active/more potent than morphine) — exercising the N-metabolite engine with a two-line active/inactive contrast (cf. caffeine's three parallel demethylation products).\n\nSINGLE-POPULATION SOURCING. Morphine's disposition and BOTH glucuronide formation fractions come from ONE healthy-volunteer study (Hasselström & Säwe 1993): CL 21.1 mL/min/kg, Vd 2.9 L/kg, and clearances to M3G (57.3%) and M6G (10.4%) of total. Each glucuronide's OWN disposition comes from a study that administered that glucuronide intravenously (Hanna 1991 for M6G; Penson 2001 for M3G) — true metabolite volumes and half-lives, not apparent Vd/F.\n\nMODEL — ONE-COMPARTMENT EFFECTIVE PARENT. Morphine is genuinely multi-exponential, but its measured CL and Vss correspond to an EFFECTIVE half-life of ln2·Vd/CL = 1.58 h (≈ the FDA label's 'effective ~2 h'), which carries essentially all of its AUC. The sensitive-assay terminal (~15.1 h) is a low-amplitude deep phase: it CANNOT be used as a one-compartment half-life, because pairing 15 h with Vss 2.9 L/kg implies CL ~0.13 L/h/kg — ~10× below the measured 1.27 — so it would inflate AUC tenfold. Morphine's macro-parameters are mutually consistent only for the effective phase, so one-compartment at 1.58 h is the honest representation; the 15 h tail is documented, not modelled (remifentanil/nicotine terminal-honesty and warfarin dual-half-life posture). Clearance is not stored (t½ is derived from CL/Vd — storing CL too would be circular).\n\nMETABOLITE DISPOSITION — THE KEY CURATION DECISION (advisor-reviewed). The glucuronides' APPARENT half-lives after morphine (M3G 11.2 h, M6G 12.9 h; Hasselström) are much LONGER than their INTRINSIC elimination half-lives measured after direct IV glucuronide (M3G 1.66 h, Penson; M6G 2.05 h, Hanna). The long apparent tails are formation-rate limitation (the glucuronides are paced by morphine's slow low-amplitude ~15 h deep phase) PLUS enterohepatic recirculation — neither representable by a linear systemic superposition engine. Three options were weighed: (A) store the true intrinsic disposition; (B) store the apparent ~12 h as the metabolite's 'elimination'; (C) build a multi-compartment parent carrying the 15 h phase to drive the tails. B was rejected because it would corrupt the honesty panel (presenting a formation/enterohepatic artefact as M6G's elimination) and break the renal-accumulation teaching (M6G matters because its OWN elimination slows in renal failure). C was rejected because the 15 h phase is ~1% amplitude (so it would not reproduce the observed tail anyway) and enterohepatic cycling is still unmodelable — a fabricated, ill-conditioned parent for no gain. OPTION A shipped: store each glucuronide's true, measured, single-population elimination and Vd. The metabolite AMOUNTS are faithful (AUC_m = fm·Dose/(k_m·Vd_m), independent of parent disposition); only the shape's long tail — the unmodelable part — is shortened, and that discrepancy is turned into the teaching caveat in the metabolism prose and the per-metabolite notes.\n\nfm — MASS CONVERSION. Hasselström's formation clearances are MOLAR fractions; the engine's fm multiplies parent MASS, and both glucuronides (MW 461.46) are HEAVIER than morphine (285.34), so mass-fm = molar × 461.46/285.34 = molar × 1.617: M3G 0.573 → 92.7%, M6G 0.104 → 16.8%. Their sum exceeds 100% (109.5%) — correct for heavier metabolites (molar sum 67.7% < 100%), the inverse of caffeine's lighter dimethylxanthine metabolites and the same direction as cotinine (×1.086).\n\nROUTES — IV BOLUS ONLY. Oral is deliberately NOT offered. Morphine's oral bioavailability is only ~29% (Hasselström), the shortfall being extensive FIRST-PASS glucuronidation in gut and liver — i.e. much of the M3G/M6G forms PRE-systemically, which a systemic-formation engine cannot represent (it would draw the oral glucuronide lines far too low). That is the oseltamivir/nicotine deferral criterion, so oral is dropped rather than shipped with misleading metabolite curves. After IV morphine there is no first pass, so the glucuronides form systemically and the lines are faithful (subject to the true-vs-apparent tail caveat above).\n\nMAGNITUDE CHECK (built engine curves). 10 mg IV morphine → C(0) = 10 mg / (2.9 L/kg × 70 kg ≈ 203 L) ≈ 49 ng/mL, consistent with reported post-bolus morphine. The glucuronides rise behind the parent and, being (weakly) elimination-rate-limited relative to the fast effective parent (metabolite t½ 1.7–2 h > parent 1.6 h), peak a few hours later and linger modestly past it; M3G is the larger line (~5.5× M6G by AUC), reflecting the dominant 3-glucuronidation pathway. Educational illustration only — not for dosing."
+}
