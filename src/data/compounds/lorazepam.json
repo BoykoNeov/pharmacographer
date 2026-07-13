@@ -1,0 +1,68 @@
+{
+  "id": "lorazepam",
+  "schemaVersion": 1,
+  "names": { "inn": "Lorazepam", "brand": ["Ativan"], "synonyms": ["Lorazepam"] },
+  "description": "A benzodiazepine used for anxiety, status epilepticus, alcohol-withdrawal seizures, and pre-operative sedation. It is cleared by direct glucuronidation to an inactive metabolite, giving simple, predictable kinetics that do not depend on the liver's oxidative (CYP) enzymes.",
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 14,
+      "range": [9, 19],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "chemm",
+      "conditions": "Terminal elimination half-life 14 ± 5 h in healthy adults (CHEMM; the FDA tablet label quotes ~12 h for unconjugated lorazepam — consistent). The range [9, 19] is that 14 ± 5 h. Half-life gives ke; clearance is NOT stored (storing it too would be a circular ke cross-check) — but it is worth recording that CHEMM's independently-measured total clearance 1.1 ± 0.4 mL/min/kg is 1-compartment-consistent with this half-life and Vd: ke·Vd = (ln2/14 h)·1.3 L/kg = 0.064 L/h/kg = 1.07 mL/min/kg ≈ the measured 1.1, so lorazepam's t½, Vd and CL form a coherent one-compartment set (contrast escitalopram, deferred, where they do not — see docs/DATA_GUIDE.md)."
+    },
+    "vd": {
+      "value": 1.3,
+      "range": [1.1, 1.5],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "chemm",
+      "conditions": "Volume of distribution 'approximately 1.3 L/kg' in adults after parenteral administration (CHEMM; the FDA injection label reports the same). Scaled to absolute litres against the 70 kg reference subject at derivation time (≈91 L). This is the steady-state volume; lorazepam is much less lipophilic than diazepam, so its distribution phase is shallow and both CHEMM and the label report a single volume and half-life (a one-compartment description) rather than a pronounced two-compartment split — a two-compartment fit is needed only for long-term ICU infusions (see notes)."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 0.9,
+        "range": [0.85, 0.93],
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "'Lorazepam is readily absorbed with an absolute bioavailability of 90%' (FDA lorazepam tablet label). Lorazepam is not subject to significant first-pass loss, so there is no pre-systemic (firstPassFraction) term. Drives the oral parent curve (C ~ F·Dose/Vd)."
+      },
+      "tmax": {
+        "value": 2,
+        "range": [1.5, 2.5],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "'Peak concentrations in plasma occur approximately 2 hours following administration' (FDA lorazepam tablet label). ka is derived from this Tmax at derivation time. Because absorption is fast relative to the ~0.05 /h elimination, the oral curve is a clean rise-then-slow-decay and the shallow distribution phase is not resolved (the one-compartment reading, see notes)."
+      }
+    },
+    "iv_bolus": {
+      "available": true,
+      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+    }
+  },
+  "flags": { "nonlinear": false },
+  "sources": {
+    "fda_label": {
+      "type": "FDA label",
+      "title": "Lorazepam tablet — FDA Structured Product Label (DailyMed), Clinical Pharmacology: lorazepam is readily absorbed with an absolute bioavailability of 90%; peak plasma concentrations occur approximately 2 hours following oral administration; mean half-life of unconjugated lorazepam ~12 hours; rapidly conjugated at the 3-hydroxy group to lorazepam glucuronide, which has no demonstrable CNS activity and is excreted in the urine.",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=b707ecb2-644c-4323-ab0e-7bc5929cd560",
+      "accessed": "2026-07-13"
+    },
+    "chemm": {
+      "type": "Government database",
+      "title": "Lorazepam — CHEMM (Chemical Hazards Emergency Medical Management, U.S. HHS) countermeasure database: volume of distribution approximately 1.3 L/kg (parenteral); terminal half-life 14 ± 5 h; total clearance 1.1 ± 0.4 mL/min/kg; 91 ± 2% plasma-protein bound; extensive conjugation to the inactive 3-O-glucuronide, renally eliminated.",
+      "url": "https://chemm.hhs.gov/countermeasure_lorazepam.htm",
+      "accessed": "2026-07-13"
+    }
+  },
+  "metabolism": "Lorazepam is cleared almost entirely by direct glucuronidation — the liver attaches a sugar (glucuronic acid) to it, producing lorazepam glucuronide, which is water-soluble, has no demonstrable CNS activity, and is excreted by the kidneys. No line is drawn for that metabolite because it does nothing. This 'Phase II only' route is what makes lorazepam behave so predictably: unlike diazepam, it is not oxidised by the CYP enzymes, so it has no long-lived active metabolite (diazepam forms nordiazepam, drawn as a dashed line in that compound's chart) and is comparatively insensitive to CYP-based drug interactions and to liver-enzyme differences between people. Its clearance is only modestly affected by liver disease, and glucuronidation is relatively preserved in the elderly. This is an educational illustration, not clinical guidance.",
+  "notes": "A CLEAN one-compartment benzodiazepine and the deliberate counterpoint to diazepam, the set's two-compartment-plus-active-metabolite benzodiazepine. Where diazepam needs a distribution phase and draws nordiazepam (an active metabolite that outlives the parent), lorazepam is a single-compartment drug with an INACTIVE glucuronide and no metabolite line — the teaching contrast is 'same drug class, very different kinetic picture, because of how the liver handles it (oxidation vs glucuronidation).'\n\nWHY ONE COMPARTMENT (the honest reading). The FDA lorazepam label and CHEMM both report a SINGLE volume of distribution (~1.3 L/kg) and a SINGLE terminal half-life (~12–14 h) with a matching total clearance (1.1 ± 0.4 mL/min/kg) — a one-compartment description. These three numbers are mutually consistent under a one-compartment model: ke·Vd = (ln2/14 h)·1.3 L/kg ≈ 1.07 mL/min/kg ≈ the measured 1.1 (contrast escitalopram, deferred this pass, whose measured Vss and terminal half-life imply a clearance ~20–60% off the measured value because it is genuinely two-compartment). Lorazepam is far less lipophilic than diazepam, so its distribution phase is shallow; a two-compartment fit is documented only for LONG-TERM ICU infusions (where a slowly-filling peripheral compartment matters), not for the single doses modelled here.\n\nROUTES. Oral (F 90%, Tmax 2 h → ka) and IV bolus (a real clinical route — status epilepticus, alcohol-withdrawal seizures, pre-operative sedation) are both offered, both modelled one-compartment. For the IV bolus, C(0) = Dose/Vd uses the steady-state volume, so the very brief early distribution phase is not separately resolved — a mild, documented approximation (the same shallow-collapse posture as cefotaxime), acceptable because lorazepam's distribution phase is small. No infusion route is offered (that is where the two-compartment ICU behaviour appears, outside this one-compartment model's honest scope). (This diverges from procainamide, which DROPPED its IV route because IV procainamide is markedly two-compartment; lorazepam's is not, so the IV bolus is kept.)\n\nLINEARITY. Lorazepam glucuronidation is first-order and not saturated at therapeutic concentrations, so elimination is dose-proportional and superposition is valid (linear: true). The inactive glucuronide is renally cleared but carries no pharmacological activity, so it is described in prose, not plotted.\n\nMAGNITUDE CHECK (built engine curve). A 2 mg oral dose (F 0.90, ke = ln2/14 h, ka from Tmax 2 h) peaks near 18 ng/mL, in line with reported ~20 ng/mL after 2 mg oral lorazepam; a 2 mg IV bolus gives C(0) = 2000 µg / 91 L ≈ 22 ng/mL. Educational illustration only — not for dosing."
+}

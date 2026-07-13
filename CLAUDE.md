@@ -92,8 +92,11 @@ all pass.
 
 Follow the phases in handoff §13 — engine + tests before UI. Current state:
 **Phase 7 data expansion + all three chart refinements done; static-site deploy
-is the sole remaining Phase 7 item. SEED SET now 39 compounds (was 10; the file count on disk
-is authoritative).**
+is the sole remaining Phase 7 item. SEED SET now 43 compounds (was 10; the file count on disk
+is authoritative). Latest pass 2026-07-13: +lorazepam, +zolpidem, +glipizide (clean linear
+1-comp — benzodiazepine / Z-drug hypnotic / first sulfonylurea), 431 tests; naproxen +
+ondansetron excluded (nonlinear), escitalopram + sotalol + isoniazid deferred (see
+docs/DATA_GUIDE.md).**
 
 **ORAL MORPHINE → M3G + M6G via `ffp` — FIRST first-pass compound SHIPPED (2026-07-10, advisor-reviewed,
 422 tests).** The `ffp` curation pass. Oseltamivir was EVALUATED as the intended flagship and REJECTED

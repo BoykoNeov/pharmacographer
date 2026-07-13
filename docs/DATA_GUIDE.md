@@ -55,9 +55,70 @@ to one number. This guide is how we keep that honest.
 v1 implements linear (first-order) PK, where a single half-life is meaningful and
 doses superpose. Tag a drug `linear: false` and **exclude it from v1** if its
 elimination is saturable / nonlinear at typical doses — a fixed half-life would be
-_wrong_. Known exclusions: **phenytoin, ethanol, high-dose aspirin/salicylate**.
+_wrong_. Known exclusions: **phenytoin, ethanol, high-dose aspirin/salicylate**,
+plus **theophylline, omeprazole, MDMA** (all elsewhere in this guide), and two
+added 2026-07-13: **naproxen** and **ondansetron** (see the deferral note below).
 Leave a short note explaining _why_ so the rationale survives to the nonlinear
 phase.
+
+### Nonlinear / ceiling deferrals — naproxen, ondansetron, escitalopram, sotalol, isoniazid (2026-07-13)
+
+Five candidates evaluated in the 2026-07-13 pass and NOT shipped, each failing a
+specific gate. Documented so they aren't re-litigated (a documented defer is a
+first-class output, not a failure). The three that DID ship that pass — lorazepam,
+zolpidem, glipizide — are in the seed-expansion section below.
+
+- **Naproxen — EXCLUDED, `linear: false` (concentration-dependent protein binding).**
+  Naproxen's AUC is dose-proportional only **up to ~500 mg**; above that the unbound
+  fraction rises (it is >99% albumin-bound at therapeutic levels, near saturation), so
+  total clearance and volume increase and AUC rises _less_ than dose-proportionally.
+  Because standard dosing is 500 mg BID, the nonlinearity sits right at the top of its
+  own therapeutic range and would corrupt the multi-dose accumulation view — the same
+  superposition problem as theophylline/omeprazole. (Contrast **glipizide**, shipped
+  this pass, also ~99% protein-bound but LINEAR: its therapeutic plasma levels are
+  ng/mL — a thousandfold below binding saturation — so its bound fraction stays constant.
+  Same 99%-bound headline, opposite verdict, because of _where_ on the binding curve the
+  drug sits.) Secondary reason not to force it: its small-Vd/high-binding axis overlaps
+  warfarin's; the only non-redundant framing was the within-NSAID contrast, not enough to
+  outweigh the linearity failure.
+- **Ondansetron — EXCLUDED, `linear: false` (saturable first-pass metabolism).** A 5-HT3
+  antiemetic and a genuinely new class, but its systemic exposure does **not** rise
+  proportionally to dose: the FDA label reports the 16 mg AUC is ~24% greater than
+  predicted from 8 mg, because first-pass metabolism saturates as dose increases (so oral
+  bioavailability climbs with dose across 8/16/32/64 mg). That is a superposition
+  violation in the therapeutic range — the omeprazole class. (Contrast **zolpidem**,
+  shipped this pass, whose first-pass loss is a _fixed_ ~30% across its therapeutic range.)
+- **Escitalopram — DEFERRED (F·D/Vss ceiling fails; genuinely two-compartment).** A clean
+  linear SSRI (dose-proportional 10–30 mg) with a rare true-IV dataset (Søgaard 2005:
+  systemic CL 31 L/h, Vss 1100 L, F ~80%, terminal t½ 27–33 h), and it would have been a
+  strong long-t½ accumulation teacher. But it **fails the `F·D/V` ceiling test** exactly
+  like sildenafil: the observed single-dose 10 mg Cmax is ~9.85 ng/mL, while `F·D/Vss =
+  0.80·10000 µg / 1100 L ≈ 7.3 ng/mL` — the one-compartment ceiling sits _below_ the
+  observed peak. Reproducing the peak in one compartment needs V ~840 L (the central
+  volume), which then forces an implied CL of ~19 L/h vs the measured 31 → a hidden ~60%
+  AUC over-prediction that would distort the multi-dose view. It is genuinely
+  two-compartment and no clean single-population two-compartment set was sourced. Parked
+  pending a citable distribution-phase parameterisation. (Its weakly-active desmethyl
+  metabolite S-DCT is low-concentration and not worth a line even if it shipped.)
+- **Sotalol — DEFERRED (explicitly two-compartment; oral-collapse not vetted).** A clean,
+  linear (dose-proportional 160–640 mg/day), renally-cleared β-blocker/class-III
+  antiarrhythmic with no metabolism, no protein binding and no active metabolite — it would
+  have been a tidy renal counterpoint to procainamide (hepatic acetylation + active NAPA).
+  But the FDA label describes it as two-compartment (central + peripheral), and unlike
+  glipizide the distribution volume is not negligibly close to Vss, so the oral
+  one-compartment collapse (procainamide/cefotaxime posture) would need a proper ceiling +
+  Cmax check that was not completed this pass. Parked as a plausible future ship (oral-only
+  1-comp, once the collapse is vetted), not an exclusion.
+- **Isoniazid — DEFERRED (linearity unconfirmed + redundant + weak differentiator).** It
+  is a one-compartment antitubercular whose NAT2 acetylator polymorphism (fast t½ ~1 h /
+  slow ~3 h) tempts a reprise of procainamide's phenotype-anchoring. Three problems: (1)
+  acetylation is saturable and isoniazid shows dose-dependent kinetics at higher doses, so
+  therapeutic-dose linearity would need explicit confirmation; (2) it **re-teaches
+  procainamide's exact lesson** (NAT2, bimodal half-life, one illustrative phenotype) — the
+  set already has that exemplar; (3) the intended differentiator ("its acetyl metabolite is
+  inactive, unlike active NAPA") is shaky — acetylisoniazid can be hydrolysed back, and the
+  hepatotoxic species (acetylhydrazine) and the acetylator↔hepatotoxicity link are contested.
+  Parked; a compound in a truly new class is a stronger use of a slot than this reinforcement.
 
 ### Vetted §14 candidates not shipped in v1
 
@@ -550,6 +611,56 @@ conversion — see the same section).
   micro-values were initially mis-attributed to an unverified from-memory citation; caught in
   advisor review and re-sourced to the verified Arancibia 1986 paper — never ship a citation you
   did not open.)
+
+### Phase-7 seed expansion (clean linear CNS + antidiabetic) — 3 compounds added 2026-07-13 (431 tests)
+
+A 2026-07-13 pass added **lorazepam, zolpidem, glipizide** (40 → 43 compounds; 431 tests
+green). All three are clean linear one-compartment drugs, advisor-reviewed before any JSON was
+written, and each magnitude-checked against the built engine curve. The pass also produced five
+documented deferrals (naproxen, ondansetron, escitalopram, sotalol, isoniazid — see the
+nonlinear/ceiling deferral note near the top of this guide); the advisor's steer was to gate-check
+every candidate's disqualifier _first_ and build only the survivors, and four of the original
+candidates fell to a linearity or ceiling gate.
+
+- **Lorazepam (`compounds/lorazepam.json`) — the CLEAN one-compartment benzodiazepine, the
+  counterpoint to diazepam.** Where diazepam is two-compartment and draws an active metabolite
+  (nordiazepam), lorazepam is single-compartment with an **inactive** 3-O-glucuronide and no
+  metabolite line — the teaching contrast is "same drug class, very different kinetic picture,
+  because of how the liver handles it (CYP oxidation vs Phase-II glucuronidation)." The FDA Ativan
+  label reports a single Vd (1.3 L/kg), single terminal t½ (14 ± 5 h) and a matching CL
+  (1.1 ± 0.4 mL/min/kg) that are mutually **one-compartment-consistent**: ke·Vd ≈ 1.07 mL/min/kg ≈
+  the measured 1.1 (the honest reason it ships 1-comp where escitalopram, over-determined the other
+  way, is deferred). Oral (F ~90%, Tmax 2 h, fast ka) + IV bolus (a real clinical route — status
+  epilepticus, alcohol-withdrawal seizures, pre-op sedation), both 1-comp; the IV bolus uses Vss so
+  the shallow early distribution phase is a mild documented approximation (cefotaxime posture; no
+  infusion route offered, which is where the ICU two-compartment behaviour would appear). Sources:
+  FDA Ativan label, Greenblatt 1979 (bioavailability), CHEMM. Magnitude: 2 mg oral → 17.9 ng/mL
+  @ 2 h (reported ~20); 2 mg IV bolus → C(0) 22 ng/mL.
+- **Zolpidem (`compounds/zolpidem.json`) — the 'Z-drug' hypnotic; the SHORT-half-life end of the
+  CNS-depressant spectrum.** A rock-solid one-compartment case where nothing is derived offline and
+  no caveats are needed: the FDA label gives a short t½ (2.5 h), clean Tmax (1.6 h), constant
+  concentration-independent protein binding (92.5%), explicit **linear** kinetics over 5–20 mg, and
+  a hard Cmax anchor (121 ng/mL after 10 mg); the clinical PK review (Salvà & Costa 1995) adds
+  F ~70% and Vd 0.54 L/kg. Its ~30% first-pass loss goes entirely to **inactive** metabolites (no
+  metabolite line) and is a _fixed_ fraction across the therapeutic range — the honest contrast to
+  ondansetron (deferred, saturable first-pass). Oral only. Magnitude: 10 mg oral → **118.8 ng/mL**
+  @ 1.6 h, matching the label's mean Cmax of 121 ng/mL within ~2% (the tightest label anchor in the
+  set).
+- **Glipizide (`compounds/glipizide.json`) — the set's first SULFONYLUREA (a genuinely new
+  class: an insulin secretagogue, distinct from metformin's biguanide mechanism).** A clean,
+  short-half-life oral one-compartment drug with an unusually small volume (Vd ~0.167 L/kg, ~11.7 L)
+  from ~98–99% protein binding — the same small-Vd/high-binding axis as warfarin, but reached via a
+  different class and story. Two teaching points make it non-redundant: (1) **why it stays linear
+  while naproxen doesn't** — both are ~99% bound, but glipizide's therapeutic plasma levels are
+  ng/mL (a thousandfold below albumin saturation) so its bound fraction is constant, whereas
+  naproxen's are mg/L (near saturation) → dose-dependent clearance; (2) **concentration is not
+  effect** — the curve is plasma glipizide, but its action (glucose-dependent insulin secretion) is
+  time-shifted and dose-timed to a meal (a warfarin-style honesty caveat). It is technically
+  two-compartment, but the distribution volume (~10 L) is barely below Vss (~11.7 L), so the oral
+  collapse to 1-comp is essentially exact (unlike escitalopram/sotalol, deferred, where the volumes
+  differ enough to matter). Metabolites are **inactive** (no line); oral only (no marketed IV).
+  Sources: FDA Glucotrol label, Wåhlin-Böll 1982 (Clin Pharmacokinet). Magnitude: 5 mg oral →
+  302 ng/mL @ 1.5 h (reported ~300–450).
 
 ### Illicit / recreational compounds — 5 added 2026-07-10 (398 tests)
 

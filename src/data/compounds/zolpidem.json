@@ -1,0 +1,64 @@
+{
+  "id": "zolpidem",
+  "schemaVersion": 1,
+  "names": { "inn": "Zolpidem", "brand": ["Ambien", "Stilnox"], "synonyms": ["Zolpidem tartrate"] },
+  "description": "A 'Z-drug' sedative-hypnotic for short-term treatment of insomnia. Chemically distinct from the benzodiazepines but acting at the same GABA-A receptor, it is short-acting by design — fast onset and a short half-life to promote sleep onset while limiting next-morning grogginess.",
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 2.5,
+      "range": [1.4, 4.5],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "Mean elimination half-life ~2.5 h for the 10 mg tablet (2.6 h for 5 mg), range 1.4–4.5 h (FDA zolpidem tartrate label). The SHORT half-life is the design point of a hypnotic — it clears overnight to limit next-morning sedation, the teaching contrast to the long-lived benzodiazepines (lorazepam ~14 h, diazepam's nordiazepam metabolite days). Half-life gives ke; clearance is not stored."
+    },
+    "vd": {
+      "value": 0.54,
+      "range": [0.5, 0.6],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "salva_1995",
+      "conditions": "Volume of distribution ~0.54 L/kg (Salvà & Costa 1995 clinical PK review — the standard literature value, also carried by older FDA Ambien labels). A modest tissue volume — zolpidem is ~92.5% plasma-protein bound. Scaled to absolute litres against the 70 kg reference subject at derivation time (≈38 L). Independently cross-checked by the built curve: this Vd with F 0.70 reproduces the FDA label's mean Cmax of 121 ng/mL after 10 mg (a wrong volume would miss that anchor) — see notes."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 0.7,
+        "range": [0.65, 0.72],
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "salva_1995",
+        "conditions": "Absolute oral bioavailability ~70% (Salvà & Costa 1995, PMID 8521677), reflecting modest first-pass metabolism (zolpidem is fully absorbed but partly extracted by the liver on the first pass). The lost fraction is metabolised to INACTIVE products (no active metabolite forms pre-systemically), so there is no firstPassFraction term — F simply scales the systemic curve. Drives the oral parent curve (C ~ F·Dose/Vd)."
+      },
+      "tmax": {
+        "value": 1.6,
+        "range": [1.4, 2.2],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "Median Tmax 1.6 h (fasted) for the immediate-release tablet (FDA label; extended to ~2.2 h with food, which is why it is taken on an empty stomach for fast sleep onset). ka is derived from this Tmax at derivation time."
+      }
+    }
+  },
+  "flags": { "nonlinear": false },
+  "sources": {
+    "fda_label": {
+      "type": "FDA label",
+      "title": "Zolpidem tartrate tablets — FDA Structured Product Label, Clinical Pharmacology / Pharmacokinetics: mean elimination half-life 2.5 h (10 mg) and 2.6 h (5 mg), range 1.4–4.5 h; median Tmax 1.6 h; total plasma protein binding 92.5 ± 0.1%, constant and independent of concentration; linear kinetics over the 5–20 mg dose range; converted to inactive metabolites eliminated primarily by renal excretion; mean peak concentration after 10 mg was 121 ng/mL (range 58–272).",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=1584bad1-7bf4-4805-bdd9-7eb0fac92721",
+      "accessed": "2026-07-13"
+    },
+    "salva_1995": {
+      "type": "Journal article",
+      "title": "Salvà P, Costa J. Clinical pharmacokinetics and pharmacodynamics of zolpidem. Therapeutic implications. Clin Pharmacokinet. 1995;29(3):142-153 (PMID 8521677). Absolute oral bioavailability ~70%; volume of distribution ~0.54 L/kg; rapid absorption; short terminal elimination half-life (1.5–3.2 h); hepatic oxidative metabolism to inactive metabolites.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/8521677/",
+      "accessed": "2026-07-13"
+    }
+  },
+  "metabolism": "Zolpidem is oxidised in the liver (mainly by the enzyme CYP3A4) to metabolites that have no sedative activity, so no metabolite line is drawn. The lost ~30% of an oral dose (why bioavailability is ~70%, not 100%) is extracted on the first pass through the liver and turned into those inactive products — none of it becomes an active species, which is why the whole story here is the parent drug. The short half-life (~2.5 h) is deliberate: a hypnotic is designed to clear overnight so it does not leave the user sedated in the morning — the opposite design goal from a long-acting benzodiazepine. This is an educational illustration, not clinical guidance.",
+  "notes": "A CLEAN one-compartment, oral, short-acting hypnotic — the 'Z-drug' counterpoint to the benzodiazepines in the set (lorazepam, diazepam). It teaches the short-half-life end of the CNS-depressant spectrum: a drug engineered to rise fast and fall fast, so its curve is a brisk peak-and-decay rather than the slow accumulation of a long-lived agent.\n\nWHY IT IS EASY (a rock-solid one-compartment case). Every input is directly measured and mutually consistent: the FDA label reports a single short half-life (2.5 h), a clean Tmax (1.6 h), constant concentration-independent protein binding (92.5%), explicit LINEAR kinetics over 5–20 mg, and a measured Cmax anchor (121 ng/mL after 10 mg); the clinical PK review adds F ~70% and Vd 0.54 L/kg. Nothing is derived offline and no compartment/nonlinearity caveats are needed — the deliberate contrast to the drugs deferred this pass (naproxen, ondansetron, escitalopram, sotalol), each of which failed a linearity or ceiling gate.\n\nLINEARITY. The label states linear kinetics across the therapeutic 5–20 mg range and protein binding is constant with concentration, so superposition is valid (linear: true). (This is the honest contrast to ondansetron, deferred this pass: ondansetron's oral exposure rises MORE than dose-proportionally because its first-pass metabolism saturates — a superposition violation. Zolpidem's first-pass loss, by contrast, is a fixed ~30% across the therapeutic range.)\n\nROUTE. Oral only — zolpidem is a bedtime tablet; there is no marketed IV product, and the sublingual/spray formulations are variations on the same oral route not modelled separately.\n\nMAGNITUDE CHECK (built engine curve, against a hard label anchor). A 10 mg oral dose (F 0.70, Vd 0.54 L/kg = 38 L, ke = ln2/2.5 h, ka from Tmax 1.6 h) peaks near 120 ng/mL — matching the FDA label's reported mean Cmax of 121 ng/mL after 10 mg (range 58–272). Educational illustration only — not for dosing."
+}

@@ -1,0 +1,64 @@
+{
+  "id": "glipizide",
+  "schemaVersion": 1,
+  "names": { "inn": "Glipizide", "brand": ["Glucotrol"], "synonyms": ["Glipizide"] },
+  "description": "A sulfonylurea used for type 2 diabetes; it lowers blood sugar by stimulating the pancreas to release insulin. Among the sulfonylureas it has the fastest onset and shortest duration, so the immediate-release tablet is taken shortly before meals.",
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "disposition": {
+    "halfLife": {
+      "value": 3,
+      "range": [2, 4],
+      "unit": "h",
+      "derived": false,
+      "sourceRef": "fda_label",
+      "conditions": "Elimination half-life 2–4 h in normal subjects, essentially the SAME whether given orally or intravenously (FDA Glucotrol immediate-release label) — evidence that first-pass metabolism is not significant (F ~100%). Short for a sulfonylurea, which is why glipizide is dosed before meals rather than once daily. Half-life gives ke; clearance is not stored."
+    },
+    "vd": {
+      "value": 0.15,
+      "range": [0.14, 0.18],
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "fda_label_xl",
+      "conditions": "'The mean apparent volume of distribution was approximately 10 liters' (FDA Glucotrol XL label; ~11.7 L in earlier single-dose PK work) — i.e. ~0.15 L/kg against the 70 kg reference subject. A SMALL volume — glipizide is ~98–99% plasma-protein bound and stays largely intravascular, like warfarin (~0.14 L/kg). Glipizide is technically two-compartment, but the distribution volume (~10 L) is essentially its steady-state volume, so the distribution phase is negligible and the oral profile reads cleanly as one-compartment (see notes)."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "F": {
+        "value": 1.0,
+        "range": [0.95, 1.0],
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "'Gastrointestinal absorption of glipizide in man is uniform, rapid, and essentially complete' with ~100% bioavailability and no significant first-pass loss (FDA Glucotrol label; the oral and IV half-lives coincide). Modelled as F = 1. There is no pre-systemic (firstPassFraction) term. Drives the oral parent curve (C ~ Dose/Vd)."
+      },
+      "tmax": {
+        "value": 1.5,
+        "range": [1, 3],
+        "unit": "h",
+        "derived": false,
+        "sourceRef": "fda_label",
+        "conditions": "'Peak plasma concentrations occur 1 to 3 hours after a single oral dose' of the immediate-release tablet (FDA Glucotrol label); representative point value 1.5 h, from which ka is derived at derivation time. (The extended-release Glucotrol XL formulation, not modelled here, deliberately flattens this peak.)"
+      }
+    }
+  },
+  "flags": { "nonlinear": false },
+  "sources": {
+    "fda_label": {
+      "type": "FDA label",
+      "title": "GLUCOTROL (glipizide) tablets — FDA Structured Product Label (DailyMed), Clinical Pharmacology: gastrointestinal absorption uniform, rapid and essentially complete (bioavailability ~100%); peak plasma concentration 1–3 h after a single oral dose; elimination half-life 2–4 h in normal subjects whether given intravenously or orally (first-pass metabolism not significant); ~98–99% bound to plasma proteins; the primary metabolites are inactive hydroxylation products and polar conjugates, <10% excreted unchanged in urine.",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=00729e82-150a-464a-abe7-a3319721fbdb",
+      "accessed": "2026-07-13"
+    },
+    "fda_label_xl": {
+      "type": "FDA label",
+      "title": "GLUCOTROL XL (glipizide extended-release) tablets — FDA Structured Product Label (DailyMed), Clinical Pharmacology: 'the pharmacokinetics of glipizide were linear over the dose range of 5 to 60 mg ... in that the plasma drug concentrations increased proportionately with dose'; 'the mean apparent volume of distribution was approximately 10 liters'; the major metabolites have no hypoglycaemic activity, though a minor metabolite is reported to have 1/10 to 1/3 the activity of the parent.",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=ca37f71a-6261-4ada-9d4b-368329aa439a",
+      "accessed": "2026-07-13"
+    }
+  },
+  "metabolism": "Glipizide is almost completely broken down in the liver (mainly by the enzyme CYP2C9). Its major metabolites — hydroxylation products and polar conjugates — have no blood-sugar-lowering activity, so no metabolite line is drawn, and less than a tenth of the dose leaves the body unchanged in the urine. (One minor metabolite is reported to retain a small fraction — roughly a tenth to a third — of the parent's activity, but it is a minor pathway and is not modelled.) The important honesty point is that concentration is not effect: the plotted curve is the drug level, but glipizide works by prompting insulin release, and that insulin response — and the fall in blood glucose — is glucose-dependent and does not simply track the drug concentration (which is why the tablet is timed to a meal). This is an educational illustration, not clinical or dosing guidance.",
+  "notes": "The set's first SULFONYLUREA — a genuinely new therapeutic class (an insulin secretagogue), distinct from metformin's biguanide mechanism, so it widens the antidiabetic coverage rather than duplicating it. It is a clean, short-half-life, oral one-compartment drug with an unusually small volume of distribution. Both sources are FDA labels opened during curation (the immediate-release Glucotrol label for absorption/half-life/binding/metabolites, the Glucotrol XL label for the linearity statement and the volume of distribution).\n\nWHY ONE COMPARTMENT (a clean collapse, unlike the drugs deferred this pass). Glipizide is technically two-compartment after an IV dose, but its distribution volume (~10 L, the XL label's apparent volume) is essentially its steady-state volume — the peripheral compartment is tiny — so the distribution phase is negligible and, given orally (Tmax 1–3 h masks even that brief phase), the profile reads cleanly as one-compartment. This is the SAME oral-collapse posture as procainamide/cefotaxime, but here it is barely an approximation (contrast escitalopram and sotalol, deferred this pass, whose central and steady-state volumes differ enough that a one-compartment collapse would misplace the peak or the exposure).\n\nSMALL VOLUME, HIGH BINDING — BUT STILL LINEAR (the naproxen contrast, a teaching point). Glipizide's Vd ~0.15 L/kg (~10 L, barely above plasma volume) comes from its ~98–99% plasma-protein binding, the same small-volume/high-binding axis as warfarin (~0.14 L/kg). Yet glipizide is LINEAR while naproxen (also ~99% bound, deferred this pass for concentration-dependent binding) is not — because therapeutic glipizide plasma concentrations are in the ng/mL range, roughly a thousandfold below albumin binding saturation, so the bound fraction stays constant with dose. Naproxen's therapeutic concentrations are in the mg/L range, high enough to approach saturation and make its clearance dose-dependent. Same 99%-bound headline, opposite linearity verdict — because of WHERE on the binding curve the drug sits.\n\nLINEARITY (sourced). The FDA Glucotrol XL label states directly that 'the pharmacokinetics of glipizide were linear over the dose range of 5 to 60 mg ... plasma drug concentrations increased proportionately with dose' — dose-proportional AUC/Cmax means first-order elimination and valid superposition (linear: true). (This is a disposition property of the drug substance, established with the extended-release formulation but formulation-independent; the modelled immediate-release curve inherits it.)\n\nROUTE. Oral only — glipizide is a mealtime tablet with no marketed IV product (the IV data exist only from PK research). The extended-release Glucotrol XL is a different release profile, not modelled here.\n\nCONCENTRATION IS NOT EFFECT (a warfarin-style honesty caveat). The curve is plasma glipizide; the drug's action is to trigger insulin secretion, and the glucose-lowering effect is glucose-dependent and time-shifted relative to the concentration peak — the reason it is dosed to a meal. The plot says nothing about blood glucose or hypoglycaemia risk.\n\nMAGNITUDE CHECK (built engine curve). A 5 mg oral dose (F 1.0, Vd ~10.5 L, ke = ln2/3 h, ka from Tmax 1.5 h) peaks near ~330 ng/mL, within the reported ~300–450 ng/mL range for 5 mg glipizide. Educational illustration only — not for dosing."
+}
