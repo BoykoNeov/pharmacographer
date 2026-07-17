@@ -7,6 +7,11 @@
       name="description"
       content="Pharmacographer — an interactive, educational pharmacokinetics curve plotter. Educational use only; not medical advice."
     />
+    <!-- LOAD-BEARING beyond the browser tab: the launchers identify a running
+         dev server as ours by fetching each port and matching this exact title
+         (a port proves nothing — other Vite projects climb into the same
+         range). If you rename this, rename APP_TITLE in tools/find-dev-server.mjs
+         in the same commit, or every launch silently stacks another server. -->
     <title>Pharmacographer</title>
   </head>
   <body>

@@ -1,6 +1,16 @@
 # Normalize line endings: LF in the repo for all text files, regardless of OS.
 * text=auto eol=lf
 
+# ...except Windows batch files, which cmd.exe must get with CRLF. cmd seeks
+# through a .cmd by BYTE offset while counting CHARACTERS, so with LF endings
+# any multi-byte UTF-8 character (an em-dash in a comment is enough) drifts the
+# parser and it resumes mid-line, executing fragments of its own comments. CRLF
+# resynchronises it. Without this rule a fresh checkout gets LF and the
+# launcher silently mis-parses. Keep the launcher's contents ASCII-only too —
+# belt and braces, since the two faults only bite in combination.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
 # Binary assets (none yet, but future-proof the convention).
 *.png binary
 *.jpg binary
