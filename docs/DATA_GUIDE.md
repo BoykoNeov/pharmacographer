@@ -665,11 +665,74 @@ source actually fit?** That one fact picks the driver, and it decides ship-vs-de
   (morphine/digitoxin). A rectangular window would draw that tail on the wrong rate. Note the
   honesty asymmetry: the patch-ON rise is faithfully zero-order, only the washout is not.
 
-**The seam is NOT dead — the untested clean case is a continuously-worn patch.** If the patch stays
-on for the whole plotted window, removal is never in frame and the depot tail cannot be drawn wrong;
-the curve is the honest "patch = wearable infusion → plateau at `R0·F/CL`". Clonidine (7-day constant
-delivery) and scopolamine (72 h) are the candidates; each costs one source-open on the **input-type
-screen above** — a stated constant delivery rate is necessary but NOT sufficient (fentanyl had one).
+**The seam is NOT dead — the clean case is a continuously-worn patch, and CLONIDINE SHIPPED IT**
+(below). If the patch stays on for the whole plotted window, removal is never in frame and the depot
+tail cannot be drawn wrong; the curve is the honest "patch = wearable infusion → plateau at `R0/CL`".
+Scopolamine (72 h constant delivery) remains an untested candidate on the same screen — a stated
+constant delivery rate is necessary but NOT sufficient (fentanyl had one).
+
+### Transdermal SHIPPED — clonidine, the first patch (2026-07-17, 525 tests)
+
+`compounds/clonidine.json` — compound #47 and a new class (central α2-agonist antihypertensive).
+**Transdermal-only.** It passes the input-type screen where nicotine and fentanyl failed: the
+Catapres-TTS label states the input outright — *"programmed to release clonidine at an approximately
+constant rate for 7 days"* — and, worn continuously, its curve never has to draw the part that is
+not zero-order. Everything below is from one opened source (DailyMed SPL, setid
+`d4a55825-7041-42f4-b3b2-dd7a25dbe793`).
+
+**The engine gained nothing, by design.** `engineRouteOf` (derive.ts) maps `transdermal` →
+the engine's `iv_infusion`, and the mode spine computes it for 1-, 2- or 3-comp alike. The engine's
+`Route` union deliberately does **not** gain a member — its vocabulary is INPUT TYPES, and a
+transdermal branch there would duplicate `iv_infusion`'s math. `DataRoute` (schema.ts) is the wider,
+clinical vocabulary; the type split is what stopped a clinical route leaking into an engine call
+(the compiler flagged all ~15 sites).
+
+**MAGNITUDE — the free double check (reusable for any zero-order input).** For a zero-order input
+`Css = R0/CL` depends on **clearance ALONE, not Vd**. The label's CL (177 mL/min = 10.62 L/h)
+against its three stated rates gives 0.392 / 0.785 / 1.18 ng/mL; the label independently reports the
+measured steady states as ~0.4 / 0.8 / 1.1. Three for three, from numbers in different paragraphs.
+Then check the **approach**, which is where Vd re-enters: `ke = CL/Vz = 0.054/h` → ~90% of plateau by
+~2 days, steady state ~3 — against the label's *"steady-state levels are obtained within 3 days"*.
+Plateau AND rise both reproduce ⇒ the one-compartment model is earned.
+
+**Why 1-comp is faithful for a patch and would NOT be for a tablet** (the reusable screen). The
+label calls clonidine biphasic (distribution t½ ~20 min, terminal 12–16 h) and gives only Vz and CL —
+not enough for 2-comp. It doesn't matter here: a zero-order input this slow **never probes the
+central compartment** (the 20-min phase equilibrates ~40× over before the concentration moves), so
+Vz IS the operative volume. A fast oral absorption does probe it. Generalises: *the slower the input,
+the fewer compartments you need.*
+
+- **THE 60% TRAP — made unwriteable, not warned about.** The label states BOTH *"deliver 0.1, 0.2 and
+  0.3 mg of clonidine per day"* AND *"absolute bioavailability … approximately 60%"*. Reading those as
+  a dose and its bioavailability gives Css 0.235 vs a reported 0.4 — a **~40% low curve that looks
+  entirely plausible** and that no test can see. The delivered rate is ALREADY systemic (the Css
+  arithmetic proves it), so `TransdermalRouteSchema` **has no `F` field at all** — the same posture as
+  `DispositionMMSchema` refusing a `halfLife`. What the 60% IS relative to is deliberately **not
+  written down**: the obvious gloss dies on its own numbers (2.5 mg content over 7 days ≈ 0.36 mg/day;
+  ×0.6 = 0.21, not 0.1). Record the narrow verified claim, never the plausible gloss.
+- **REMOVAL IS OUT OF FRAME — the honesty design.** Clonidine HAS a skin depot: after removal the
+  label reports levels persisting ~8 h then declining at an apparent **~20 h** half-life, LONGER than
+  its own 12–16 h, because absorption continues. So the horizon is the wear period **exactly** — no
+  `niceCeil`, no generic "+5 half-lives" tail, which would draw that decline on the wrong rate
+  constant. A test pins it, because on screen that tail would look fine. `displayNote` says so.
+  **Clonidine passes not because it has no depot, but because the honest curve never shows it.**
+- **ORAL — DEFERRED (fails `F·D/Vz`, and its one source was opened and rejected).** Reported oral
+  Cmax ~1 ng/mL for 0.2 mg against a ceiling of `0.2/197` = **1.02 ng/mL even at F = 1** — no
+  headroom, the ciprofloxacin/sildenafil failure, and the same cause as the 1-comp screen above (an
+  oral dose sees the central compartment). Recorded as pending a source rather than as a settled
+  number: the candidate bioequivalence paper (Alsarra 2016, LC-MS) reports **Tmax 30 h and t½ 120 h
+  for a REFERENCE immediate-release tablet** (vs the label's 12–16 h) and **contradicts itself** —
+  its own AUC∞ of 353 ng/mL·h for 0.2 mg implies CL/F ≈ 0.57 L/h against a tabulated 23.6 L/h, a
+  40× gap. The honest fix is 2-comp, not a smaller Vd.
+- **A PATCH HAS NO PEAK — caught only by launching the app.** `PeakNote`'s route ternary let
+  `transdermal` fall through to the ORAL branch, so the app explained a patch as "rises as it is
+  absorbed and falls as it is eliminated; the peak (Tmax) is where those balance" — under a curve
+  that never falls. 522 tests and the typechecker were green. **Adding a route to a chain keyed on
+  route silently inherits the last branch.** Three surfaces asserted it independently (caption,
+  PeakNote, and the chart's marker dot + toggle); fixing fewer would have left the chart
+  contradicting the caption. All now read **"End of wear"** — deliberately not "plateau", which is
+  true of clonidine (~13 half-lives) but would be false for a future short-wear patch; the marker
+  copy is keyed on route, so it must hold for every patch.
 
 **Right-sizing note: "more routes" is mostly data/UI, not engine.** The mode spine already computes
 both input types — infusion IS zero-order-in, oral IS first-order-in, and `batemanMode`'s `ka ≈ λ`

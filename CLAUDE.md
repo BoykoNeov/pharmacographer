@@ -110,7 +110,7 @@ unpublished, and the in-flight run cancelled. Do **not** re-add a deploy without
 asking first. Work now comes from handoff §12 (extension points), picked for
 teaching value.
 
-**Seed set: 46 compounds** — the file count in `src/data/compounds/` is
+**Seed set: 47 compounds** — the file count in `src/data/compounds/` is
 authoritative, not this number. Adding a **linear** compound is pure data: drop in
 a JSON file and `loader.ts`'s `import.meta.glob` picks it up, with
 `loader.test.ts` deriving every route of it as an integration guard. No
@@ -145,9 +145,23 @@ engine/schema/derive change needed.
   the default and must override **nothing** — the base values ARE the default
   phenotype, which makes the default render provably the pre-preset compound. Adding a
   preset to a compound is data + citations. See `docs/DATA_GUIDE.md` "Phenotype presets".
-- Routes: oral, IV bolus, IV infusion. Multi-dose via superposition (linear) or
-  whole-schedule integration (MM); half-life variability band; Cmax/Tmax markers;
-  lin/semi-log toggle; unit toggle.
+- Routes: oral, IV bolus, IV infusion, **transdermal**. Multi-dose via superposition
+  (linear) or whole-schedule integration (MM); half-life variability band; Cmax/Tmax
+  markers; lin/semi-log toggle; unit toggle.
+- **Transdermal (`transdermal`)** — the §12 "more routes" seam, and it added **no engine
+  math**: a patch is a ZERO-ORDER input, which `iv_infusion` already is, so `engineRouteOf`
+  (`derive.ts`) maps it onto that path and the mode spine covers 1-/2-/3-comp alike. The
+  engine's `Route` union stays at the three INPUT TYPES on purpose — a transdermal branch
+  there would duplicate `iv_infusion`'s math. The wider clinical vocabulary is `DataRoute`
+  (`schema.ts`); "which patch/needle/tablet" is a fact about drugs, which the engine must not
+  know. Ships **clonidine** (transdermal-only). `TransdermalRouteSchema` stores a
+  `deliveryRate` + `wearDuration` and **deliberately has no `F`** — a patch label's stated
+  delivered rate is already the systemic input, so re-applying its separately-reported
+  "bioavailability" would double-count and silently put the curve ~40% low; the schema makes
+  that unwriteable, as `DispositionMM` does for `halfLife`. The horizon is the wear period
+  **exactly** (no decay tail): a patch's post-removal decline runs on the ABSORPTION rate (a
+  skin depot), so the window ends at patch-off rather than drawing it wrong. **A worn patch
+  has no peak** — the marker reads "End of wear", not Cmax/Tmax.
 
 **A nonlinear compound is NOT pure data** — unlike a linear one. It needs
 `dispositionMM`, `linear: false`, and an **explicit cited `ka`** for oral: a Tmax
@@ -184,6 +198,14 @@ never "select your genotype" — `tests/ui/phenotype-picker.test.tsx` asserts it
 
 - `npm test` proves *structure + derivation*, never *numeric correctness*.
   Magnitude-check a new compound by building the engine curve and comparing peak
-  concentration to a reported Cmax.
+  concentration to a reported Cmax. For a zero-order input use `Css = R0/CL` (it
+  depends on clearance ALONE, so it is a free check on the data), and check the
+  *approach* too — `ke = CL/Vd` against a reported time-to-steady-state.
+- **Tests are blind to on-screen prose, and a route ternary silently inherits its
+  last branch.** Adding `transdermal` left `PeakNote` explaining a patch with the
+  ORAL story ("the peak (Tmax) is where those balance") under a curve that never
+  falls — 522 green tests, typechecker happy. **Launch the app** for anything
+  route- or phenotype-keyed, and grep for EVERY surface asserting the same thing
+  (caption, note, and chart marker were three independent ones).
 - Tests, lint, build, and magnitude checks are all blind to whether a citation
   is real. Never ship a source you did not open.
