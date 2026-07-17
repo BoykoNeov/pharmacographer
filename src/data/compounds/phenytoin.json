@@ -1,0 +1,87 @@
+{
+  "id": "phenytoin",
+  "schemaVersion": 1,
+  "names": {
+    "inn": "Phenytoin",
+    "brand": [
+      "Dilantin"
+    ],
+    "synonyms": [
+      "Diphenylhydantoin"
+    ]
+  },
+  "description": "An anticonvulsant used to control seizures and status epilepticus, in use since 1938. It is the textbook drug whose elimination saturates at ordinary doses: the enzymes that clear it are already working near their ceiling, so a small dose increase can raise blood levels steeply.",
+  "illustrativeDoseMg": 1000,
+  "model": "one_compartment_michaelis_menten",
+  "linear": false,
+  "dispositionMM": {
+    "vd": {
+      "value": 0.95,
+      "unit": "L/kg",
+      "derived": false,
+      "sourceRef": "frame_beal",
+      "conditions": "population estimate from the Frame & Beal NONMEM analysis of intravenous phenytoin (115 patients), reported as depending on weight and serum albumin and quoted at an albumin of 3 g/dL. Phenytoin is ~90% albumin-bound, so as albumin falls the unbound fraction rises and the apparent volume for TOTAL (bound + free) phenytoin - which is what is plotted and what laboratories report - increases. This value therefore sits above the ~0.65-0.7 L/kg usually quoted for well-nourished subjects; the choice matters far less than it looks, because the steady-state relationship this compound exists to teach does not contain Vd at all (see notes). Scaled to absolute litres against the 70 kg reference subject at derivation time."
+    },
+    "vmax": {
+      "value": 580,
+      "unit": "mg/day",
+      "derived": false,
+      "sourceRef": "frame_beal",
+      "conditions": "baseline (pre-autoinduction) maximum metabolic rate for a 70 kg patient. Frame & Beal preferred a Michaelis-Menten model with DELAYED INDUCTION, in which Vmax rises after an average 59.5 h as phenytoin induces its own metabolism; 580 mg/day is the value before that induction, so it is the honest number for the first days of a course and slightly UNDERSTATES a fully-induced patient's capacity (see notes). Reported for 70 kg, which is exactly this project's illustrative reference subject, so no scaling is applied."
+    },
+    "km": {
+      "value": 7.9,
+      "unit": "mg/L",
+      "derived": false,
+      "sourceRef": "frame_beal",
+      "conditions": "total (bound + free) serum phenytoin concentration at which elimination runs at half of Vmax. It sits BELOW the 10-20 mg/L therapeutic range, which is precisely why phenytoin is nonlinear where it is actually used: at therapeutic levels the enzymes are already more than half saturated."
+    }
+  },
+  "routes": {
+    "iv_infusion": {
+      "available": true,
+      "F": {
+        "value": 1.0,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "definition"
+      }
+    },
+    "iv_bolus": {
+      "available": false,
+      "F": {
+        "value": 1.0,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "definition"
+      }
+    }
+  },
+  "flags": {
+    "nonlinear": true,
+    "narrowTherapeuticIndex": true
+  },
+  "metabolism": "Phenytoin is hydroxylated in the liver, mainly by CYP2C9 and to a lesser extent CYP2C19, to inactive metabolites that are excreted in the bile, reabsorbed, and passed in the urine. The point is the capacity of that enzyme system: it is limited, and at ordinary therapeutic levels it is already running past half its maximum speed. Below saturation a drug clears a constant FRACTION of what is present per hour, which is what gives most drugs a fixed half-life. Phenytoin instead approaches clearing a constant AMOUNT per hour, so as the dose rate climbs toward the enzymes' ceiling the concentration needed to force the drug out rises faster and faster. The FDA label states the consequence directly: the steady-state level may be disproportionately increased, with resultant intoxication, from an increase in dosage of 10% or more. Two further sources of variation sit on top of the saturation: CYP2C9 and CYP2C19 variant alleles reduce clearance in carriers, and phenytoin induces its own metabolism over the first days of a course.",
+  "displayNote": "Phenytoin has no single half-life. The curve is drawn from Vmax and Km, and the apparent half-life shown changes with concentration - that is the drug, not an approximation.",
+  "sources": {
+    "fda_label": {
+      "type": "FDA label",
+      "title": "DILANTIN (extended phenytoin sodium capsules) - FDA Structured Product Label, Clinical Pharmacology 12.3 (peak serum levels 4 to 12 h after DILANTIN capsules; plasma half-life after oral administration averages 22 hours with a range of 7 to 42 hours; 'Because phenytoin is hydroxylated in the liver by an enzyme system which is saturable at high serum levels, small incremental doses may increase the half-life and produce very substantial increases in serum levels, when these are in the upper range. The steady-state level may be disproportionately increased, with resultant intoxication, from an increase in dosage of 10% or more.'; metabolised by CYP2C9 and to a lesser extent CYP2C19; extensively bound to serum plasma proteins; clearance ~20% lower over age 70)",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/fda/fdaDrugXsl.cfm?setid=86dd27d1-9cee-48ae-b55d-e2d2f7dbc593",
+      "accessed": "2026-07-17"
+    },
+    "fda_label_injection": {
+      "type": "FDA label",
+      "title": "PHENYTOIN SODIUM injection - FDA Structured Product Label, Dosage and Administration 2.2 (adult loading dose 10 to 15 mg/kg intravenously at a rate not exceeding 50 mg/min, followed by maintenance dosing; continuous monitoring of the electrocardiogram, blood pressure and respiratory function is essential)",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/fda/fdaDrugXsl.cfm?setid=035a8d4e-2063-4240-83cb-d7eebcabe301",
+      "accessed": "2026-07-17"
+    },
+    "frame_beal": {
+      "type": "Journal article",
+      "title": "Frame B, Beal SL. Non-steady state population kinetics of intravenous phenytoin. Ther Drug Monit. 1998 Aug;20(4):408-16. NONMEM population analysis in 115 patients (retrospectively evaluated in 26 more); a Michaelis-Menten model with delayed induction was preferred. Baseline Vmax 580 mg/day for a 70 kg patient; Km 7.9 mg/L; volume of distribution 0.95 L/kg assuming an albumin level of 3 g/dL, found to depend on weight and serum albumin; average time to onset of induction 59.5 hours.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/9712466/",
+      "accessed": "2026-07-17"
+    }
+  },
+  "notes": "The set's first NONLINEAR compound, and the reason the nonlinear engine exists. Phenytoin was tagged 'exclude, linear: false' from the start of this project (handoff §12; docs/DATA_GUIDE.md) because a fixed half-life is not merely imprecise for it - it is a category error. It now ships against the Michaelis-Menten engine (engine/modelsMM.ts), which integrates the dose schedule as an ODE instead of superposing single-dose curves.\n\nSOURCES. The FDA DILANTIN label describes the mechanism and its clinical consequence in its own words but prints NO Vmax, Km, or volume. All three disposition parameters therefore come from one source, Frame & Beal 1998 (Ther Drug Monit) - a NONMEM population analysis of INTRAVENOUS phenytoin in 115 patients, which is also the route this compound ships. Taking Vmax and Km from a single study matters: they are correlated estimates, and mixing a Vmax from one population with a Km from another would produce a saturation curve neither study measured.\n\nWHY THE LABEL'S OWN HALF-LIFE IS THE TEACHING POINT. The label states 'the plasma half-life in man after oral administration of phenytoin averages 22 hours, with a range of 7 to 42 hours' - and then, in the next paragraph, explains why that number cannot be a constant. The engine reproduces the range from the saturation alone: apparent half-life t-half(c) = (Vd/Vmax)(Km·ln2 + c/2) gives ~15 h as concentration approaches zero, ~22 h at 5 mg/L, ~29 h at 10 mg/L, ~36 h at 15 mg/L, and ~43 h at 20 mg/L (the top of the therapeutic range). The label's 22 h average and its 42 h upper bound fall out of the concentration dependence, not out of between-patient variability. The 7 h lower bound does NOT - our floor is ~15 h - and that residue is the genuine between-patient part (CYP2C9/CYP2C19 variant alleles, induction). So the label's single range silently mixes two different things, and this compound separates them.\n\nMAGNITUDE CHECK (the relation this compound exists to show). Steady state under a maintenance rate R0 is Css = R0·Km/(Vmax − R0), exact and algebraic. With Vmax 580 mg/day and Km 7.9 mg/L: 300 mg/day gives ~8.4 mg/L, 400 mg/day gives ~17.5 mg/L, and 500 mg/day gives ~49 mg/L. A 33% dose increase more than doubles the concentration and carries it across the whole 10-20 mg/L therapeutic window; a further 25% lands in frank toxicity. That is phenytoin's clinical signature, and it matches the label's warning about a 10% dose increase. Above 580 mg/day there is no steady state at all - input exceeds the maximum the body can clear.\n\nWHY Vd IS THE SOFTEST INPUT AND WHY IT DOES NOT MATTER MUCH. 0.95 L/kg is conditional on an albumin of 3 g/dL and sits above the ~0.65-0.7 L/kg usually quoted. It is used as-reported rather than swapped for a textbook figure, because it is the volume that belongs with THIS study's Vmax and Km. Crucially, Css = R0·Km/(Vmax − R0) contains no Vd: the headline demonstration is volume-independent. Vd sets only how fast steady state is approached and how high a loading dose peaks - so the least certain number here cannot corrupt the main teaching point.\n\nAUTOINDUCTION - A DOCUMENTED LIMIT, NOT A HIDDEN ONE. Frame & Beal's preferred model lets Vmax RISE after ~59.5 h, because phenytoin induces the CYP enzymes that clear it. The engine has no induction term, and the stored 580 mg/day is the pre-induction baseline. The plotted curve is therefore most faithful over the first days of a course, and a fully induced patient would clear phenytoin faster, so the model somewhat OVERSTATES chronic steady state. The curve should be read for the SHAPE of the dose-to-Css cliff, not as a chronic prediction (the lamotrigine posture: a stored number true only under stated conditions, documented and never auto-applied).\n\nROUTES. iv_infusion is the real route and the one Frame & Beal measured; the injection label gives an adult loading dose of 10-15 mg/kg at a rate not exceeding 50 mg/min. iv_bolus is marked available: false and its curve is labeled inferred - phenytoin must NOT be pushed rapidly (the rate limit exists because faster injection causes hypotension and cardiac arrhythmia), so the instantaneous-input curve is an idealisation, not a route the drug is given by (the acyclovir posture).\n\nORAL OMITTED (deliberate, and for a reason specific to saturation). The label reports a Tmax of 4-12 h for extended capsules but no absorption rate constant, and for every LINEAR compound in this set a missing ka is estimated by inverting Tmax = ln(ka/ke)/(ka − ke). That inversion does not exist here: there is no ke, and Tmax under saturation is itself DOSE-DEPENDENT - a larger dose saturates elimination and pushes the peak later - so a reported Tmax is a property of the compound AT one dose, not of the compound. deriveParamsMM refuses to invert it rather than silently inventing the dose it was measured at. Phenytoin's oral absorption is additionally formulation-dependent and slow (extended vs immediate release differ). Without a citable ka the oral route is omitted; contrast ethanol, which ships oral because Rangno 1981 reports a measured ka.\n\nEDUCATIONAL ILLUSTRATION ONLY - not for dosing. Phenytoin dosing is individualised against measured serum levels; nothing here is a dose recommendation.\n\nOPENING DOSE. illustrativeDoseMg is 1000 mg, near the injection label's 10-15 mg/kg adult loading dose for the 70 kg reference subject. It peaks around 15 mg/L, inside the 10-20 mg/L therapeutic range, where the apparent half-life is ~36 h against its ~15 h dilute-limit floor - so the opening view shows the concentration dependence rather than a curve that looks first-order. It is NOT a recommended dose."
+}

@@ -23,6 +23,13 @@ import {
   oralMetaboliteConcentrationCurve,
 } from '../engine/metabolite.ts';
 import { FLIP_FLOP_REL_TOL } from '../engine/models.ts';
+import {
+  apparentHalfLifeMM,
+  firstOrderLimitRateMM,
+  ivBolusElapsedTime,
+  michaelisMentenCurve,
+  type MichaelisMentenParams,
+} from '../engine/modelsMM.ts';
 import { concentrationCurve2c, oralPeakTime2c, twoCompModes, twoCompRates } from '../engine/models2c.ts';
 import {
   concentrationCurve3c,
@@ -37,6 +44,7 @@ import {
   deriveParams,
   deriveParams2c,
   deriveParams3c,
+  deriveParamsMM,
   type DeriveWarning,
   type DerivedNote,
 } from '../data/derive.ts';
@@ -58,6 +66,15 @@ export const ROUTE_LABELS: Record<Route, string> = {
  * compound property, so it lives here, not in the data files (handoff §7).
  */
 export const DEFAULT_INFUSION_DURATION_H = 0.25;
+
+/**
+ * Dose (mg) the chart opens at when a compound declares no scale of its own.
+ * Like {@link DEFAULT_INFUSION_DURATION_H} this is a DOSING input rather than a
+ * compound property, so it lives here and not in the data files (handoff §7) —
+ * but unlike an infusion duration, "500 mg" is not equally sensible for every
+ * molecule, which is why a compound may override it (`illustrativeDoseMg`).
+ */
+export const DEFAULT_DOSE_MG = 500;
 
 /** Number of sample points across the time grid (chart resolution). */
 const DEFAULT_SAMPLES = 300;
@@ -187,10 +204,17 @@ export interface HalfLifeRange {
  * ONE parameter v1 varies — Vd/F/ka variability is a documented non-goal
  * (handoff §11). All three values come from the same `disposition.halfLife`
  * field, so the point value always lies within the range (schema-enforced).
+ *
+ * Always `null` for a Michaelis–Menten compound, which has no `disposition` block
+ * to read (handoff §12). That is not a missing feature: the band answers "how
+ * much does this drug's half-life vary BETWEEN people?", and for a saturable drug
+ * the half-life already varies within one person, by dose, which the slider's
+ * fixed low/nominal/high triple cannot express. The nonlinear honesty panel shows
+ * the dose-dependent half-life instead.
  */
 export function halfLifeRangeH(compound: Compound): HalfLifeRange | null {
-  const hl = compound.disposition.halfLife;
-  if (!hl.range) return null;
+  const hl = compound.disposition?.halfLife;
+  if (!hl?.range) return null;
   return {
     low: time.toCanonical(hl.range[0], hl.unit),
     nominal: time.toCanonical(hl.value, hl.unit),
@@ -309,16 +333,54 @@ export interface ThreeCompartmentCurveResult extends CurveResultBase {
 }
 
 /**
+ * A Michaelis–Menten (nonlinear) chart result (handoff §12; the nonlinear seam).
+ *
+ * Every other member of {@link CurveResult} reports a half-life, because for a
+ * linear drug that is a constant of the molecule. This one deliberately cannot,
+ * and the fields that replace it ARE the teaching payload — a saturable drug's
+ * half-life depends on how much drug is present, so the honest UI shows a range
+ * and where on it this curve sits, not a number.
+ */
+export interface MichaelisMentenCurveResult extends CurveResultBase {
+  model: 'one_compartment_michaelis_menten';
+  /** The resolved MM engine parameters that produced the curve. */
+  params: MichaelisMentenParams;
+  /**
+   * Apparent half-life AT the curve's peak concentration, h — the slowest the
+   * plotted course gets. For phenytoin at a therapeutic level this runs roughly
+   * twice its own low-concentration value.
+   */
+  apparentHalfLifeAtPeakH: number;
+  /**
+   * Apparent half-life as concentration approaches zero, h — `ln2·Vd·Km/Vmax`.
+   * The FLOOR: the drug's behaviour once it is dilute enough to stop saturating
+   * anything, i.e. the half-life it would have if it were an ordinary linear
+   * drug. The gap between this and {@link apparentHalfLifeAtPeakH} is the whole
+   * nonlinearity, expressed in the units a reader already understands.
+   */
+  limitHalfLifeH: number;
+  /**
+   * Fraction of Vmax the elimination machinery is running at when the curve
+   * peaks, in [0, 1) — `Cmax/(Km + Cmax)`. This is the plainest statement of how
+   * saturated the drug is at the dose plotted: near 0 it is behaving linearly, and
+   * near 1 the enzymes are flat out and the decline is a straight line.
+   */
+  saturationAtPeak: number;
+}
+
+/**
  * Everything the chart area needs for one parameter set. A discriminated union on
  * `model`: the UI narrows on it to read the model-specific fields (1-comp `ke`/
- * `halfLifeH`, 2-comp α/β half-lives, 3-comp α/β/γ half-lives). Shared fields
- * (points, peak, band, metabolites, warnings, horizon) are on the base so the
- * chart consumes any of them.
+ * `halfLifeH`, 2-comp α/β half-lives, 3-comp α/β/γ half-lives, and the
+ * Michaelis–Menten pair of dose-dependent half-lives). Shared fields (points,
+ * peak, band, metabolites, warnings, horizon) are on the base so the chart
+ * consumes any of them.
  */
 export type CurveResult =
   | OneCompartmentCurveResult
   | TwoCompartmentCurveResult
-  | ThreeCompartmentCurveResult;
+  | ThreeCompartmentCurveResult
+  | MichaelisMentenCurveResult;
 
 /**
  * A dosing schedule as the UI expresses it: a regular course of `count` doses of
@@ -413,6 +475,159 @@ function sampleGrid(horizonH: number, samples: number): number[] {
 }
 
 /**
+ * Where a nonlinear curve's tail is considered spent: 2% of the peak. The linear
+ * horizon uses "5 half-lives" (≈3% remaining) for the same purpose, but a
+ * saturable drug HAS no half-life to count, so the threshold has to be stated as
+ * a concentration and inverted through the implicit solution instead.
+ */
+const MM_TAIL_FRACTION = 0.02;
+
+/**
+ * Time (h) for a saturable drug to fall from `fromC` to {@link MM_TAIL_FRACTION}
+ * of it, exactly, via the IV-bolus implicit solution. Expanding it shows why a
+ * nonlinear horizon cannot be a constant:
+ *
+ *   t = (Vd/Vmax)·(Km·ln(50) + 0.98·fromC)
+ *
+ * The first term is fixed (the first-order tail, which no drug ever fully
+ * escapes) but the second grows LINEARLY with the concentration reached — so
+ * doubling the dose of a saturated drug adds a fixed slab of time rather than one
+ * half-life. That term is where "twice the drink, twice the wait" comes from.
+ */
+function decayTimeMM(params: MichaelisMentenParams, fromC: number): number {
+  if (!(fromC > 0)) return 0;
+  return ivBolusElapsedTime(params, fromC, fromC * MM_TAIL_FRACTION);
+}
+
+/**
+ * Pick a time horizon (h) for a nonlinear curve: the last dose plus the time to
+ * decay from `peakC` to a spent tail, extended for oral so absorption plays out
+ * and for an infusion so it covers the infusion itself.
+ *
+ * The linear {@link curveHorizon} reads its tail straight off `ke`, because a
+ * half-life does not care how much drug there is. Here it does — the tail is a
+ * function of the concentration actually reached, which is why this takes `peakC`
+ * as an argument and why {@link buildCurveMM} has to size the grid in two passes.
+ */
+function curveHorizonMM(
+  route: Route,
+  params: MichaelisMentenParams,
+  lastDoseTime: number,
+  peakC: number,
+): number {
+  let tail = decayTimeMM(params, peakC);
+  if (route === 'oral' && params.ka !== undefined && params.ka > 0) {
+    tail += 3 * (Math.LN2 / params.ka);
+  }
+  if (route === 'iv_infusion' && params.infusionDuration !== undefined) {
+    tail = Math.max(tail, params.infusionDuration + decayTimeMM(params, peakC));
+  }
+  return niceCeil(lastDoseTime + tail);
+}
+
+/**
+ * {@link criticalTimes} for a nonlinear curve: the dose instants (and the hair
+ * before each, so an IV-bolus jump draws vertical) plus each infusion's end.
+ *
+ * There is deliberately no oral-peak mark. The linear version pins the Bateman
+ * peak exactly because `Tmax = ln(ka/ke)/(ka − ke)` is a closed form; under
+ * saturation no such expression exists — there is no `ke`, and the peak moves
+ * with dose — so an oral MM Cmax/Tmax is the grid's best sample, exactly as it
+ * already is for a multi-dose oral schedule in the linear path.
+ */
+function criticalTimesMM(
+  route: Route,
+  params: MichaelisMentenParams,
+  doses: DoseEvent[],
+  horizonH: number,
+): number[] {
+  const jumpEps = horizonH * 1e-5;
+  const marks: number[] = [];
+  for (const dose of doses) {
+    if (dose.time > horizonH) continue;
+    if (route === 'iv_bolus') {
+      if (dose.time - jumpEps > 0) marks.push(dose.time - jumpEps);
+    }
+    marks.push(dose.time);
+    if (route === 'iv_infusion' && params.infusionDuration !== undefined) {
+      const end = dose.time + params.infusionDuration;
+      if (end <= horizonH) marks.push(end);
+    }
+  }
+  return marks;
+}
+
+/**
+ * Build the chart-ready curve for a Michaelis–Menten compound (handoff §12).
+ *
+ * Structurally simpler than the linear builders in one way and harder in another.
+ * Simpler: there is no variability band and no `ke` scaling, because there is no
+ * half-life to vary — {@link halfLifeRangeH} returns null for these compounds, and
+ * the slider has nothing to move. Harder: the whole schedule must be integrated at
+ * once (`michaelisMentenCurve`, not `concentrationCurve`), since the doses
+ * interact, and the horizon depends on the peak the curve reaches — which is only
+ * known after building it.
+ *
+ * Hence TWO passes. The first bounds the tail using the largest single dose's
+ * ceiling `F·D/Vd`, which is what that dose would reach with nothing else on
+ * board. That underestimates a course whose doses accumulate — precisely the case
+ * these compounds exist to show — so the curve is rebuilt on a horizon sized from
+ * the concentration the probe actually reaches after the last dose. The cost is one
+ * extra integration; the alternative is a phenytoin schedule clipped mid-decline.
+ */
+function buildCurveMM(input: CurveInput): MichaelisMentenCurveResult {
+  const { compound, route, schedule, weightKg, samples = DEFAULT_SAMPLES } = input;
+  const { params: base, derived, warnings } = deriveParamsMM(compound, route, { weightKg });
+
+  let params = base;
+  if (route === 'iv_infusion') {
+    const requested = input.infusionDuration;
+    const infusionDuration =
+      requested !== undefined && requested > 0 ? requested : DEFAULT_INFUSION_DURATION_H;
+    params = { ...base, infusionDuration };
+  }
+
+  const doses = buildSchedule(schedule);
+  const lastDoseTime = doses.reduce((latest, dose) => Math.max(latest, dose.time), 0);
+
+  const build = (horizonH: number): CurvePoint[] => {
+    const times = mergeGrid(
+      sampleGrid(horizonH, samples),
+      criticalTimesMM(route, params, doses, horizonH),
+    );
+    const values = michaelisMentenCurve(route, params, doses, times);
+    return times.map((t, i) => ({ t, c: values[i] ?? 0 }));
+  };
+
+  // Pass 1 — a provisional horizon from the largest single dose's ceiling.
+  const bioavailable = route === 'oral' ? (params.F ?? 1) : 1;
+  const largestDose = doses.reduce((most, dose) => Math.max(most, dose.amount), 0);
+  const provisionalPeak = (bioavailable * largestDose) / params.vd;
+  const probe = build(curveHorizonMM(route, params, lastDoseTime, provisionalPeak));
+
+  // Pass 2 — re-size from what the course actually leaves behind. The tail has to
+  // clear the highest concentration reached AT OR AFTER the last dose; anything
+  // earlier has already decayed and does not govern the right edge.
+  const tailPeak = probe.reduce((most, p) => (p.t >= lastDoseTime && p.c > most ? p.c : most), 0);
+  const horizonH = curveHorizonMM(route, params, lastDoseTime, Math.max(tailPeak, provisionalPeak));
+  const points = build(horizonH);
+  const peak = findPeak(points);
+
+  return {
+    model: 'one_compartment_michaelis_menten',
+    params,
+    points,
+    peak,
+    derived,
+    warnings,
+    horizonH,
+    apparentHalfLifeAtPeakH: apparentHalfLifeMM(params, peak.c),
+    limitHalfLifeH: Math.LN2 / firstOrderLimitRateMM(params),
+    saturationAtPeak: peak.c / (params.km + peak.c),
+  };
+}
+
+/**
  * Times that MUST be sampled exactly, on top of the uniform grid. An IV-bolus
  * concentration JUMPS at each dose instant, so the true peak lives exactly at
  * `t = dose.time`; a uniform grid that misses it renders whatever the nearest
@@ -483,6 +698,9 @@ export function buildCurve(input: CurveInput): CurveResult {
   }
   if (input.compound.model === 'three_compartment_first_order') {
     return buildCurve3c(input);
+  }
+  if (input.compound.model === 'one_compartment_michaelis_menten') {
+    return buildCurveMM(input);
   }
 
   const { compound, route, schedule, weightKg, samples = DEFAULT_SAMPLES } = input;

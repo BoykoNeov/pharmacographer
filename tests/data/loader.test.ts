@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { loadAllCompounds, parseCompound } from '../../src/data/loader.ts';
-import { deriveParams, deriveParams2c, deriveParams3c } from '../../src/data/derive.ts';
+import {
+  deriveParams,
+  deriveParams2c,
+  deriveParams3c,
+  deriveParamsMM,
+} from '../../src/data/derive.ts';
 import type { Route } from '../../src/engine/types.ts';
 import { baseRawCompound } from './_fixtures.ts';
 
@@ -8,7 +13,7 @@ describe('parseCompound', () => {
   it('returns a typed compound for valid input', () => {
     const compound = parseCompound(baseRawCompound());
     expect(compound.id).toBe('testdrug');
-    expect(compound.disposition.halfLife.value).toBe(4);
+    expect(compound.disposition?.halfLife.value).toBe(4);
   });
 
   it('throws a readable, prefixed error for invalid input', () => {
@@ -40,10 +45,28 @@ describe('loadAllCompounds — every bundled compound is valid and derivable', (
     describe(compound.id, () => {
       const twoComp = compound.model === 'two_compartment_first_order';
       const threeComp = compound.model === 'three_compartment_first_order';
+      const michaelisMenten = compound.model === 'one_compartment_michaelis_menten';
       for (const route of routes) {
         const available = compound.routes[route]?.available;
         if (!available) continue;
         it(`derives engine params for the available ${route} route`, () => {
+          if (michaelisMenten) {
+            // Model-aware dispatch (handoff §12, the nonlinear seam): a saturable
+            // compound resolves Vd/Vmax/Km and has no ke or half-life at all.
+            const { params } = deriveParamsMM(compound, route);
+            for (const v of [params.vd, params.vmax, params.km]) {
+              expect(Number.isFinite(v)).toBe(true);
+              expect(v).toBeGreaterThan(0);
+            }
+            if (route === 'oral') {
+              // MM oral cannot invert a Tmax, so an available oral route must
+              // carry an explicit ka — this guard is what catches a file that
+              // relies on a Tmax the resolver would refuse.
+              expect(params.ka).toBeDefined();
+              expect(params.ka! > 0).toBe(true);
+            }
+            return;
+          }
           if (threeComp) {
             // Model-aware dispatch (handoff §12, Stage B): a 3-comp compound resolves
             // CL/Vc/Q2/Vp2/Q3/Vp3 (IV routes only — oral 3-comp derivation is deferred).

@@ -68,6 +68,42 @@ export function baseRawTwoCompCompound(): Record<string, unknown> {
 }
 
 /**
+ * A minimal valid raw MICHAELIS–MENTEN compound (handoff §12; the nonlinear seam)
+ * ready to mutate per-test. Clean round numbers in ABSOLUTE units: Vd = 50 L,
+ * Vmax = 100 mg/h, Km = 5 mg/L — so the first-order limit rate is
+ * `Vmax/(Vd·Km) = 0.4/h` exactly.
+ *
+ * Note what is ABSENT: `linear` is false (capacity-limited elimination is
+ * nonlinear by definition, and the schema cross-checks the two), and there is no
+ * `disposition` block at all — a saturable drug has no half-life to state, so
+ * `dispositionMM` replaces it rather than supplementing it, unlike the
+ * multi-compartment blocks above.
+ */
+export function baseRawMichaelisMentenCompound(): Record<string, unknown> {
+  return {
+    id: 'testdrugmm',
+    schemaVersion: 1,
+    names: { usan: 'TestdrugMM' },
+    description: 'Synthetic capacity-limited test drug — not a real compound.',
+    model: 'one_compartment_michaelis_menten',
+    linear: false,
+    dispositionMM: {
+      vd: { value: 50, unit: 'L', derived: false, sourceRef: 'ref' },
+      vmax: { value: 100, unit: 'mg/h', derived: false, sourceRef: 'ref' },
+      km: { value: 5, unit: 'mg/L', derived: false, sourceRef: 'ref' },
+    },
+    routes: {
+      iv_bolus: {
+        available: true,
+        F: { value: 1, unit: 'fraction', derived: false, sourceRef: 'definition' },
+      },
+    },
+    sources: { ref: { type: 'test', title: 'Synthetic test source' } },
+    notes: 'synthetic Michaelis–Menten fixture — not a real compound',
+  };
+}
+
+/**
  * A minimal valid raw THREE-COMPARTMENT compound (handoff §12, Stage B) ready to
  * mutate per-test. Clean round numbers in ABSOLUTE units: CL = 5 L/h, Vc = 10 L,
  * Q2 = 10 L/h, Vp2 = 20 L, Q3 = 2 L/h, Vp3 = 40 L. Carries the one-compartment

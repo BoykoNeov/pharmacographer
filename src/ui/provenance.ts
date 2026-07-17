@@ -88,6 +88,8 @@ const ROW_LABELS: Record<string, string> = {
   tmax: 'Time to peak (Tmax)',
   fractionFormed: 'Fraction formed (fm)',
   firstPassFraction: 'First-pass fraction (ffp)',
+  vmax: 'Maximum elimination rate (Vmax)',
+  km: 'Michaelis constant (Km)',
 };
 
 /** Resolve a `sourceRef` against the compound's `sources` map and the sentinels. */
@@ -128,6 +130,10 @@ function derivationTargetKey(noteParameter: string, present: ReadonlySet<string>
       return present.has('clearance') ? 'clearance' : 'halfLife';
     case 'ka':
       return present.has('tmax') ? 'tmax' : present.has('ka') ? 'ka' : undefined;
+    case 'vmax':
+      // Michaelis–Menten: per-kg scaling, or the multiply-by-Vd that turns a
+      // reported zero-order slope (Vmax/Vd) into the engine's mass rate.
+      return present.has('vmax') ? 'vmax' : undefined;
     default:
       return undefined; // e.g. an assumed-F note with no F row.
   }
@@ -161,11 +167,26 @@ export function provenanceEntries(
   const rows: ProvenanceRow[] = [];
 
   // ── Disposition (route-independent) ──────────────────────────────────────
-  rows.push(makeRow('vd', compound.disposition.vd, compound));
-  rows.push(makeRow('halfLife', compound.disposition.halfLife, compound));
-  const clearance = compound.disposition.clearance;
-  if (clearance && clearance.value !== null) {
-    rows.push(makeRow('clearance', clearance, compound));
+  // A Michaelis–Menten compound carries `dispositionMM` INSTEAD of `disposition`
+  // (schema-enforced): it has no half-life row to show, because its half-life is
+  // not a stored number at all but a function of concentration. Vmax and Km are
+  // the parameters that replace it, and they are what its curve is actually
+  // built from — so they are what this panel must cite.
+  const mm = compound.dispositionMM;
+  if (mm) {
+    rows.push(makeRow('vd', mm.vd, compound));
+    rows.push(makeRow('vmax', mm.vmax, compound));
+    rows.push(makeRow('km', mm.km, compound));
+  } else {
+    const disposition = compound.disposition;
+    if (disposition) {
+      rows.push(makeRow('vd', disposition.vd, compound));
+      rows.push(makeRow('halfLife', disposition.halfLife, compound));
+      const clearance = disposition.clearance;
+      if (clearance && clearance.value !== null) {
+        rows.push(makeRow('clearance', clearance, compound));
+      }
+    }
   }
 
   // ── Absorption (oral only) ───────────────────────────────────────────────

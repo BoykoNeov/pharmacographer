@@ -74,7 +74,9 @@ describe('buildCurve horizon (flip-flop oral, ka < ke)', () => {
     // Force flip-flop: a short elimination half-life (fast ke) with a late Tmax (slow
     // ka) ⇒ Tmax (4 h) ≫ 1/ke (1.44 h), the exact condition derive.ts flags.
     const flipFlop = structuredClone(byId('caffeine'));
-    flipFlop.disposition.halfLife = { ...flipFlop.disposition.halfLife, value: 1, unit: 'h' };
+    const disposition = flipFlop.disposition;
+    if (!disposition) throw new Error('test fixture: caffeine disposition missing');
+    disposition.halfLife = { ...disposition.halfLife, value: 1, unit: 'h' };
     const oral = flipFlop.routes.oral;
     if (!oral?.tmax) throw new Error('test fixture: caffeine oral Tmax missing');
     oral.tmax = { ...oral.tmax, value: 4, range: undefined };

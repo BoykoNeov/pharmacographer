@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { CompoundSchema } from '../../src/data/schema.ts';
 import dataGuide from '../../docs/DATA_GUIDE.md?raw';
-import { baseRawCompound, baseRawThreeCompCompound, baseRawTwoCompCompound } from './_fixtures.ts';
+import {
+  baseRawCompound,
+  baseRawMichaelisMentenCompound,
+  baseRawThreeCompCompound,
+  baseRawTwoCompCompound,
+} from './_fixtures.ts';
 
 /**
  * The schema is a guardrail, not a formality (handoff §8): it must reject the
@@ -264,6 +269,102 @@ describe('Disposition3cSchema validation', () => {
     const raw = baseRawThreeCompCompound();
     (raw.disposition3c as Record<string, unknown>).k12 = { value: 1 }; // not a stored field
     expect(CompoundSchema.safeParse(raw).success).toBe(false);
+  });
+});
+
+/**
+ * The Michaelis–Menten gate (handoff §12; the nonlinear seam).
+ *
+ * These pin the meaning change this model forced. `linear: false` used to be a
+ * synonym for "excluded from the project" — now it means only "superposition is
+ * invalid", it is a property OF the model, and a nonlinear compound ships. The
+ * schema is what stops the two from drifting apart in either direction, and what
+ * stops a saturable drug from claiming a half-life it does not have.
+ */
+describe('Michaelis–Menten compounds and the linearity gate', () => {
+  it('accepts a well-formed Michaelis–Menten compound', () => {
+    const result = CompoundSchema.safeParse(baseRawMichaelisMentenCompound());
+    if (!result.success) {
+      throw new Error(`MM fixture failed schema:\n${JSON.stringify(result.error.issues, null, 2)}`);
+    }
+    expect(result.data.linear).toBe(false);
+    expect(result.data.dispositionMM?.vmax.value).toBe(100);
+  });
+
+  it('rejects a Michaelis–Menten compound that claims a half-life', () => {
+    // The load-bearing one: a saturable drug's half-life rises with
+    // concentration, so a stored value is a category error, not an imprecision.
+    const raw = baseRawMichaelisMentenCompound();
+    raw.disposition = {
+      halfLife: { value: 22, unit: 'h', derived: false, sourceRef: 'ref' },
+      vd: { value: 50, unit: 'L', derived: false, sourceRef: 'ref' },
+    };
+    const result = CompoundSchema.safeParse(raw);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => /half-life is not a constant/.test(i.message))).toBe(true);
+    }
+  });
+
+  it('rejects a Michaelis–Menten compound with no dispositionMM block', () => {
+    const raw = baseRawMichaelisMentenCompound();
+    delete raw.dispositionMM;
+    expect(CompoundSchema.safeParse(raw).success).toBe(false);
+  });
+
+  it('rejects a dispositionMM block on a linear model', () => {
+    const raw = baseRawCompound();
+    (raw as Record<string, unknown>).dispositionMM = (
+      baseRawMichaelisMentenCompound() as Record<string, unknown>
+    ).dispositionMM;
+    expect(CompoundSchema.safeParse(raw).success).toBe(false);
+  });
+
+  it('rejects linear: true on a Michaelis–Menten model', () => {
+    const raw = baseRawMichaelisMentenCompound();
+    raw.linear = true;
+    const result = CompoundSchema.safeParse(raw);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => /contradicts model/.test(i.message))).toBe(true);
+    }
+  });
+
+  it('rejects linear: false on a linear model — there is no resolver for that', () => {
+    // The other direction of the same invariant: a compound cannot opt out of
+    // superposition while declaring a model whose kinetics are linear. If it is
+    // genuinely saturable it must say so in `model`, which routes it to the
+    // integrator; otherwise nothing would draw its curve.
+    const raw = baseRawCompound();
+    raw.linear = false;
+    const result = CompoundSchema.safeParse(raw);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => /contradicts model/.test(i.message))).toBe(true);
+    }
+  });
+
+  it('requires a disposition block on every linear model', () => {
+    const raw = baseRawCompound();
+    delete raw.disposition;
+    expect(CompoundSchema.safeParse(raw).success).toBe(false);
+  });
+
+  it('rejects an unknown key inside dispositionMM (strictObject)', () => {
+    const raw = baseRawMichaelisMentenCompound();
+    (raw.dispositionMM as Record<string, unknown>).ke = { value: 0.4 }; // no such thing here
+    expect(CompoundSchema.safeParse(raw).success).toBe(false);
+  });
+
+  it('checks dispositionMM sourceRefs resolve', () => {
+    const raw = baseRawMichaelisMentenCompound();
+    (raw.dispositionMM as Record<string, { sourceRef: string } | undefined>).vmax!.sourceRef =
+      'nonexistent';
+    const result = CompoundSchema.safeParse(raw);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => /sourceRef/.test(i.message))).toBe(true);
+    }
   });
 });
 

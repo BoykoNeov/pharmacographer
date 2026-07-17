@@ -50,16 +50,67 @@ to one number. This guide is how we keep that honest.
   peak against the built engine curve regardless — `npm test` proves structure and
   derivation, never magnitude.
 
-## What "linear" means here, and what we exclude
+## What "linear" means here — and why it no longer means "excluded"
 
-v1 implements linear (first-order) PK, where a single half-life is meaningful and
-doses superpose. Tag a drug `linear: false` and **exclude it from v1** if its
-elimination is saturable / nonlinear at typical doses — a fixed half-life would be
-_wrong_. Known exclusions: **phenytoin, ethanol, high-dose aspirin/salicylate**,
-plus **theophylline, omeprazole, MDMA** (all elsewhere in this guide), and two
-added 2026-07-13: **naproxen** and **ondansetron** (see the deferral note below).
-Leave a short note explaining _why_ so the rationale survives to the nonlinear
-phase.
+**This section changed on 2026-07-17, when the nonlinear engine landed.** Read it
+before re-litigating any `linear: false` verdict below.
+
+`linear` now means exactly one thing: **superposition is valid** — this compound's
+doses may be summed as time-shifted single-dose curves (`dosing.ts`). It used to
+double as "we do not ship this", because superposition was the only mechanism the
+engine had. That is no longer true. `src/engine/modelsMM.ts` integrates a saturable
+compound's whole schedule as an ODE, and **phenytoin and ethanol now ship** as
+`linear: false`.
+
+Three consequences for curation:
+
+- **Linearity is a property of the `model`, not an independent judgement.** The
+  schema cross-checks `linear` against `NONLINEAR_MODELS` and rejects a
+  contradiction in either direction. Tagging a drug `linear: false` while leaving
+  it on a linear model is now a validation error, not a way to shelve it.
+- **A nonlinear compound has NO `disposition` block.** It carries `dispositionMM`
+  (Vd, Vmax, Km) instead, and the schema *forbids* a `disposition` alongside it.
+  A stored half-life on a saturable drug is not an imprecision but a category
+  error — the number changes with concentration. If you cannot find Vmax and Km,
+  you cannot ship the compound; a half-life is not a substitute.
+- **Take Vmax and Km from the SAME source.** They are correlated estimates, and
+  for a compound whose payload is the zero-order slope (`Vmax/Vd`), Vd belongs to
+  that source too. Mixing a textbook volume into another study's Vmax silently
+  moves the one number that must be right — see the ethanol entry.
+
+Still `linear: false` and **not shipped**, because no one has curated Vmax/Km for
+them: **high-dose aspirin/salicylate**, **theophylline**, **omeprazole**, **MDMA**,
+**naproxen**, **ondansetron** (see the notes below). These are no longer
+exclusions on principle — they are *un-curated nonlinear compounds*, and each is
+now a candidate for the MM engine if a source gives Vmax and Km. Note that
+omeprazole (auto-INHIBITION) and naproxen (concentration-dependent protein
+binding) are **not** Michaelis–Menten in shape, so they would need a further
+model, not just parameters; theophylline and salicylate are the plausible next
+MM ships.
+
+### Curating a Michaelis–Menten compound — the extra gates
+
+- **Oral needs an explicit, cited `ka`.** Every linear resolver estimates a
+  missing ka by inverting `Tmax = ln(ka/ke)/(ka − ke)`. That inversion does not
+  exist under saturation: there is no `ke`, and **Tmax is itself dose-dependent**
+  (a bigger dose saturates elimination and pushes the peak later), so a reported
+  Tmax is a property of the compound *at one dose*. `deriveParamsMM` throws rather
+  than fabricate the dose. No citable ka ⇒ omit the oral route (phenytoin) — do
+  not substitute a Tmax.
+- **Vmax comes in two unit families; store what the source printed.** A mass rate
+  (`mg/day`, `mg/kg/day` — phenytoin) or the zero-order concentration slope
+  `Vmax/Vd` (`mg/dL/h` — ethanol's forensic β60). `derive.ts` multiplies the
+  latter by Vd and records it as derived. Do not pre-convert offline; that hides
+  the arithmetic from the reader.
+- **The magnitude check is the STEADY STATE, not the peak.** `Css = R0·Km/(Vmax − R0)`
+  is exact, algebraic, and contains **no Vd** — so it is the honest test of Vmax
+  and Km, and it is unmoved by the volume (often the softest input). Check it
+  against the therapeutic range at real maintenance rates. There is no steady
+  state at all for `R0 ≥ Vmax`.
+- **Set `illustrativeDoseMg` when the generic 500 mg opening would lie.** A
+  saturable compound plotted below its Km renders as an ordinary exponential —
+  its whole point invisible before the user touches anything. It states scale, not
+  a recommended dose.
 
 ### Nonlinear / ceiling deferrals — naproxen, ondansetron, escitalopram, sotalol, isoniazid (2026-07-13)
 
@@ -1284,3 +1335,47 @@ and returns a list of what it derived (so the UI can show it):
    which value or range you chose and why.
 5. Run `npm test` (schema validation + derivation against the engine) and the app
    to eyeball the curve.
+
+### The nonlinear pass — phenytoin + ethanol added 2026-07-17 (the first `linear: false` ships)
+
+The two compounds this project tagged "exclude" on day one, shipped against the new
+Michaelis–Menten engine (43 → 45). Both were advisor-reviewed before any JSON was
+written, and both are magnitude-checked *in CI* by `src/ui/curve.mm.test.ts` rather than
+by hand — the MM parameters only mean anything together, so a plausible-looking edit to
+any one of them silently moves the teaching point. That test is the standing-trap guard
+for these two.
+
+- **Phenytoin (`compounds/phenytoin.json`) — the dose→steady-state CLIFF.** Vd 0.95 L/kg,
+  Vmax 580 mg/day (baseline, 70 kg), Km 7.9 mg/L, all from **Frame & Beal 1998**
+  (Ther Drug Monit; NONMEM, 115 patients, IV) — one source, because Vmax/Km are correlated.
+  The FDA DILANTIN label describes the mechanism in its own words but prints **no** Vmax,
+  Km, or Vd. Magnitude: `Css = R0·Km/(Vmax−R0)` gives 300 mg/day → ~8.4 mg/L, 400 → ~17.5,
+  500 → ~49, and no steady state at all above 580 mg/day. A 33% dose rise crosses the whole
+  10–20 mg/L window — the label's own "10% or more" warning.
+  **The best find:** the model reproduces the label's half-life *range* from saturation
+  alone — t½(c) runs ~15 h at trace to ~43 h at 20 mg/L, bracketing the label's "22 hours,
+  range 7 to 42". So the label's single range silently mixes concentration-dependence with
+  between-patient variability; only the unreachable 7 h floor is genuinely the latter.
+  Two documented caveats: Vd is conditional on albumin 3 g/dL (and, usefully, **cannot**
+  affect Css); and Frame & Beal's Vmax is **pre-autoinduction** (Vmax rises after ~59.5 h),
+  so the engine — which has no induction term — overstates *chronic* Css. Read the curve for
+  the shape of the cliff, not as a chronic prediction (the lamotrigine posture).
+  **IV-only:** infusion available, bolus inferred (the rate limit is why), **oral omitted** —
+  no citable ka, and a Tmax cannot be inverted under saturation.
+- **Ethanol (`compounds/ethanol.json`) — the STRAIGHT-LINE decline.** Vd 35.8 L (Vss),
+  Vmax 95 mg/min, Km 27 mg/L, all from **Norberg 2000** (Br J Clin Pharmacol; 16 fasted
+  volunteers, 0.4 g/kg IV). Vmax and Vd are taken from one study *deliberately*: their
+  ratio is the zero-order slope, 15.9 mg/dL/h — exactly the canonical ~15. That ratio is
+  the number that must be right, and `curve.mm.test.ts` pins it.
+  **A magnitude check that looked like a failure and wasn't:** Norberg's Vss is ~0.51 L/kg
+  at the 70 kg subject, well under Widmark's r ≈ 0.68, so peak BAC looked ~30% "high".
+  Widmark's r is a *forensic back-extrapolation factor*, not a measured volume — the two
+  independently measured PK volumes here (Norberg ~0.51, Rangno 1981 0.47) agree with each
+  other, not with r. Check ethanol against the study's own dose (0.4 g/kg → ~78 mg/dL), not
+  against Widmark. Km cross-checks too: Norberg 0.027 g/L vs Rangno 0.03 g/L.
+  **Oral ships** with ka 1.29/h (Rangno) and **F assumed 1**, flagged by the derivation's
+  own "overestimates exposure" warning — honest here because ethanol's absorption *is*
+  essentially complete; the shortfall is first-pass metabolism, which **Oneta 1998** shows
+  is governed by gastric emptying rather than being a constant. A single stored F could not
+  express that. `illustrativeDoseMg` 28000 (= 0.4 g/kg, ~2 drinks): at the generic 500 mg
+  opening, ethanol never approaches Km and draws a plain first-order exponential.

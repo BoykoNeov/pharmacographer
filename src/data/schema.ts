@@ -48,6 +48,27 @@ const ClearanceUnit = z.enum(['L/h/kg', 'L/h', 'L/min', 'mL/min', 'mL/h', 'L/day
 const RateConstantUnit = z.enum(['1/h', '1/min', '1/day', '1/d']);
 /** Bioavailable fraction F. */
 const FractionUnit = z.enum(['fraction', 'percent']);
+/** Concentration (the Michaelis constant Km). Subset the engine converter accepts. */
+const ConcentrationUnit = z.enum(['mg/L', 'g/L', 'µg/mL', 'mcg/mL', 'ng/mL', 'mg/mL']);
+/**
+ * Maximum elimination rate (Vmax), in EITHER of the two forms the literature uses:
+ * a mass rate (phenytoin: mg/kg/day) or the zero-order concentration slope
+ * `Vmax/Vd` (ethanol: mg/dL/h). `derive.ts` multiplies the latter by Vd; the
+ * per-kg mass forms scale against the reference subject, like `L/kg`.
+ */
+const MaxRateUnit = z.enum([
+  'mg/h',
+  'g/h',
+  'mg/min',
+  'mg/day',
+  'g/day',
+  'mg/h/kg',
+  'mg/day/kg',
+  'mg/L/h',
+  'g/L/h',
+  'mg/dL/h',
+  'g/dL/h',
+]);
 
 // ── Parameter factory ──────────────────────────────────────────────────────
 
@@ -161,6 +182,29 @@ const Disposition3cSchema = z.strictObject({
   peripheralVd3: requiredParam(VolumeOfDistributionUnit),
 });
 
+/**
+ * Michaelis–Menten disposition (handoff §12; the NONLINEAR seam). Present only on
+ * a `one_compartment_michaelis_menten` compound, and — uniquely — it REPLACES the
+ * ordinary {@link DispositionSchema} rather than sitting alongside it, as the
+ * multi-compartment blocks do.
+ *
+ * That is the point, not an inconsistency. Every other block carries a
+ * `halfLife`, because for a linear drug the half-life is a constant of the
+ * molecule. For a saturable drug it is not: it rises with concentration, so the
+ * same drug has a different half-life at every dose (`engine/modelsMM.ts`'s
+ * `apparentHalfLifeMM`). A stored `halfLife` on phenytoin would not be an
+ * imprecise number, it would be a category error — exactly the kind this project
+ * exists to expose — so the schema makes it impossible to write one.
+ */
+const DispositionMMSchema = z.strictObject({
+  /** Volume of distribution — same meaning as in the linear model. */
+  vd: requiredParam(VolumeOfDistributionUnit),
+  /** Maximum elimination rate, Vmax — the ceiling the enzymes cannot exceed. */
+  vmax: requiredParam(MaxRateUnit),
+  /** Michaelis constant, Km — the concentration at which elimination runs at Vmax/2. */
+  km: requiredParam(ConcentrationUnit),
+});
+
 /** Oral route: first-order absorption (needs ka, or a Tmax to derive it from). */
 const OralRouteSchema = z.strictObject({
   available: z.boolean(),
@@ -236,12 +280,41 @@ const MetaboliteSchema = z.strictObject({
 /**
  * Supported model discriminators (handoff §12 seam). `one_compartment_first_order`
  * is the v1 model; `two_compartment_first_order` adds a distribution phase and
- * requires the {@link Disposition2cSchema} block.
+ * requires the {@link Disposition2cSchema} block;
+ * `one_compartment_michaelis_menten` is the nonlinear model and requires the
+ * {@link DispositionMMSchema} block instead of the ordinary one.
  */
 const ModelSchema = z.enum([
   'one_compartment_first_order',
   'two_compartment_first_order',
   'three_compartment_first_order',
+  'one_compartment_michaelis_menten',
+]);
+
+/** A supported model discriminator. */
+export type CompoundModel = z.infer<typeof ModelSchema>;
+
+/**
+ * The models whose kinetics are NONLINEAR — i.e. for which superposition is
+ * invalid and `dosing.ts` must not be used (handoff §8, §12).
+ *
+ * This set is what `linear` now means. Before the nonlinear phase, `linear: false`
+ * was effectively a synonym for "excluded from this project": the flag existed to
+ * mark compounds we deliberately would not ship, and all three derivation
+ * resolvers rejected on it. That is no longer true — a Michaelis–Menten compound
+ * IS `linear: false` and ships. So `linear` has narrowed to its literal meaning:
+ * *may this compound's doses be superposed?* Whether a compound is supported at
+ * all is now decided by one question only — is there a resolver for its `model`?
+ *
+ * Because linearity is a property OF the model, `linear` is redundant with
+ * `model` and is cross-checked against it below rather than trusted (the same
+ * posture as the pre-existing `flags.nonlinear` ↔ `linear` check). It is kept
+ * because it is the flag handoff §8 specifies as the superposition gate, and
+ * because a reader of a compound file should not have to know which models are
+ * nonlinear to know whether doses add up.
+ */
+export const NONLINEAR_MODELS: ReadonlySet<CompoundModel> = new Set([
+  'one_compartment_michaelis_menten',
 ]);
 
 // ── Compound ───────────────────────────────────────────────────────────────
@@ -291,16 +364,48 @@ export const CompoundSchema = z
       })
       .optional(),
 
+    /**
+     * Dose (mg) the chart should OPEN at for this compound. Optional; omitted,
+     * the interface uses its generic default (`DEFAULT_DOSE_MG`).
+     *
+     * A dose is normally a UI input, not a compound property — the same reason an
+     * infusion duration is deliberately absent from these files (handoff §7). The
+     * exception is SCALE: an interface default of 500 mg is meaningless for a drug
+     * dosed in micrograms and equally meaningless for one dosed in grams, and a
+     * compound whose opening view misrepresents it teaches the wrong thing before
+     * the user touches anything. Ethanol is the case that forced this: at 500 mg —
+     * half a gram, a thirtieth of a standard drink — its concentration never
+     * approaches Km, so the curve renders as an ordinary first-order exponential
+     * and the saturation it exists to demonstrate is invisible.
+     *
+     * This is NOT a recommended, typical, or safe dose, and must never be
+     * presented as one (the bright line, CLAUDE.md). It states the scale the
+     * molecule operates at so the first curve drawn is a fair picture of it; the
+     * user changes it freely, and every curve remains illustrative.
+     */
+    illustrativeDoseMg: z.number().positive().optional(),
+
     /** Model discriminator — the seam for future model types (§12). */
     model: ModelSchema,
-    /** false ⇒ superposition is invalid; v1 ships only linear compounds. */
+    /**
+     * false ⇒ superposition is invalid, so the compound's curve must come from
+     * the nonlinear integrator rather than `dosing.ts`. Determined by `model`
+     * (see {@link NONLINEAR_MODELS}) and cross-checked against it below.
+     */
     linear: z.boolean(),
 
-    disposition: DispositionSchema,
+    /**
+     * Route-independent disposition (half-life + Vd). Required for every LINEAR
+     * model and forbidden on a nonlinear one, which has no half-life to state and
+     * carries {@link dispositionMM} instead — see {@link DispositionMMSchema}.
+     */
+    disposition: DispositionSchema.optional(),
     /** Two-compartment parameters (§12) — required iff model is two-compartment. */
     disposition2c: Disposition2cSchema.optional(),
     /** Three-compartment parameters (§12) — required iff model is three-compartment. */
     disposition3c: Disposition3cSchema.optional(),
+    /** Michaelis–Menten parameters (§12) — required iff model is Michaelis–Menten. */
+    dispositionMM: DispositionMMSchema.optional(),
     routes: RoutesSchema,
 
     variability: z
@@ -353,10 +458,18 @@ export const CompoundSchema = z
         });
       }
     };
-    checkRef(compound.disposition.halfLife.sourceRef, 'disposition.halfLife');
-    checkRef(compound.disposition.vd.sourceRef, 'disposition.vd');
-    if (compound.disposition.clearance) {
-      checkRef(compound.disposition.clearance.sourceRef, 'disposition.clearance');
+    if (compound.disposition) {
+      checkRef(compound.disposition.halfLife.sourceRef, 'disposition.halfLife');
+      checkRef(compound.disposition.vd.sourceRef, 'disposition.vd');
+      if (compound.disposition.clearance) {
+        checkRef(compound.disposition.clearance.sourceRef, 'disposition.clearance');
+      }
+    }
+    if (compound.dispositionMM) {
+      const mm = compound.dispositionMM;
+      checkRef(mm.vd.sourceRef, 'dispositionMM.vd');
+      checkRef(mm.vmax.sourceRef, 'dispositionMM.vmax');
+      checkRef(mm.km.sourceRef, 'dispositionMM.km');
     }
     if (compound.disposition2c) {
       const d2 = compound.disposition2c;
@@ -425,8 +538,53 @@ export const CompoundSchema = z
       });
     }
 
-    // `linear` is the authoritative gate; if the redundant flags.nonlinear is
-    // present it must agree (be the negation), so the two can't drift.
+    // The Michaelis–Menten model and its parameter block must agree. Unlike the
+    // multi-compartment blocks, dispositionMM REPLACES `disposition` rather than
+    // supplementing it, so both directions are checked: a nonlinear compound must
+    // not state a half-life it does not have, and a linear one must.
+    const isMichaelisMenten = compound.model === 'one_compartment_michaelis_menten';
+    if (isMichaelisMenten && !compound.dispositionMM) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'model "one_compartment_michaelis_menten" requires a dispositionMM block (Vd, Vmax, Km)',
+        path: ['dispositionMM'],
+      });
+    }
+    if (!isMichaelisMenten && compound.dispositionMM) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `dispositionMM is only valid for model "one_compartment_michaelis_menten", not "${compound.model}"`,
+        path: ['dispositionMM'],
+      });
+    }
+    if (isMichaelisMenten && compound.disposition) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          'a Michaelis–Menten compound must not carry a `disposition` block: its half-life is not a constant of the drug but rises with concentration, so a stored value would be meaningless. Put Vd in dispositionMM instead.',
+        path: ['disposition'],
+      });
+    }
+    if (!isMichaelisMenten && !compound.disposition) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `model "${compound.model}" requires a disposition block (half-life + Vd)`,
+        path: ['disposition'],
+      });
+    }
+
+    // `linear` is the superposition gate, and it is a property OF the model — so
+    // it is cross-checked rather than trusted, and cannot drift from the model it
+    // describes (see NONLINEAR_MODELS).
+    const shouldBeLinear = !NONLINEAR_MODELS.has(compound.model);
+    if (compound.linear !== shouldBeLinear) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `linear (${compound.linear}) contradicts model "${compound.model}", whose kinetics are ${shouldBeLinear ? 'linear' : 'nonlinear'}. Superposition validity is a property of the model, not an independent choice.`,
+        path: ['linear'],
+      });
+    }
+    // If the redundant flags.nonlinear is present it must agree (be the negation).
     if (compound.flags?.nonlinear !== undefined && compound.flags.nonlinear === compound.linear) {
       ctx.addIssue({
         code: 'custom',

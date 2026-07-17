@@ -30,15 +30,22 @@ import type {
   ThreeCompParams,
   TwoCompParams,
 } from '../engine/types.ts';
+import type { MichaelisMentenParams } from '../engine/modelsMM.ts';
 import {
   REFERENCE_WEIGHT_KG,
   absoluteVdFromPerKg,
   clearance as clearanceConverter,
+  concentration as concentrationConverter,
+  concentrationRate,
+  massRate,
   rateConstant,
   time,
   type ClearanceUnit,
+  type ConcentrationRateUnit,
+  type ConcentrationUnit,
+  type MassRateUnit,
 } from '../engine/units.ts';
-import type { Compound, Metabolite } from './schema.ts';
+import { NONLINEAR_MODELS, type Compound, type Metabolite } from './schema.ts';
 
 /**
  * Relative tolerance for the ke cross-check. When a compound supplies BOTH
@@ -251,13 +258,60 @@ export function kaFromTmax3c(tmax: number, params: ThreeCompParams): number {
   return 0.5 * (lo + hi);
 }
 
+/**
+ * The compound's linear `disposition` block, or a thrown error.
+ *
+ * `disposition` is schema-optional ONLY because a Michaelis–Menten compound has
+ * no half-life to state and carries `dispositionMM` instead; every linear model
+ * requires it, and the schema enforces that. So a linear resolver arriving here
+ * without one means the object skipped validation — a programming error worth a
+ * clear message rather than a `TypeError` deep in a converter.
+ */
+function requireDisposition(compound: Compound): NonNullable<Compound['disposition']> {
+  const disposition = compound.disposition;
+  if (!disposition) {
+    throw new Error(
+      `"${compound.id}" (model "${compound.model}") has no disposition block; only a Michaelis–Menten compound may omit one, and it is resolved by deriveParamsMM`,
+    );
+  }
+  return disposition;
+}
+
+/**
+ * Guard the model↔linearity contract at the derivation boundary, for a resolver
+ * that can only handle LINEAR kinetics.
+ *
+ * The reject is on the MODEL, not on `linear`: `linear: false` no longer means
+ * "excluded" (Michaelis–Menten compounds are nonlinear and ship — see
+ * {@link NONLINEAR_MODELS}), it means "superposition is invalid", which is
+ * decided by the model. So the model check comes first and names the resolver
+ * that CAN handle the compound; the `linear` check that follows catches only the
+ * contradictory case — a linear model whose file claims superposition is invalid
+ * — which the schema also rejects, but which a hand-built object could reach.
+ */
+function assertLinearModel(compound: Compound, expected: Compound['model'], resolver: string): void {
+  if (compound.model !== expected) {
+    const handler = NONLINEAR_MODELS.has(compound.model)
+      ? 'deriveParamsMM'
+      : 'deriveParams / deriveParams2c / deriveParams3c';
+    throw new Error(
+      `${resolver}: "${compound.id}" uses model "${compound.model}"; this resolver handles only ${expected}. Use ${handler} (handoff §12).`,
+    );
+  }
+  if (!compound.linear) {
+    throw new Error(
+      `${resolver}: "${compound.id}" is marked linear: false, which contradicts its model "${expected}" — linear kinetics are a property of that model. Superposition is the only mechanism the linear engine has, so a genuinely nonlinear compound must declare a nonlinear model and be resolved by deriveParamsMM (handoff §8, §12).`,
+    );
+  }
+}
+
 /** Resolve absolute Vd (L) from the disposition entry, noting any scaling. */
 function resolveVd(
   compound: Compound,
   weightKg: number,
   derived: DerivedNote[],
 ): number {
-  const vd = compound.disposition.vd;
+  const vd = requireDisposition(compound).vd;
   if (vd.unit === 'L/kg') {
     const absolute = absoluteVdFromPerKg(vd.value, weightKg);
     derived.push({
@@ -277,11 +331,12 @@ function resolveKe(
   derived: DerivedNote[],
   warnings: DeriveWarning[],
 ): number {
-  const hl = compound.disposition.halfLife;
+  const disposition = requireDisposition(compound);
+  const hl = disposition.halfLife;
   const halfLifeH = time.toCanonical(hl.value, hl.unit);
   const keFromHalfLife = Math.LN2 / halfLifeH;
 
-  const cl = compound.disposition.clearance;
+  const cl = disposition.clearance;
   if (cl && cl.value !== null) {
     // Convert clearance to absolute L/h (per-kg forms scale by the reference weight).
     const clAbs = cl.unit === 'L/h/kg' ? cl.value * weightKg : clearanceConverter.toCanonical(cl.value, cl.unit);
@@ -317,25 +372,16 @@ function resolveKe(
  * compound does not mark `available` still yields a curve but adds an "inferred,
  * not based on route-specific data" warning (handoff §1, §10).
  *
- * Throws if the compound is nonlinear or not one-compartment (the linearity
- * gate), or if an oral curve is requested with neither `ka` nor `tmax`.
+ * Throws if the compound's model is not one-compartment first-order (the model
+ * gate — see {@link assertLinearModel}), or if an oral curve is requested with
+ * neither `ka` nor `tmax`.
  */
 export function deriveParams(
   compound: Compound,
   route: Route,
   options: DeriveOptions = {},
 ): DerivedParams {
-  // ── Linearity / model gate ───────────────────────────────────────────────
-  if (!compound.linear) {
-    throw new Error(
-      `deriveParams: "${compound.id}" is nonlinear (linear: false). Superposition — the only mechanism the v1 engine has — is invalid for nonlinear PK; such compounds are excluded from v1 (handoff §8).`,
-    );
-  }
-  if (compound.model !== 'one_compartment_first_order') {
-    throw new Error(
-      `deriveParams: "${compound.id}" uses model "${compound.model}"; this resolver handles only one_compartment_first_order. Use deriveParams2c for the two-compartment model (handoff §12).`,
-    );
-  }
+  assertLinearModel(compound, 'one_compartment_first_order', 'deriveParams');
 
   const weightKg = options.weightKg ?? REFERENCE_WEIGHT_KG;
   const derived: DerivedNote[] = [];
@@ -467,16 +513,7 @@ export function deriveParams2c(
   route: Route,
   options: DeriveOptions = {},
 ): DerivedParams2c {
-  if (!compound.linear) {
-    throw new Error(
-      `deriveParams2c: "${compound.id}" is nonlinear (linear: false). Superposition is invalid for nonlinear PK; such compounds are excluded from v1 (handoff §8).`,
-    );
-  }
-  if (compound.model !== 'two_compartment_first_order') {
-    throw new Error(
-      `deriveParams2c: "${compound.id}" uses model "${compound.model}", not two_compartment_first_order. Use deriveParams for the one-compartment model.`,
-    );
-  }
+  assertLinearModel(compound, 'two_compartment_first_order', 'deriveParams2c');
   const d2 = compound.disposition2c;
   if (!d2) {
     throw new Error(
@@ -588,16 +625,7 @@ export function deriveParams3c(
   route: Route,
   options: DeriveOptions = {},
 ): DerivedParams3c {
-  if (!compound.linear) {
-    throw new Error(
-      `deriveParams3c: "${compound.id}" is nonlinear (linear: false). Superposition is invalid for nonlinear PK; such compounds are excluded from v1 (handoff §8).`,
-    );
-  }
-  if (compound.model !== 'three_compartment_first_order') {
-    throw new Error(
-      `deriveParams3c: "${compound.id}" uses model "${compound.model}", not three_compartment_first_order. Use deriveParams / deriveParams2c for the one- and two-compartment models.`,
-    );
-  }
+  assertLinearModel(compound, 'three_compartment_first_order', 'deriveParams3c');
   const d3 = compound.disposition3c;
   if (!d3) {
     throw new Error(
@@ -680,6 +708,155 @@ export function deriveParams3c(
     } else {
       throw new Error(
         `deriveParams3c: oral route for "${compound.id}" needs either ka or tmax to determine absorption`,
+      );
+    }
+  }
+
+  return { params, derived, warnings };
+}
+
+/** Resolved Michaelis–Menten engine parameters plus the provenance of what was derived. */
+export interface DerivedParamsMM {
+  /** Canonical-unit MM parameters ready for `engine/modelsMM.ts`. */
+  params: MichaelisMentenParams;
+  /** What had to be computed (vs read), for the "measured vs derived" UI. */
+  derived: DerivedNote[];
+  /** Cautions: inferred route, per-kg scaling, Vmax derived from a slope, … */
+  warnings: DeriveWarning[];
+}
+
+/** The `MaxRateUnit` members that express Vmax as a CONCENTRATION slope (Vmax/Vd). */
+const CONCENTRATION_RATE_UNITS: ReadonlySet<string> = new Set<ConcentrationRateUnit>([
+  'mg/L/h',
+  'g/L/h',
+  'mg/dL/h',
+  'g/dL/h',
+]);
+
+/**
+ * Resolve Vmax to the engine's canonical absolute mg/h, from either literature
+ * form (see the schema's `MaxRateUnit`):
+ *
+ * - a **mass rate** (`mg/day`, and the per-kg variants that scale against the
+ *   reference subject) — how phenytoin's Vmax is usually printed;
+ * - a **concentration slope** (`mg/dL/h`) — how ethanol's is universally printed,
+ *   because what is actually measured is the straight-line fall of blood alcohol.
+ *   That slope IS `Vmax/Vd`, so it becomes a mass rate by multiplying by Vd,
+ *   which makes the resolved Vmax depend on the volume — recorded as derived.
+ */
+function resolveVmax(
+  param: { value: number; unit: string },
+  vd: number,
+  weightKg: number,
+  derived: DerivedNote[],
+): number {
+  const { value, unit } = param;
+
+  if (unit === 'mg/h/kg' || unit === 'mg/day/kg') {
+    const perKgPerHour = unit === 'mg/h/kg' ? value : value / 24;
+    const absolute = perKgPerHour * weightKg;
+    derived.push({
+      parameter: 'vmax',
+      note: `Vmax ${fmt(value)} ${unit} scaled to ${fmt(absolute)} mg/h using the ${weightKg} kg illustrative reference subject`,
+    });
+    return absolute;
+  }
+
+  if (CONCENTRATION_RATE_UNITS.has(unit)) {
+    const slope = concentrationRate.toCanonical(value, unit as ConcentrationRateUnit);
+    const absolute = slope * vd;
+    derived.push({
+      parameter: 'vmax',
+      note: `Vmax = slope × Vd = ${fmt(slope)} mg/L/h × ${fmt(vd)} L = ${fmt(absolute)} mg/h (the source reports Vmax as the zero-order elimination slope ${fmt(value)} ${unit}, which is Vmax/Vd)`,
+    });
+    return absolute;
+  }
+
+  return massRate.toCanonical(value, unit as MassRateUnit);
+}
+
+/**
+ * Resolve the {@link MichaelisMentenParams} the engine's `engine/modelsMM.ts`
+ * needs for a `one_compartment_michaelis_menten` compound via `route` (handoff
+ * §12; the nonlinear seam). Reads the `dispositionMM` block (Vd, Vmax, Km) — there
+ * is no half-life to read, and no `ke`: for a saturable drug neither is a constant
+ * of the molecule.
+ *
+ * **Oral requires an explicit `ka`; a reported Tmax cannot be inverted.** Every
+ * linear resolver here estimates a missing `ka` from Tmax, because `Tmax =
+ * ln(ka/ke)/(ka−ke)` is a closed-form relation between two constants. Under
+ * saturation that relation does not exist: there is no `ke`, and Tmax is itself
+ * DOSE-DEPENDENT (a bigger dose saturates elimination, so the peak arrives later),
+ * which means a reported Tmax is not a property of the compound but of the
+ * compound at one dose. Inverting it would silently fabricate that dose. So the
+ * curator must supply a cited `ka` or the compound ships without an oral route.
+ *
+ * Throws if the compound is not Michaelis–Menten, is missing its `dispositionMM`
+ * block (schema-guaranteed, but guarded so the engine never sees a partial set),
+ * or if an oral curve is requested without `ka`.
+ */
+export function deriveParamsMM(
+  compound: Compound,
+  route: Route,
+  options: DeriveOptions = {},
+): DerivedParamsMM {
+  if (compound.model !== 'one_compartment_michaelis_menten') {
+    throw new Error(
+      `deriveParamsMM: "${compound.id}" uses model "${compound.model}", not one_compartment_michaelis_menten. Use deriveParams / deriveParams2c / deriveParams3c for the linear models.`,
+    );
+  }
+  if (compound.linear) {
+    throw new Error(
+      `deriveParamsMM: "${compound.id}" is marked linear: true, which contradicts its Michaelis–Menten model — capacity-limited elimination is nonlinear by definition, and its doses do not superpose.`,
+    );
+  }
+  const mm = compound.dispositionMM;
+  if (!mm) {
+    throw new Error(
+      `deriveParamsMM: "${compound.id}" is Michaelis–Menten but has no dispositionMM block (Vd, Vmax, Km)`,
+    );
+  }
+
+  const weightKg = options.weightKg ?? REFERENCE_WEIGHT_KG;
+  const derived: DerivedNote[] = [];
+  const warnings: DeriveWarning[] = [];
+
+  const vd = resolveVolumeParam(mm.vd, 'Vd', 'vd', weightKg, derived);
+  const vmax = resolveVmax(mm.vmax, vd, weightKg, derived);
+  const km = concentrationConverter.toCanonical(mm.km.value, mm.km.unit as ConcentrationUnit);
+
+  const params: MichaelisMentenParams = { vd, vmax, km };
+
+  // ── Route availability ───────────────────────────────────────────────────
+  const routeData = compound.routes[route];
+  if (!routeData?.available) {
+    warnings.push({
+      parameter: 'route',
+      message: `route "${route}" is not marked available for "${compound.id}"; this curve is inferred, not based on route-specific data`,
+    });
+  }
+
+  // ── Absorption (oral only) ───────────────────────────────────────────────
+  if (route === 'oral') {
+    const oral = compound.routes.oral;
+
+    if (oral?.F && oral.F.value !== null) {
+      params.F = oral.F.unit === 'percent' ? oral.F.value / 100 : oral.F.value;
+    } else {
+      params.F = 1;
+      warnings.push({
+        parameter: 'F',
+        message:
+          'oral bioavailability F not provided; assuming F = 1, which overestimates exposure for an incompletely absorbed drug',
+      });
+      derived.push({ parameter: 'F', note: 'F assumed 1 (no value provided)' });
+    }
+
+    if (oral?.ka && oral.ka.value !== null) {
+      params.ka = rateConstant.toCanonical(oral.ka.value, oral.ka.unit);
+    } else {
+      throw new Error(
+        `deriveParamsMM: oral route for "${compound.id}" needs an explicit ka. A reported Tmax cannot be inverted for a saturable drug — there is no ke to invert against, and Tmax shifts with dose, so it is not a property of the compound alone.`,
       );
     }
   }

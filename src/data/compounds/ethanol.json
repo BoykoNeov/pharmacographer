@@ -1,0 +1,108 @@
+{
+  "id": "ethanol",
+  "schemaVersion": 1,
+  "names": {
+    "inn": "Ethanol",
+    "synonyms": [
+      "Ethyl alcohol",
+      "Alcohol",
+      "Drinking alcohol"
+    ]
+  },
+  "description": "The alcohol in beer, wine and spirits, and a central nervous system depressant. It is the everyday example of saturable elimination: above very low concentrations the body removes it at a near-constant number of grams per hour, no matter how much has been drunk.",
+  "illustrativeDoseMg": 28000,
+  "model": "one_compartment_michaelis_menten",
+  "linear": false,
+  "dispositionMM": {
+    "vd": {
+      "value": 35.8,
+      "range": [
+        31.5,
+        40.1
+      ],
+      "unit": "L",
+      "derived": false,
+      "sourceRef": "norberg",
+      "conditions": "steady-state volume of distribution (Vss = 35.8 +/- 4.3 L) from the Norberg two-compartment fit, collapsed to the single volume this one-compartment model needs. Stored ABSOLUTE rather than per-kg deliberately: it must stay paired with the same study's Vmax, because it is their RATIO that sets the elimination slope (see notes). At the 70 kg reference subject this is ~0.51 L/kg, close to total body water and in agreement with the independent 0.47 L/kg of Rangno 1981 - and below the ~0.68 'r' of Widmark's forensic equation, which is a back-extrapolation factor rather than a measured volume."
+    },
+    "vmax": {
+      "value": 95,
+      "range": [
+        70,
+        120
+      ],
+      "unit": "mg/min",
+      "derived": false,
+      "sourceRef": "norberg",
+      "conditions": "maximum elimination rate (95 +/- 25 mg/min) from the Norberg two-compartment Michaelis-Menten fit to venous blood, 16 fasted volunteers given 0.4 g/kg ethanol as a 30-minute intravenous infusion. Equivalent to ~5.7 g/h in these subjects - a little over half a standard drink per hour."
+    },
+    "km": {
+      "value": 27,
+      "range": [
+        8,
+        46
+      ],
+      "unit": "mg/L",
+      "derived": false,
+      "sourceRef": "norberg",
+      "conditions": "Michaelis constant, 27 +/- 19 mg/L (0.027 g/L) from the same fit; independently corroborated by the 0.03 g/L of Rangno 1981. It is roughly THIRTY TIMES below the ~800 mg/L (0.08 g/dL) of a legal driving limit, which is why ethanol looks zero-order in ordinary life: at any concentration a drinker notices, the enzymes are essentially fully saturated. Range is the reported SD, which is wide - Km is the least certain ethanol parameter, though it barely affects the curve except in the final minutes."
+    }
+  },
+  "routes": {
+    "oral": {
+      "available": true,
+      "ka": {
+        "value": 1.29,
+        "unit": "1/h",
+        "derived": false,
+        "sourceRef": "rangno",
+        "conditions": "median absorption rate constant from a two-compartment Michaelis-Menten fit in eight volunteers who received oral as well as intravenous ethanol. Absorption is fast (a ~32-minute absorption half-life) but is strongly modulated in practice by gastric emptying and food - a single constant cannot express that (see notes)."
+      }
+    },
+    "iv_infusion": {
+      "available": true,
+      "F": {
+        "value": 1.0,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "definition"
+      }
+    },
+    "iv_bolus": {
+      "available": false,
+      "F": {
+        "value": 1.0,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "definition"
+      }
+    }
+  },
+  "flags": {
+    "nonlinear": true,
+    "narrowTherapeuticIndex": false
+  },
+  "metabolism": "Ethanol is oxidised in the liver, mostly by alcohol dehydrogenase, to acetaldehyde, and then by aldehyde dehydrogenase to acetate, which the body burns as fuel. Alcohol dehydrogenase saturates at a very low concentration - a Michaelis constant around 0.03 g/L, some thirty times below a legal driving limit - so at any concentration a drinker would notice, the enzyme is already flat out. That is why blood alcohol falls in a nearly straight LINE rather than the curve almost every other drug traces: the liver is removing a roughly constant number of grams per hour, not a constant fraction of what is present. Two familiar facts follow directly. Doubling the drink roughly doubles the time to sober up, instead of adding one half-life. And nothing that raises 'metabolic rate' - coffee, a cold shower, exercise - moves the line, because the rate is capped by enzyme capacity, not by how much alcohol is waiting. The acetaldehyde step matters too: it is the intermediate that disulfiram blocks, and that many people of East Asian descent clear slowly because of an ALDH2 variant, causing the alcohol flush reaction.",
+  "displayNote": "Ethanol has no single half-life. The near-straight decline is saturation, not an exponential seen up close - the apparent half-life shown rises steeply with concentration. Concentrations are plotted in mg/L; 800 mg/L is 0.08 g/dL, a common legal driving limit.",
+  "sources": {
+    "norberg": {
+      "type": "Journal article",
+      "title": "Norberg A, Gabrielsson J, Jones AW, Hahn RG. Within- and between-subject variations in pharmacokinetic parameters of ethanol by analysis of breath, venous blood and urine. Br J Clin Pharmacol. 2000 May;49(5):399-408. Ethanol 0.4 g/kg given as a 30-minute intravenous infusion to 16 volunteers fasted overnight; a two-compartment model with parallel Michaelis-Menten and first-order renal elimination fitted by nonlinear regression to breath, venous blood and urine over 360 min. From venous blood: Vmax 95 +/- 25 mg/min; Km 27 +/- 19 mg/L; Vss 35.8 +/- 4.3 L; central volume VC 14.5 +/- 4.3 L; tissue volume VT 21.2 +/- 4.4 L; renal clearance 3.6 +/- 2.0 mL/min. Within-subject variation in Vss only 2%.",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC2014954/",
+      "accessed": "2026-07-17"
+    },
+    "rangno": {
+      "type": "Journal article",
+      "title": "Rangno RE, Kreeft JH, Sitar DS. Ethanol 'dose-dependent' elimination: Michaelis-Menten v classical kinetic analysis. Br J Clin Pharmacol. 1981 Nov;12(5):667-673. Eight normal volunteers, each given three intravenous doses; four also received four oral doses. A two-compartment Michaelis-Menten elimination model yielded a median absorption constant of 1.29 h-1, volume of distribution 0.47 L/kg, Vmax 0.12 g/h/kg, and Km 0.03 g/L. The authors report that maximal ethanol elimination rates are determined equally well by Michaelis-Menten and classical analysis, and that the classical analysis overestimates the volume of distribution of ethanol by 17%.",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1401959/",
+      "accessed": "2026-07-17"
+    },
+    "oneta_gastric": {
+      "type": "Journal article",
+      "title": "Oneta CM, Simanowski UA, Martinez M, et al. First pass metabolism of ethanol is strikingly influenced by the speed of gastric emptying. Gut. 1998. Ethanol 0.225 g/kg given orally and intravenously; first-pass metabolism correlated with gastric emptying time (r = 0.43, p = 0.0407), rose significantly when gastric emptying was delayed with N-butylscopolamine, and fell when it was accelerated with metoclopramide (p = 0.0004). Delayed gastric emptying increases the time ethanol is exposed to gastric alcohol dehydrogenase.",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1727307/",
+      "accessed": "2026-07-17"
+    }
+  },
+  "notes": "The set's second NONLINEAR compound and its zero-order exemplar. Ethanol was tagged 'exclude, linear: false' from the start of this project (handoff §12) alongside phenytoin; it now ships against the Michaelis-Menten engine (engine/modelsMM.ts). Where phenytoin teaches the dose-to-steady-state cliff, ethanol teaches the SHAPE: a near-straight decline that everyone has seen described ('one drink an hour') without being told it is an enzyme running flat out.\n\nWHY IT IS NOT A THERAPY. Ethanol is here as what it is - the alcohol in drinks, and a CNS depressant - not as a treatment (the bright-line posture used for the set's other non-therapeutic compounds). Its historical use as an antidote in methanol and ethylene glycol poisoning is why an intravenous preparation exists at all, and why an IV route is meaningful rather than hypothetical.\n\nSOURCES AND THE ONE RULE THAT MATTERED. All three disposition parameters come from Norberg 2000, an intravenous study in 16 fasted volunteers. Vmax and Vd are deliberately taken FROM THE SAME STUDY and stored in the units it reported, because the quantity that must be right is their RATIO: Vmax/Vd is the zero-order slope, the number the whole compound exists to show. 95 mg/min over 35.8 L is 159 mg/L/h = 15.9 mg/dL/h, which is exactly the canonical elimination rate of ~15 mg/dL/h that clinical and forensic sources report. Substituting a textbook volume for Norberg's would silently move that slope. Rangno 1981 is an independent Michaelis-Menten analysis of ethanol and agrees closely where the two overlap - Km 0.03 vs 0.027 g/L, Vd 0.47 vs ~0.51 L/kg - which is why it supplies the oral ka.\n\nVOLUME, AND WHY IT IS NOT WIDMARK'S r. At the 70 kg reference subject Norberg's 35.8 L is ~0.51 L/kg, near total body water. That is lower than the ~0.68 'r' in Widmark's forensic blood-alcohol equation, and the gap is not an error in either: r is a back-extrapolation factor fitted to make a simple equation reproduce observed peaks, not a measured volume of distribution. Two independently measured PK volumes here (Norberg ~0.51, Rangno 0.47) agree with each other rather than with r. A curve built on r would peak lower and, more importantly, would not carry Norberg's slope.\n\nMAGNITUDE CHECK. Against the study's own dose - 0.4 g/kg, i.e. 28 g for the 70 kg reference subject - the engine peaks near 780 mg/L (0.078 g/dL), matching the ~0.7-0.8 g/L that Norberg's subjects reached. The apparent half-life is where the nonlinearity is most visible: t-half(c) = (Vd/Vmax)(Km·ln2 + c/2) gives ~2.6 h at 800 mg/L (0.08 g/dL) but only ~7 minutes as concentration approaches zero - the same molecule, a twenty-fold spread, purely from concentration.\n\nONE-COMPARTMENT COLLAPSE. Norberg fitted TWO compartments (VC 14.5 L, VT 21.2 L) plus a small parallel first-order renal clearance (3.6 mL/min, under 3% of elimination). This compound collapses that to one compartment using Vss = 35.8 L and drops the renal term. The cost is the first few minutes after an IV dose, where the true curve shows a distribution phase this model cannot; the terminal slope and the total exposure are unaffected. The nonlinear engine is one-compartment only, so a two-compartment saturable model is out of scope (the metronidazole/cefotaxime collapse posture).\n\nORAL: SHIPPED, WITH F ASSUMED 1 AND FLAGGED. Oral is ethanol's real route and its iconic curve - the rise, then the straight fall - so it ships. ka 1.29/h comes from Rangno's oral arm. Neither opened source reports an oral bioavailability, so none is stored and the derivation layer's own warning applies: F is assumed 1, which OVERESTIMATES exposure, making the oral curve an upper bound. That is defensible for ethanol specifically - absorption from the gut is essentially complete, so the shortfall is first-pass metabolism rather than unabsorbed drug. But that first-pass loss is not a constant: Oneta 1998 shows it is governed largely by GASTRIC EMPTYING - delaying emptying increases it, accelerating it reduces it - which is the pharmacology behind the familiar advice to eat before drinking. A single stored F could not express that, so the honest choice is to assume 1, say that it is an upper bound, and record why here. (Contrast phenytoin, whose oral route is OMITTED - not because of F but because it has no citable ka, and a Tmax cannot be inverted for a saturable drug.)\n\nEDUCATIONAL ILLUSTRATION ONLY. Nothing here predicts an individual's blood alcohol or fitness to drive: real blood-alcohol depends on sex, body composition, food, drinking pattern and enzyme genetics, none of which this model takes.\n\nOPENING DOSE. illustrativeDoseMg is 28000 mg - 28 g, i.e. Norberg's own 0.4 g/kg dose for the 70 kg reference subject, and roughly two standard drinks. It is set because the interface's generic 500 mg opening would render ethanol as an ordinary first-order exponential: half a gram never approaches Km, so the enzymes sit ~7% saturated and the straight-line decline the compound exists to show simply does not appear. It states the scale the molecule works at, and is NOT a recommended or safe amount."
+}

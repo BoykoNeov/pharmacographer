@@ -49,8 +49,13 @@ a patient weight — never frame it otherwise.
   `sources` (or a sentinel like `definition` / `derived_from_tmax`).
 - `derived: true` → the UI marks that value computed. Unavailable route → UI
   marks the line "inferred, not measured". Never invent a citation.
-- `linear: false` compounds (nonlinear PK: phenytoin, ethanol, high-dose
-  salicylate) are **excluded from v1** — superposition is invalid for them.
+- `linear` means **superposition is valid**, and nothing more. It used to double as
+  "we don't ship this" — no longer: `linear: false` compounds ship, against the
+  Michaelis–Menten engine. Linearity is a property **of the `model`**
+  (`NONLINEAR_MODELS` in `schema.ts`), cross-checked against `linear` rather than
+  trusted, and the reject is now "no resolver for this model", not `!linear`. A
+  nonlinear compound carries `dispositionMM` (Vd/Vmax/Km) **instead of**
+  `disposition` — it has no half-life to state, and the schema forbids writing one.
 - Prefer FDA Structured Product Labels (public domain, openFDA). Don't lift
   curated tables wholesale; re-derive from primary sources. Record curator
   reasoning in the compound's `notes`. See `docs/DATA_GUIDE.md`.
@@ -105,11 +110,11 @@ unpublished, and the in-flight run cancelled. Do **not** re-add a deploy without
 asking first. Work now comes from handoff §12 (extension points), picked for
 teaching value.
 
-**Seed set: 43 compounds** — the file count in `src/data/compounds/` is
-authoritative, not this number. Adding a compound is pure data: drop in a JSON
-file and `loader.ts`'s `import.meta.glob` picks it up, with `loader.test.ts`
-deriving every route of it as an integration guard. No engine/schema/derive
-change needed.
+**Seed set: 45 compounds** — the file count in `src/data/compounds/` is
+authoritative, not this number. Adding a **linear** compound is pure data: drop in
+a JSON file and `loader.ts`'s `import.meta.glob` picks it up, with
+`loader.test.ts` deriving every route of it as an integration guard. No
+engine/schema/derive change needed.
 
 **Engine capabilities, all landed and wired through data + UI:**
 
@@ -117,12 +122,32 @@ change needed.
   `models3c.ts`), sharing one mode-based spine (`modes.ts`): a curve is
   `Σ coef_λ·e^(−λt)`, so each route is written once, model-independently.
   3-comp eigenvalues use bracketed bisection, **not** Cardano — see HISTORY.
+- **Nonlinear (Michaelis–Menten)** one-compartment (`modelsMM.ts`) — the one place
+  the mode spine does **not** apply, because saturable elimination has no
+  closed form and doses do not superpose. It is a **parallel path to `dosing.ts`**:
+  the whole schedule is integrated as one ODE (fixed-step RK4 between dose events),
+  never summed from single-dose curves. Pinned by the IV-bolus implicit solution
+  `Km·ln(C0/C)+(C0−C)=(Vmax/Vd)·t`, the AUC + steady-state closed forms, mass
+  balance, and the `Km≫C` collapse onto `models.ts`. Ships **phenytoin + ethanol**.
 - **Metabolites**, N per parent (not one), drawn in parallel off the shared
   parent CL. The route gate is `iv_bolus || oral || iv_infusion` across all
-  three models.
+  three **linear** models (no metabolites off an MM parent).
 - **`firstPassFraction` (`ffp`)** — oral-only pre-systemic metabolite formation.
-- Routes: oral, IV bolus, IV infusion. Multi-dose via superposition; half-life
-  variability band; Cmax/Tmax markers; lin/semi-log toggle; unit toggle.
+- Routes: oral, IV bolus, IV infusion. Multi-dose via superposition (linear) or
+  whole-schedule integration (MM); half-life variability band; Cmax/Tmax markers;
+  lin/semi-log toggle; unit toggle.
+
+**A nonlinear compound is NOT pure data** — unlike a linear one. It needs
+`dispositionMM`, `linear: false`, and an **explicit cited `ka`** for oral: a Tmax
+cannot be inverted without a `ke`, and Tmax itself moves with dose, so
+`deriveParamsMM` refuses rather than fabricate the dose it was measured at
+(phenytoin therefore ships IV-only; ethanol ships oral). It also has no half-life
+slider and no variability band — `VariabilitySlider`'s `NoRangeReason` says *why*,
+and "no range reported" would be a falsehood under phenytoin, whose label reports
+7–42 h. Optional `illustrativeDoseMg` sets the dose the chart **opens** at, for a
+compound whose scale makes the generic 500 mg misrepresent it (ethanol at 500 mg
+renders as a plain exponential — the whole point invisible). It is a scale, never
+a recommended dose.
 
 **When curating a compound, `docs/DATA_GUIDE.md` is the authority** — it holds
 every reusable screen (the `F·D/V` ceiling test, the first-pass timing screen,

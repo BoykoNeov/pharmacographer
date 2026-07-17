@@ -8,6 +8,69 @@ must-follow instruction file — `CLAUDE.md` holds the working conventions and
 
 Newest first; test counts and commit hashes are as-of that milestone.
 
+**NONLINEAR (Michaelis–Menten) PK — the excluded compounds ship (2026-07-17, advisor-reviewed, 486
+tests, 43 → 45 compounds).** Phenytoin and ethanol were tagged "exclude, `linear: false`" in the
+handoff on day one; this pass built the engine that could hold them honestly. It is the only feature
+so far that **invalidated the engine's central abstraction** rather than extending it: every other
+model is `Σ coef_λ·e^(−λt)` over the shared mode spine, and saturable elimination has no closed form
+at all. So `modelsMM.ts` is a deliberate PARALLEL path to `dosing.ts` — the whole schedule integrated
+as one RK4 initial-value problem, doses applied as state jumps — not a fourth branch of
+`singleDoseConcentration`. Superposition is not approximated here; it is refused, and a test asserts
+it *fails* (two doses run >10% above the sum of two single-dose curves), because that failure is the
+justification for the whole module.
+
+- **The meaning of `linear` had to change, and that was the subtle part** (advisor catch). The 2c/3c
+  passes were clean model-splits because those compounds are `linear: true`; an MM compound *is*
+  `linear: false`, which every resolver rejected and every doc equated with "excluded from v1". So
+  `linear` narrowed to its literal meaning — *may these doses be superposed?* — the reject moved from
+  `!linear` to "no resolver for this model", and linearity became a property **of** the model
+  (`NONLINEAR_MODELS`), cross-checked rather than trusted.
+- **`dispositionMM` REPLACES `disposition` rather than supplementing it** — unlike the 2c/3c blocks.
+  A saturable drug has no half-life, so the schema forbids writing one. This is the pass's sharpest
+  honesty decision: a stored `halfLife: 22` on phenytoin would be a category error, not a rounding
+  error, and it is now unrepresentable.
+- **Oracles, given no closed form.** Pinned by what *is* analytic: the IV-bolus implicit solution
+  `Km·ln(C0/C)+(C0−C)=(Vmax/Vd)·t` (exact in the `t(C)` direction — the primary anchor, and what
+  calibrated the RK4 step at the zero↔first-order transition where fixed-step is weakest); the AUC
+  `(Vd/Vmax)(Km·C0+C0²/2)`; the algebraic steady state `Css = R0·Km/(Vmax−r0)`; **mass balance**
+  `∫Vmax·C/(Km+C)dt = F·D` (the only oracle oral has, since MM AUC is genuinely route-dependent —
+  slower input means less saturation means *less* exposure); and the `Km≫C` collapse onto the
+  oracle-pinned `models.ts`, the MM analogue of the 2c `Q→0` collapse.
+- **A failing test that was the test's fault, not the engine's.** Multi-dose mass balance missed by
+  2.3e-4. An IV bolus makes the elimination flux genuinely discontinuous, so a trapezoid panel
+  straddling a dose over-counts by ~½·dt·Δflux — an O(dt) error no grid refinement fixes. Predicted
+  0.28 mg, observed 0.279. Fixed in the *quadrature* (integrate piecewise between doses); the error
+  fell to <1e-5 with the engine untouched, which is what proved the diagnosis.
+- **A magnitude check that looked like a failure and wasn't** (advisor catch). Norberg's ethanol Vss
+  is ~0.51 L/kg vs Widmark's r ≈ 0.68, so peak BAC looked ~30% high. Widmark's r is a forensic
+  back-extrapolation factor, not a measured volume — Norberg 0.51 and Rangno 0.47, two independently
+  opened sources, agree with each other rather than with r. The lesson generalised into DATA_GUIDE:
+  for MM, check the **slope** (`Vmax/Vd`, here 15.9 vs the canonical ~15 mg/dL/h) and the **steady
+  state** (Vd-free), not the peak against a different model's fitting constant.
+- **The defect only *running the app* could find.** Everything was green — 486 tests, lint, build,
+  and a curve built from the real JSON — and ethanol still rendered as a textbook first-order
+  exponential, because the interface opens every compound at 500 mg and half a gram of ethanol never
+  approaches its Km (~7% saturated). The compound's entire point was invisible before the user
+  touched anything. Hence optional `illustrativeDoseMg` (scale, explicitly not a recommended dose);
+  ethanol opens at Norberg's own 0.4 g/kg. CLAUDE.md's standing trap says tests never prove magnitude
+  — this pass adds that they never prove *pedagogy* either.
+- **The honesty panels had to invert, not soften.** `ModelAssumptionsNote` said saturable drugs "are
+  excluded here" — true until this pass, false the moment it landed. Under an MM curve the linearity
+  bullet now states the opposite. `VariabilitySlider` gained a `NoRangeReason`, because its old "the
+  source reports no half-life range" would be a plain **falsehood** under phenytoin, whose label
+  reports 7–42 h — we decline to store it. A note that explains a deliberate omission as a missing
+  datum is exactly the dishonesty the panel exists to prevent.
+- **The find worth keeping.** The model reproduces the DILANTIN label's own half-life range from
+  saturation alone: t½(c) = (Vd/Vmax)(Km·ln2 + c/2) runs ~15 h at trace to ~43 h at 20 mg/L,
+  bracketing the label's "22 hours, range 7 to 42 hours" — one paragraph above the label's own
+  explanation of why it cannot be a constant. The range mixes concentration-dependence with
+  between-patient variability, and the model separates them; only the unreachable 7 h floor is
+  genuinely the latter.
+- **Deferred:** metabolites off an MM parent; 2-comp saturable (ethanol and phenytoin are both
+  mildly 2-comp, collapsed); enzyme autoinduction (phenytoin's Vmax rises after ~59.5 h — documented,
+  so the engine overstates chronic Css); and the non-MM nonlinearities (omeprazole's autoinhibition,
+  naproxen's concentration-dependent binding) which need a different model, not just parameters.
+
 **ORAL MORPHINE → M3G + M6G via `ffp` — FIRST first-pass compound SHIPPED (2026-07-10, advisor-reviewed,
 422 tests).** The `ffp` curation pass. Oseltamivir was EVALUATED as the intended flagship and REJECTED
 on a NEW reusable screen — the **first-pass TIMING screen** (the `ffp` analogue of the `F·D/V` ceiling

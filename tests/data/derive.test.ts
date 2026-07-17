@@ -8,14 +8,21 @@ import {
   kaFromTmax,
   kaFromTmax2c,
   kaFromTmax3c,
+  deriveParamsMM,
 } from '../../src/data/derive.ts';
 import type { Metabolite } from '../../src/data/schema.ts';
 import { parseCompound } from '../../src/data/loader.ts';
 import { oralPeakTime2c } from '../../src/engine/models2c.ts';
 import { oralPeakTime3c, threeCompRates } from '../../src/engine/models3c.ts';
 import { singleDoseAuc2c, terminalRate2c, timeToPeak } from '../../src/engine/pk.ts';
+import { firstOrderLimitRateMM } from '../../src/engine/modelsMM.ts';
 import { REFERENCE_WEIGHT_KG } from '../../src/engine/units.ts';
-import { baseRawCompound, baseRawThreeCompCompound, baseRawTwoCompCompound } from './_fixtures.ts';
+import {
+  baseRawCompound,
+  baseRawMichaelisMentenCompound,
+  baseRawThreeCompCompound,
+  baseRawTwoCompCompound,
+} from './_fixtures.ts';
 
 /**
  * Derivation is validated against analytic oracles, not against any shipped
@@ -503,6 +510,91 @@ describe('deriveParams3c — three-compartment oral absorption (handoff §12, St
     const { params, warnings } = deriveParams3c(parseCompound(raw), 'oral');
     expect(params.ka!).toBeLessThan(threeCompRates(params).gamma);
     expect(warnings.some((w) => w.parameter === 'ka' && /flip-flop/.test(w.message))).toBe(true);
+  });
+});
+
+/**
+ * `deriveParamsMM` — the nonlinear resolver (handoff §12).
+ *
+ * Vmax is the one parameter in this project reported in two incompatible
+ * FAMILIES of unit, because the literature measures it two different ways: as a
+ * mass rate (phenytoin — mg/kg/day) and as the slope of the zero-order decline,
+ * `Vmax/Vd` (ethanol — mg/dL/h, the forensic β60). Both resolve to canonical
+ * mg/h, but only the second multiplies by Vd. Neither shipped compound exercises
+ * the per-kg or the slope path — phenytoin stores mg/day and ethanol mg/min, both
+ * plain absolute mass rates — so these tests exist to keep that conversion from
+ * being dead, untested code the first curator to need it would trip over.
+ */
+describe('deriveParamsMM — Vmax unit families', () => {
+  it('resolves a plain mass rate unchanged', () => {
+    const compound = parseCompound(baseRawMichaelisMentenCompound());
+    const { params } = deriveParamsMM(compound, 'iv_bolus');
+    expect(params.vmax).toBeCloseTo(100, 9); // mg/h fixture
+    expect(params.vd).toBeCloseTo(50, 9);
+    expect(params.km).toBeCloseTo(5, 9);
+    // The fixture's round numbers make the first-order limit exactly 0.4/h.
+    expect(firstOrderLimitRateMM(params)).toBeCloseTo(0.4, 9);
+  });
+
+  it('scales a PER-KG mass rate against the reference subject (the phenytoin form)', () => {
+    const raw = baseRawMichaelisMentenCompound();
+    (raw.dispositionMM as Record<string, unknown>).vmax = {
+      value: 7,
+      unit: 'mg/day/kg',
+      derived: false,
+      sourceRef: 'ref',
+    };
+    const { params, derived } = deriveParamsMM(parseCompound(raw), 'iv_bolus');
+    // 7 mg/kg/day × 70 kg = 490 mg/day = 20.417 mg/h.
+    expect(params.vmax).toBeCloseTo((7 * REFERENCE_WEIGHT_KG) / 24, 9);
+    expect(derived.some((d) => d.parameter === 'vmax' && /reference subject/.test(d.note))).toBe(
+      true,
+    );
+  });
+
+  it('multiplies a CONCENTRATION SLOPE by Vd (the ethanol β60 form)', () => {
+    // A source reporting 15 mg/dL/h is reporting Vmax/Vd, not Vmax. With Vd 50 L
+    // that is 150 mg/L/h × 50 L = 7500 mg/h — and the round-trip must give the
+    // slope back exactly, which is the property that matters.
+    const raw = baseRawMichaelisMentenCompound();
+    (raw.dispositionMM as Record<string, unknown>).vmax = {
+      value: 15,
+      unit: 'mg/dL/h',
+      derived: false,
+      sourceRef: 'ref',
+    };
+    const { params, derived } = deriveParamsMM(parseCompound(raw), 'iv_bolus');
+    expect(params.vmax).toBeCloseTo(150 * 50, 9);
+    expect(params.vmax / params.vd).toBeCloseTo(150, 9); // mg/L/h — the reported slope
+    expect(derived.some((d) => d.parameter === 'vmax' && /slope/.test(d.note))).toBe(true);
+  });
+
+  it('refuses an oral route without an explicit ka — a Tmax cannot be inverted', () => {
+    // Every linear resolver estimates a missing ka from Tmax. Under saturation
+    // there is no ke to invert against and Tmax itself moves with dose, so the
+    // resolver must refuse rather than fabricate the dose it was measured at.
+    const raw = baseRawMichaelisMentenCompound();
+    (raw.routes as Record<string, unknown>).oral = {
+      available: true,
+      tmax: { value: 2, unit: 'h', derived: false, sourceRef: 'ref' },
+    };
+    expect(() => deriveParamsMM(parseCompound(raw), 'oral')).toThrow(/explicit ka/);
+  });
+
+  it('rejects a linear compound, naming the resolver that handles it', () => {
+    expect(() => deriveParamsMM(parseCompound(baseRawCompound()), 'iv_bolus')).toThrow(
+      /not one_compartment_michaelis_menten/,
+    );
+  });
+
+  it('the linear resolvers reject a Michaelis–Menten compound, pointing at deriveParamsMM', () => {
+    // The gate change: the reject is on the MODEL, not on `linear` — and the
+    // message has to route the caller somewhere real, since `linear: false` no
+    // longer means "excluded from the project".
+    const mm = parseCompound(baseRawMichaelisMentenCompound());
+    expect(() => deriveParams(mm, 'iv_bolus')).toThrow(/deriveParamsMM/);
+    expect(() => deriveParams2c(mm, 'iv_bolus')).toThrow(/deriveParamsMM/);
+    expect(() => deriveParams3c(mm, 'iv_bolus')).toThrow(/deriveParamsMM/);
   });
 });
 

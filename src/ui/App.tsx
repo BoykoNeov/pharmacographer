@@ -24,7 +24,7 @@ import { DosingScheduleEditor, type ScheduleMode } from './components/DosingSche
 import { ModelAssumptionsNote } from './components/ModelAssumptionsNote.tsx';
 import { ProvenancePanel } from './components/ProvenancePanel.tsx';
 import { RouteDoseControls } from './components/RouteDoseControls.tsx';
-import { VariabilitySlider } from './components/VariabilitySlider.tsx';
+import { VariabilitySlider, type NoRangeReason } from './components/VariabilitySlider.tsx';
 import {
   buildCurve,
   defaultRoute,
@@ -37,6 +37,7 @@ import {
   type ConcentrationDisplayUnit,
   type CurveResult,
   type DoseSchedule,
+  DEFAULT_DOSE_MG,
   DEFAULT_INFUSION_DURATION_H,
 } from './curve.ts';
 
@@ -51,7 +52,7 @@ export function App() {
     const first = COMPOUNDS[0];
     return first ? defaultRoute(first) : 'iv_bolus';
   });
-  const [dose, setDose] = useState(500);
+  const [dose, setDose] = useState(() => COMPOUNDS[0]?.illustrativeDoseMg ?? DEFAULT_DOSE_MG);
   const [infusionDuration, setInfusionDuration] = useState(DEFAULT_INFUSION_DURATION_H);
   // Schedule shape (interval τ, dose count, ad-hoc extras). Unlike `route`, a
   // schedule is compound-independent, so it persists across compound switches.
@@ -80,6 +81,15 @@ export function App() {
         : null,
     [compound],
   );
+  // When there is no slider, WHY there isn't is itself a teaching point, and the
+  // three reasons are not interchangeable — a saturable drug has no half-life at
+  // all, which is a different statement from a source that simply reported no
+  // range (handoff §12).
+  const noRangeReason: NoRangeReason = useMemo(() => {
+    if (compound?.model === 'one_compartment_michaelis_menten') return 'nonlinear';
+    if (compound && compound.model !== 'one_compartment_first_order') return 'multi_compartment';
+    return 'no_reported_range';
+  }, [compound]);
 
   // The dose amount is per-administration; the schedule repeats it. `count: 1`
   // in single mode makes single and recurring the same engine code path.
@@ -95,6 +105,11 @@ export function App() {
     const next = COMPOUNDS.find((c) => c.id === id);
     if (next) setRoute(defaultRoute(next));
     setHalfLifeH(undefined); // back to the new compound's nominal half-life
+    // Only a compound that declares its own scale overrides the dose in the box.
+    // Otherwise the typed dose is left alone: resetting every switch would throw
+    // away the user's number for the 43 compounds where 500 mg is a fair opening
+    // (docs: `illustrativeDoseMg`).
+    if (next?.illustrativeDoseMg !== undefined) setDose(next.illustrativeDoseMg);
   };
 
   // The derive → engine pipeline. `deriveParams` throws for a nonlinear compound
@@ -150,6 +165,7 @@ export function App() {
               range={halfLifeRange}
               valueH={halfLifeH ?? halfLifeRange?.nominal ?? 0}
               onChange={setHalfLifeH}
+              noRangeReason={noRangeReason}
             />
           </section>
 
@@ -258,6 +274,24 @@ function ModelCaption({ route, schedule, infusionDuration, curve, concUnit }: Mo
     parts.push(
       `distribution t½ ${fmtNum(curve.distributionHalfLifeH)} h · intermediate t½ ${fmtNum(curve.intermediateHalfLifeH)} h · terminal t½ ${fmtNum(curve.terminalHalfLifeH)} h`,
     );
+    if (route === 'iv_infusion') parts.push(`infused over ${fmtNum(infusionDuration)} h`);
+  } else if (curve.model === 'one_compartment_michaelis_menten') {
+    // The nonlinear caption states a RANGE where the others state a half-life —
+    // for a saturable drug a single number would be the category error the
+    // compound exists to expose. The two ends are this curve's own peak and the
+    // dilute limit, so the caption changes when the dose changes: that movement
+    // IS the lesson (handoff §12).
+    parts.push('One-compartment model, saturable elimination');
+    parts.push(describeSchedule(schedule, route));
+    parts.push(
+      `Vmax = ${fmtNum(curve.params.vmax)} mg/h · Km = ${fmtNum(toDisplayConcentration(curve.params.km, concUnit))} ${concUnit}`,
+    );
+    parts.push(
+      `apparent t½ ${fmtNum(curve.limitHalfLifeH)}→${fmtNum(curve.apparentHalfLifeAtPeakH)} h (rises with concentration — no single half-life)`,
+    );
+    if (route === 'oral' && curve.params.ka !== undefined) {
+      parts.push(`ka = ${fmtNum(curve.params.ka)} /h`);
+    }
     if (route === 'iv_infusion') parts.push(`infused over ${fmtNum(infusionDuration)} h`);
   } else {
     parts.push('One-compartment model');
