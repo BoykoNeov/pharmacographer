@@ -49,6 +49,26 @@ to one number. This guide is how we keep that honest.
   and it is why ciprofloxacin and sildenafil are deferred below. Confirm the final
   peak against the built engine curve regardless — `npm test` proves structure and
   derivation, never magnitude.
+- **The metabolite AUC-ratio check — a closed form, so never quote it from memory.**
+  For any linear parent → metabolite pair, `AUC_p = F·D/CL_p` and
+  `AUC_m = fm·F·D/(k_m·Vd_m)`, so the exposure ratio collapses to
+  **`molar AUC_m/AUC_p = fm_MOLAR · CL_p/CL_m`** — independent of route, dose, `ka`
+  and (for the molar ratio) of the MW conversion, which cancels exactly: the ×MW_m/MW_p
+  factor enters via the stored mass `fm` and leaves again converting mass AUC back to
+  molar. So the ratio a curator claims in `notes` is *arithmetic*, checkable in one line
+  without building anything: procainamide/NAPA is `0.40 × (40.4/9.70) = 1.67`. Two traps
+  this closes. (1) **Quote the 0→∞ ratio, and expect the plotted window to read under it**
+  — an elimination-limited metabolite is still collecting its tail at the horizon
+  (NAPA reads ~1.64 over a 48 h window vs 1.67 to infinity), so a horizon-truncated number
+  is not a discrepancy to chase. (2) **"Metabolite exceeds parent" is three different
+  claims** — higher Cmax, a crossover, or higher AUC — and they do not imply one another:
+  NAPA's peak is *below* procainamide's (1.7 vs 2.9 mg/L) yet it crosses at ~4.5 h and its
+  AUC is 1.67×. Say which one you mean. Note `AUC_m` does **not** depend on `CL_p`, so a
+  phenotype that changes parent clearance moves the two AUCs by *different* factors (slow
+  acetylator: NAPA's AUC exactly halves with `fm` while the parent's rises ×1.5, so the
+  ratio falls ~3×, not 2×). Prose claims like these are invisible to every automated
+  check — `npm test`, lint and build all pass with a wrong number sitting in `notes`
+  (procainamide carried a stale "~1.8×" against a model that always produced 1.67).
 
 ## What "linear" means here — and why it no longer means "excluded"
 
@@ -1240,8 +1260,10 @@ genetically-polymorphic rate (NAT2 fast vs slow acetylators) — the textbook ph
   to NAPA" and Wierzchowiecki's 22.5% urinary NAPA are urinary-recovery LOWER bounds (the cefotaxime
   desacetyl distinction), reflected in the fm range low end.
 - **Magnitude (built).** 750 mg oral fast-acetylator: parent peaks ~2.9 mg/L @1.5 h; NAPA peaks
-  ~1.7 mg/L @6.5 h (later, elimination-limited) and its molar AUC ~1.7× the parent (mass ~1.9×) —
-  reproducing "NAPA exceeds procainamide in fast acetylators." Sources (all opened): FDA DailyMed
+  ~1.7 mg/L @6.5 h (lower and later, elimination-limited), crosses the parent line @~4.5 h, and its
+  molar AUC reaches ~1.67× the parent (mass ~1.97×) — reproducing "NAPA exceeds procainamide in fast
+  acetylators" in the TAIL and in total exposure, not at the peak. Slow acetylator: NAPA peaks only
+  ~0.7 mg/L, crosses @~10.2 h, molar AUC ~0.56×. Sources (all opened): FDA DailyMed
   label, Lima 1979 (PMID 458558, fm), Wierzchowiecki 1980 (PMID 6161089, t½s), acecainide review
   (PMID 1693889, NAPA active/class III), Bauer Applied Clinical PK (F, NAPA Vd).
 
