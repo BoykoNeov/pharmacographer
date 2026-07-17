@@ -212,8 +212,8 @@ representable. Rationale preserved so it isn't re-litigated:
   number). Keep all four inputs to **one population** (young healthy adult) — diazepam
   kinetics drift strongly with age, so a mixed-population set breaks the α/β/Vss algebra. The
   metabolite Vd is derived from CL_m/t½_m (not measured), making nordiazepam exposure
-  clearance-defined. Oral is omitted (2-comp oral is deferred; leaving it out keeps the picker
-  from offering a route the engine throws on).
+  clearance-defined. **Oral shipped 2026-07-17** — see the age-anchoring section below, which
+  also corrected `Vc` 0.3 → 0.25 L/kg.
 - **Procainamide → NAPA — SHIPPED 2026-07-11** (`compounds/procainamide.json`; the 40th
   compound and the pharmacogenetics pair — reverses this former rejection, see the procainamide
   section below). Both original objections dissolved: (1) the "2-compartment" objection was an
@@ -289,6 +289,70 @@ one-compartment collapse; allopurinol→oxypurinol now adds the oral-parent path
 **Procainamide still waits** — not on the parent's compartmental structure (now representable) but
 on a citable single-value `fm` (procainamide→NAPA formation is acetylator-bimodal, 7–34% urinary
 recovery, so `fm` is not one number).
+
+### The age/covariate-anchoring screen — diazepam oral (2026-07-17)
+
+A reusable screen for any **multi-source compartmental set** (a 2-/3-comp compound whose CL, Vc,
+α and β come from different papers). Diazepam is the worked example, and it caught a real defect.
+
+**The screen.** When a source publishes its parameters as **regressions on a covariate** (age,
+weight, renal function) rather than as single numbers, don't read off a "representative" value —
+**invert your existing values through the regressions and check every parameter implies the SAME
+covariate value.** A set that silently mixes two ages is not one population, and the file's own
+"keep all inputs to one population" rule is then broken invisibly.
+
+Diazepam's set was constructed from Klotz 1975 (structure, β), Greenblatt 1980 (CL) and CHEMM/FDA
+(α). Klotz's Table II publishes each parameter against age, so the inversion is arithmetic:
+
+| parameter | file's value | Klotz regression | implied age |
+| --- | --- | --- | --- |
+| t½(β) | 33 h | `t½(β) = 1.094·age + 2.26` | **~28 y** |
+| CL | 27.3 mL/min | `CL = 32.52 − 0.186·age` | **~28 y** |
+| Vc (V1) | 0.30 L/kg | `V1/kg = 0.0061·age + 0.08` | **~36 y** ✗ |
+
+Two parameters agreed on 28 y; `Vc` sat at 36 y. It was the one input carrying **no source** — a
+"customary young-end value" — and it was *documented as illustrative*, which is exactly why it
+survived: **an honest caveat is not a substitute for a source, and it stops protecting you the
+moment the parameter becomes load-bearing.** While only IV shipped, Vc merely scaled an early peak
+nobody checked. Adding oral made Vc set the *oral peak* — a landmark with citable values — and the
+inconsistency became visible immediately. Fix: `Vc = 0.0061·28 + 0.08 = 0.25 L/kg`, `derived: true`
+(computed from a published regression, not read off), with Q and Vp re-derived from it.
+
+**Carry-forwards, each of which cost a wrong turn to learn:**
+
+- **Re-derive the dependent parameters when you move a parameter.** A first sweep varied `Vc` while
+  holding `Q`/`Vp` fixed — but the file *derives* `Q`/`Vp` **from** `Vc`. That sweep showed Cmax
+  peaking ~370 ng/mL and concluded the target was unreachable at any `Vc` — a **false deferral**.
+  Re-deriving `Q`/`Vp` per candidate made Cmax monotonic in `Vc` and reachable. An
+  internally-inconsistent sweep will happily "prove" a compound is impossible.
+- **Don't fit the parameter to the landmark you're checking against.** `Vc = 0.20 L/kg` reproduces
+  Locniskar's 394 ng/mL Cmax to within 1% — tempting, and wrong: 0.20 is Klotz's V1 at **age 20**,
+  which drags t½(β) to ~24 h and contradicts the file's 33 h. Fitting also makes the magnitude check
+  **circular**. Source the parameter independently, then *report* the resulting Cmax.
+- **Check a reported Cmax against the SPREAD, not a single study.** Klotz's own oral arm reports
+  peaks of **221–440 ng/mL** — a 2× inter-individual range. Locniskar's 394 is one study near the
+  top of it, so a model at 255 ng/mL is not "35% wrong", it is mid-spread. A same-paper,
+  same-population range beats a tighter cross-population point estimate.
+- **Name the quantity before storing it.** Klotz's F ≈ 75% is **bioavailability** (oral-vs-IV AUC);
+  the FDA label's ">90%" is **absorption**. They are not in conflict and must not be averaged — they
+  reconcile at ~15–20% first-pass loss. The engine's `F` is bioavailability.
+- **Moving a disposition parameter edits every shipped route.** `Vc` sets IV-bolus `C(0) = D/Vc`
+  (333 → 400 ng/mL here) and feeds the metabolite formation modes — verify all routes, not the new
+  one. Here it is self-validating: `V1` is *defined* as `Dose/C(0)`, so Klotz's V1 sets `C(0)`.
+- **Record the residual.** Taking α from CHEMM/FDA (~1 h) rather than Klotz leaves `k12/k21 = 2.99`
+  vs Klotz's reported 2.75 (~9%), and Vss 1.00 vs Klotz's own 0.90 at age 28. Klotz-internal
+  consistency would imply α t½ ≈ 1.5 h. Accepted and written down; α is now the set's softest input.
+- **A dead citation URL is invisible to every check.** The `fda_label` URL 404'd; the live label
+  (DailyMed `setid=554baee5`) had to be re-found and the entry corrected — and it turned out to say
+  Vd(ss) **0.8–1.0 L/kg**, not the "~1 L/kg" the file paraphrased, and the stored range `[0.7, 1.3]`
+  matched no source at all. Re-open cited URLs when you touch a compound.
+
+Two oral simplifications are documented rather than hidden: absorption is modelled single-`ka`
+though Klotz found it **biphasic** (an "absorption nose"), and the oral nordiazepam line forms
+**systemically only** — cleared on Klotz's observation that oral desmethyldiazepam's profile "was
+comparable to that observed after intravenous", and `ffp` is unavailable anyway because nordiazepam
+peaks at 24–48 h vs the parent's 1 h (it fails the first-pass timing screen below). With `F = 0.75`
+that line sits ~25% under the IV one — bounded, directional, and stated in the compound notes.
 
 ### Oral first-pass metabolism — engine capability LANDED (`firstPassFraction`); first compound: oral morphine (2026-07-10)
 
