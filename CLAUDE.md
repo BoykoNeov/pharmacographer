@@ -133,6 +133,13 @@ engine/schema/derive change needed.
   parent CL. The route gate is `iv_bolus || oral || iv_infusion` across all
   three **linear** models (no metabolites off an MM parent).
 - **`firstPassFraction` (`ffp`)** — oral-only pre-systemic metabolite formation.
+- **Phenotype presets** (`variability.phenotypes`) — several illustrative populations
+  per compound (procainamide: NAT2 fast/slow), switchable on screen. `applyPhenotype`
+  in `derive.ts` is a pure Compound→Compound transform run BEFORE derivation, so **no
+  engine change** and no genotype concept crosses the engine boundary. `presets[0]` is
+  the default and must override **nothing** — the base values ARE the default
+  phenotype, which makes the default render provably the pre-preset compound. Adding a
+  preset to a compound is data + citations. See `docs/DATA_GUIDE.md` "Phenotype presets".
 - Routes: oral, IV bolus, IV infusion. Multi-dose via superposition (linear) or
   whole-schedule integration (MM); half-life variability band; Cmax/Tmax markers;
   lin/semi-log toggle; unit toggle.
@@ -155,6 +162,18 @@ the formation-rate-limited recipe, the molar→mass `fm` conversion,
 intrinsic-vs-apparent half-life, phenotype-anchoring) and the rejection log for
 compounds that were evaluated and excluded or deferred. Check it before adding a
 compound; a gate decision must rest on a source actually opened.
+
+A **phenotype preset is not pure data either** — like a nonlinear compound, it has its
+own gates. Both populations should come from one study/design (procainamide takes fast
+and slow from the same Wierzchowiecki arm); a preset overrides **only** what the
+polymorphism actually touches (Vd is acetylator-independent, so neither preset moves
+it); each preset's half-life range stays **inside its own phenotype**, because crossing
+populations is the preset's job — it swaps t½ and fm atomically, making the mixed state
+(one phenotype's half-life, the other's fm) unreachable rather than merely discouraged.
+A compound with a half-life preset must **not** store `clearance`: `resolveKe` prefers a
+stored CL, so the override would be silently discarded and the curve simply would not
+move. The picker's copy is a **bright-line gate**: illustrative populations to look at,
+never "select your genotype" — `tests/ui/phenotype-picker.test.tsx` asserts it.
 
 **Two standing traps** (both have bitten before, both are invisible to CI):
 

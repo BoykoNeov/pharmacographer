@@ -14,7 +14,7 @@
 
 import { useMemo, useState } from 'react';
 import type { DoseEvent, Route } from '../engine/types.ts';
-import type { DeriveWarning } from '../data/derive.ts';
+import { applyPhenotype, defaultPhenotypeId, type DeriveWarning } from '../data/derive.ts';
 import { loadAllCompounds } from '../data/loader.ts';
 import { CompoundAbout, CompoundMetabolism } from './components/CompoundInfo.tsx';
 import { CompoundPicker } from './components/CompoundPicker.tsx';
@@ -22,6 +22,7 @@ import { ConcentrationChart } from './components/ConcentrationChart.tsx';
 import { DisclaimerBanner } from './components/DisclaimerBanner.tsx';
 import { DosingScheduleEditor, type ScheduleMode } from './components/DosingScheduleEditor.tsx';
 import { ModelAssumptionsNote } from './components/ModelAssumptionsNote.tsx';
+import { PhenotypePicker } from './components/PhenotypePicker.tsx';
 import { ProvenancePanel } from './components/ProvenancePanel.tsx';
 import { RouteDoseControls } from './components/RouteDoseControls.tsx';
 import { VariabilitySlider, type NoRangeReason } from './components/VariabilitySlider.tsx';
@@ -68,8 +69,23 @@ export function App() {
   // caption also prints a Cmax — the two must never disagree on screen. The curve
   // math stays in canonical mg/L; this only changes how values are shown.
   const [concUnit, setConcUnit] = useState<ConcentrationDisplayUnit>('mg/L');
+  // Which illustrative population is on screen (§12). Compound-specific, so it
+  // resets on a compound switch. `undefined` ⇒ the compound's default preset.
+  const [phenotypeId, setPhenotypeId] = useState<string | undefined>(() =>
+    COMPOUNDS[0] ? defaultPhenotypeId(COMPOUNDS[0]) : undefined,
+  );
 
-  const compound = useMemo(() => COMPOUNDS.find((c) => c.id === compoundId), [compoundId]);
+  const selected = useMemo(() => COMPOUNDS.find((c) => c.id === compoundId), [compoundId]);
+  // The compound EVERYTHING below works from: the selected file re-anchored onto
+  // the chosen population. Doing this once, here, is what keeps phenotypes out of
+  // the layers underneath — derive and the engine just see numbers, and the
+  // provenance rows/prose automatically cite the active population's sources
+  // rather than needing a parallel "but which phenotype" channel. For the default
+  // preset this IS the selected compound (same object), so nothing moves.
+  const compound = useMemo(
+    () => (selected ? applyPhenotype(selected, phenotypeId) : undefined),
+    [selected, phenotypeId],
+  );
   const options = useMemo(() => (compound ? routeOptions(compound) : []), [compound]);
   // The variability band/slider vary a single half-life — a one-compartment
   // feature. A two-compartment compound has two eigenvalues, so there is no single
@@ -94,7 +110,12 @@ export function App() {
   // The dose amount is per-administration; the schedule repeats it. `count: 1`
   // in single mode makes single and recurring the same engine code path.
   const schedule = useMemo<DoseSchedule>(
-    () => ({ amount: dose, count: scheduleMode === 'recurring' ? count : 1, interval: dosingInterval, adHoc }),
+    () => ({
+      amount: dose,
+      count: scheduleMode === 'recurring' ? count : 1,
+      interval: dosingInterval,
+      adHoc,
+    }),
     [dose, scheduleMode, count, dosingInterval, adHoc],
   );
 
@@ -105,11 +126,25 @@ export function App() {
     const next = COMPOUNDS.find((c) => c.id === id);
     if (next) setRoute(defaultRoute(next));
     setHalfLifeH(undefined); // back to the new compound's nominal half-life
+    setPhenotypeId(next ? defaultPhenotypeId(next) : undefined);
     // Only a compound that declares its own scale overrides the dose in the box.
     // Otherwise the typed dose is left alone: resetting every switch would throw
     // away the user's number for the 43 compounds where 500 mg is a fair opening
     // (docs: `illustrativeDoseMg`).
     if (next?.illustrativeDoseMg !== undefined) setDose(next.illustrativeDoseMg);
+  };
+
+  // Switching population MUST drop the slider back to that population's nominal.
+  // Each phenotype's band is deliberately kept inside its own phenotype, so a
+  // half-life carried over from the previous one can land outside the new band
+  // entirely (procainamide: a fast 1.8 h is nowhere in the slow 2.6–4.6 h band) —
+  // and, worse, would pair one population's half-life with the other's fm. That
+  // mixed state is the exact thing presets exist to make unreachable; keeping the
+  // old value here would quietly rebuild it in the UI after the data layer went
+  // to some trouble to forbid it.
+  const handlePhenotypeChange = (id: string) => {
+    setPhenotypeId(id);
+    setHalfLifeH(undefined);
   };
 
   // The derive → engine pipeline. `deriveParams` throws for a nonlinear compound
@@ -118,7 +153,10 @@ export function App() {
   const curve = useMemo(() => {
     if (!compound) return { ok: false as const, error: 'No compound selected.' };
     try {
-      return { ok: true as const, value: buildCurve({ compound, route, schedule, infusionDuration, halfLifeH }) };
+      return {
+        ok: true as const,
+        value: buildCurve({ compound, route, schedule, infusionDuration, halfLifeH }),
+      };
     } catch (error) {
       return { ok: false as const, error: error instanceof Error ? error.message : String(error) };
     }
@@ -161,6 +199,17 @@ export function App() {
               adHoc={adHoc}
               onAdHocChange={setAdHoc}
             />
+            {/* Directly above the slider on purpose: the two controls compose as
+                two levels of the same idea — the preset picks WHICH population,
+                the slider the spread WITHIN it. Selecting a preset re-anchors the
+                slider's whole band (halfLifeRange reads the re-anchored compound). */}
+            {selected && (
+              <PhenotypePicker
+                compound={selected}
+                selectedId={phenotypeId}
+                onSelect={handlePhenotypeChange}
+              />
+            )}
             <VariabilitySlider
               range={halfLifeRange}
               valueH={halfLifeH ?? halfLifeRange?.nominal ?? 0}
@@ -253,7 +302,8 @@ function describeSchedule(schedule: DoseSchedule, route: Route): string {
       ? `single ${fmtNum(schedule.amount)} mg ${routeWord} dose`
       : `${schedule.count} × ${fmtNum(schedule.amount)} mg ${routeWord} doses every ${fmtNum(schedule.interval)} h`;
   if (schedule.adHoc.length === 0) return base;
-  const extras = schedule.adHoc.length === 1 ? '1 extra dose' : `${schedule.adHoc.length} extra doses`;
+  const extras =
+    schedule.adHoc.length === 1 ? '1 extra dose' : `${schedule.adHoc.length} extra doses`;
   return `${base} + ${extras}`;
 }
 
@@ -302,7 +352,9 @@ function ModelCaption({ route, schedule, infusionDuration, curve, concUnit }: Mo
     }
     if (route === 'iv_infusion') parts.push(`infused over ${fmtNum(infusionDuration)} h`);
   }
-  parts.push(`Cmax ${fmtNum(toDisplayConcentration(peak.c, concUnit))} ${concUnit} at Tmax ${fmtNum(peak.t)} h`);
+  parts.push(
+    `Cmax ${fmtNum(toDisplayConcentration(peak.c, concUnit))} ${concUnit} at Tmax ${fmtNum(peak.t)} h`,
+  );
   parts.push(`${REFERENCE_WEIGHT_KG} kg illustrative reference subject`);
   return <p className="caption">{parts.join(' · ')}</p>;
 }
@@ -327,10 +379,10 @@ function PeakNote({ route, schedule }: { route: Route; schedule: DoseSchedule })
       : '';
   return (
     <p className="caption">
-      <strong>Cmax / Tmax</strong> — the peak concentration the model predicts and the time it occurs.{' '}
-      {routeMeaning}
-      {scheduleCaveat} This is model-predicted for the {REFERENCE_WEIGHT_KG} kg illustrative subject and scales with
-      the dose you chose — it is not a measured Cmax from any study.
+      <strong>Cmax / Tmax</strong> — the peak concentration the model predicts and the time it
+      occurs. {routeMeaning}
+      {scheduleCaveat} This is model-predicted for the {REFERENCE_WEIGHT_KG} kg illustrative subject
+      and scales with the dose you chose — it is not a measured Cmax from any study.
     </p>
   );
 }

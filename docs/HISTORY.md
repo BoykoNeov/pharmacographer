@@ -8,6 +8,49 @@ must-follow instruction file — `CLAUDE.md` holds the working conventions and
 
 Newest first; test counts and commit hashes are as-of that milestone.
 
+**PHENOTYPE PRESETS — the `geneticFactors` seam becomes load-bearing (2026-07-17, advisor-reviewed,
+511 tests, 45 compounds).** §12's "variability beyond half-life". `geneticFactors` had sat in the
+schema as a bare `string[]` on five compounds, rendered nowhere — the data said "CYP2D6 dominates
+exposure here" and the app silently ignored it. This pass made a polymorphism selectable, and the
+lead compound picked itself: **procainamide already carried both NAT2 phenotypes' numbers in its own
+prose** (Lima 1979 fast/slow fm 0.40/0.20; Wierzchowiecki 1980 fast/slow t½ 2.4/3.6 h), so the
+feature and its first data point shipped without opening a new citation.
+
+- **It closed a real inconsistency; it is not decoration.** The engine takes ONE fm, so a bimodal
+  compound had to anchor one phenotype and prose the other — and the half-life *range* had to be
+  hand-narrowed to stay inside it, or the slider would drag the parent to a slow t½ while fm stayed
+  pinned at the fast value: a state no real person occupies (the documented procainamide catch).
+  Presets make that state **unreachable by construction** — switching swaps t½ and fm atomically.
+  The two controls now compose as two levels: **preset = which population, slider = spread within it.**
+- **The identity default (advisor catch, and the best idea in the pass).** The first sketch had a
+  symmetric `presets[]` + a `default` pointer, which would have forced proving that the "fast" preset
+  reconstructs the base values exactly. Inverted instead: `presets[0]` overrides **nothing** and the
+  base values ARE the default phenotype (schema-enforced), so `applyPhenotype` returns the *same
+  object* and the default render is the pre-feature compound **by construction**. The regression
+  anchor became free — `expect(applyPhenotype(c, default)).toBe(c)` for all 45 compounds.
+- **Pure Compound→Compound, applied before derivation** — so the engine stays pure and no `derive*`
+  signature learned that phenotypes exist. Rejected threading a phenotype option through
+  `deriveParams`/`deriveMetaboliteParams`/`buildCurve`: it would have put a genotype concept one
+  layer from the engine boundary to achieve the same numbers.
+- **The trap the schema now blocks:** `resolveKe` prefers a stored `clearance` over half-life, so a
+  half-life override on a compound storing CL would be **silently discarded** — the curve would not
+  move and nothing would error. An override that is ignored looks exactly like a feature that works.
+- **Advisor corrected, on evidence.** The advisor characterised salicylate as needing an engine
+  extension (parallel capacity-limited pathways); `docs/DATA_GUIDE.md` says the opposite in the
+  project's own voice — theophylline and salicylate are "the plausible next MM ships", and it is
+  omeprazole/naproxen that need a further model. Went with the repo. Separately, the advisor's
+  suggestion to mine the rejection log for engine-blocked compounds paid off but **inverted**: the
+  2-comp cluster (ciprofloxacin, escitalopram, sildenafil) is parked on *sourcing*, not on the
+  engine — "the engine unblocked N compounds" would have been a false claim to build on.
+- **The payoff, asserted rather than admired.** Both ratios are exact closed forms, so they are
+  oracles: parent AUC ×1.5 (the t½ ratio) and NAPA AUC ×0.5 (the fm ratio — `AUC_m =
+  fm·F·D/(k_m·Vd_m)` is *independent* of parent disposition, so the parent's slowing cancels out
+  entirely). Verified in the built curve, not just in tests: parent Cmax 2883 → 3331 ng/mL while NAPA
+  Cmax 1697 → 738, and the **NAPA/parent AUC ratio flips 1.95 → 0.65**. Launching the app confirmed
+  the dashed NAPA line moving from above the parent to a low hump beneath it — parent up, metabolite
+  down, in one click. "A slow metaboliser has more drug in them" is only half the story once the
+  metabolite is active.
+
 **NONLINEAR (Michaelis–Menten) PK — the excluded compounds ship (2026-07-17, advisor-reviewed, 486
 tests, 43 → 45 compounds).** Phenytoin and ethanol were tagged "exclude, `linear: false`" in the
 handoff on day one; this pass built the engine that could hold them honestly. It is the only feature

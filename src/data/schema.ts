@@ -278,6 +278,84 @@ const MetaboliteSchema = z.strictObject({
 });
 
 /**
+ * The parameters one phenotype preset re-anchors (handoff §12, "variability
+ * beyond half-life"). Everything a polymorphism does NOT touch is simply absent:
+ * procainamide's Vd is acetylator-independent (Lima 1979), so no preset overrides
+ * it, and NAPA's own disposition is renal, so no preset overrides that either.
+ *
+ * An override is a full parameter — `value` + unit + `derived` + `sourceRef` +
+ * `conditions`, exactly like the base value it replaces. A phenotype is a
+ * separately-cited population, not a multiplier on another population.
+ */
+const PhenotypeOverridesSchema = z.strictObject({
+  /** Replaces `disposition.halfLife` — point AND range (see the range rule below). */
+  halfLife: requiredParam(TimeUnit).optional(),
+  /** Replaces `metabolites[id].fractionFormed` for a polymorphic formation step. */
+  fractionFormed: z
+    .array(
+      z.strictObject({
+        /** Must match a {@link MetaboliteSchema} `id` on this compound. */
+        metaboliteId: z.string().min(1),
+        param: requiredParam(FractionUnit),
+      }),
+    )
+    .min(1)
+    .optional(),
+});
+
+/**
+ * One illustrative population archetype for a polymorphic enzyme.
+ *
+ * BRIGHT LINE: a preset is a population choice of exactly the same kind as the
+ * 70 kg reference subject — "here is what the fast-acetylator population looks
+ * like", never "here is what YOUR genotype does". The UI must present it as an
+ * illustrative archetype; it must never ask the user for, or claim to use, their
+ * genotype. See docs/DATA_GUIDE.md "phenotype-anchoring".
+ */
+const PhenotypePresetSchema = z.strictObject({
+  id: z
+    .string()
+    .regex(/^[a-z0-9_-]+$/, 'phenotype id must be lowercase alphanumeric with _ or - separators'),
+  /** Human-facing archetype name, e.g. "Fast acetylator". */
+  label: z.string().min(1),
+  /** Short on-screen blurb: what this phenotype is and what it does to the curve. */
+  description: z.string().min(1).max(400),
+  /**
+   * Absent/empty ⇒ this preset IS the compound's base values. Required to be the
+   * case for the FIRST preset (the default) — see the identity-default rule in
+   * the compound `superRefine`.
+   */
+  overrides: PhenotypeOverridesSchema.optional(),
+});
+
+/**
+ * Polymorphic-phenotype presets (handoff §12, "variability beyond half-life" —
+ * the `geneticFactors` seam, now load-bearing rather than a bare label).
+ *
+ * WHY THIS EXISTS — it removes a real inconsistency, it is not decoration. The
+ * engine takes ONE half-life and ONE `fm`, so a bimodal compound previously had
+ * to anchor a single illustrative phenotype and leave the other in prose, and the
+ * half-life range had to be narrowed to stay INSIDE the anchored phenotype — or
+ * the variability slider would drag the parent to the other phenotype's half-life
+ * while `fm` stayed pinned at the first one's, a state no real person occupies
+ * (the documented procainamide catch). Presets make that unreachable by
+ * construction: switching phenotype swaps every affected parameter ATOMICALLY.
+ *
+ * The two levels compose and must be described that way on screen:
+ *   preset = WHICH population,  slider = the spread WITHIN that population.
+ */
+const PhenotypesSchema = z.strictObject({
+  /** The polymorphic enzyme/factor, e.g. "NAT2". Must appear in `geneticFactors`. */
+  factor: z.string().min(1),
+  /**
+   * At least two — a preset list of one is not a phenotype contrast. `presets[0]`
+   * is the DEFAULT and must carry no overrides, so the default render is the base
+   * compound by construction rather than by reconstruction.
+   */
+  presets: z.array(PhenotypePresetSchema).min(2),
+});
+
+/**
  * Supported model discriminators (handoff §12 seam). `one_compartment_first_order`
  * is the v1 model; `two_compartment_first_order` adds a distribution phase and
  * requires the {@link Disposition2cSchema} block;
@@ -411,6 +489,12 @@ export const CompoundSchema = z
     variability: z
       .strictObject({
         geneticFactors: z.array(z.string()).optional(),
+        /**
+         * Illustrative population archetypes for a polymorphic factor (§12). An
+         * omitted block = the compound models one unnamed population, which is
+         * every compound that predates this feature.
+         */
+        phenotypes: PhenotypesSchema.optional(),
         notes: z.string().optional(),
       })
       .optional(),
@@ -475,16 +559,25 @@ export const CompoundSchema = z
       const d2 = compound.disposition2c;
       checkRef(d2.clearance.sourceRef, 'disposition2c.clearance');
       checkRef(d2.centralVd.sourceRef, 'disposition2c.centralVd');
-      checkRef(d2.interCompartmentalClearance.sourceRef, 'disposition2c.interCompartmentalClearance');
+      checkRef(
+        d2.interCompartmentalClearance.sourceRef,
+        'disposition2c.interCompartmentalClearance',
+      );
       checkRef(d2.peripheralVd.sourceRef, 'disposition2c.peripheralVd');
     }
     if (compound.disposition3c) {
       const d3 = compound.disposition3c;
       checkRef(d3.clearance.sourceRef, 'disposition3c.clearance');
       checkRef(d3.centralVd.sourceRef, 'disposition3c.centralVd');
-      checkRef(d3.interCompartmentalClearance2.sourceRef, 'disposition3c.interCompartmentalClearance2');
+      checkRef(
+        d3.interCompartmentalClearance2.sourceRef,
+        'disposition3c.interCompartmentalClearance2',
+      );
       checkRef(d3.peripheralVd2.sourceRef, 'disposition3c.peripheralVd2');
-      checkRef(d3.interCompartmentalClearance3.sourceRef, 'disposition3c.interCompartmentalClearance3');
+      checkRef(
+        d3.interCompartmentalClearance3.sourceRef,
+        'disposition3c.interCompartmentalClearance3',
+      );
       checkRef(d3.peripheralVd3.sourceRef, 'disposition3c.peripheralVd3');
     }
     for (const [routeName, route] of Object.entries(compound.routes)) {
@@ -502,6 +595,106 @@ export const CompoundSchema = z
       checkRef(m.halfLife.sourceRef, `metabolites.${i}.halfLife`);
     });
 
+    // ── Phenotype presets (§12) ────────────────────────────────────────────
+    const phenotypes = compound.variability?.phenotypes;
+    if (phenotypes) {
+      // The declared factor must also be listed as a genetic factor — the same
+      // cross-check-don't-trust posture as `linear` ↔ `model`, so the two
+      // descriptions of the same polymorphism cannot drift apart.
+      const factors = compound.variability?.geneticFactors ?? [];
+      if (!factors.includes(phenotypes.factor)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `variability.phenotypes.factor "${phenotypes.factor}" is not listed in variability.geneticFactors [${factors.join(', ')}] — the polymorphism driving the presets must be declared as a genetic factor`,
+          path: ['variability', 'geneticFactors'],
+        });
+      }
+
+      // A Michaelis–Menten compound has no half-life to re-anchor (same reason it
+      // may not carry a `disposition` block at all). Computed here rather than
+      // reusing the `isMichaelisMenten` below, which is declared further down.
+      const mmModel = compound.model === 'one_compartment_michaelis_menten';
+      const metaboliteIds = new Set((compound.metabolites ?? []).map((m) => m.id));
+      const seenIds = new Set<string>();
+
+      phenotypes.presets.forEach((p, i) => {
+        const at = `variability.phenotypes.presets.${i}`;
+        if (seenIds.has(p.id)) {
+          ctx.addIssue({
+            code: 'custom',
+            message: `duplicate phenotype preset id "${p.id}"`,
+            path: ['variability', 'phenotypes', 'presets', i, 'id'],
+          });
+        }
+        seenIds.add(p.id);
+
+        const overrides = p.overrides;
+        const isEmpty =
+          !overrides || (!overrides.halfLife && (overrides.fractionFormed?.length ?? 0) === 0);
+
+        // IDENTITY DEFAULT: presets[0] must BE the base compound, not a
+        // reconstruction of it. This is what makes the default render provably
+        // identical to the pre-phenotype compound — there is nothing to apply.
+        if (i === 0 && !isEmpty) {
+          ctx.addIssue({
+            code: 'custom',
+            message: `the first phenotype preset ("${p.id}") is the default and must carry no overrides: the compound's base disposition/fm values ARE the default phenotype. Put the CONTRASTING phenotype's values in a later preset, and make sure the base values are the ones this preset's label claims.`,
+            path: ['variability', 'phenotypes', 'presets', 0, 'overrides'],
+          });
+        }
+        // A non-default preset that changes nothing is a UI lie: it offers the
+        // user a choice that does not exist.
+        if (i > 0 && isEmpty) {
+          ctx.addIssue({
+            code: 'custom',
+            message: `phenotype preset "${p.id}" overrides nothing, so selecting it would change no curve — either give it the parameters that differ, or drop it`,
+            path: ['variability', 'phenotypes', 'presets', i, 'overrides'],
+          });
+        }
+
+        if (overrides?.halfLife) {
+          checkRef(overrides.halfLife.sourceRef, `${at}.overrides.halfLife`);
+          // A stored clearance WINS over half-life when derivation resolves ke
+          // (see derive.ts resolveKe). So a half-life override on a compound that
+          // also stores CL would be silently discarded — the curve would not move
+          // and nothing would say so. Reject rather than mislead.
+          if (compound.disposition?.clearance && compound.disposition.clearance.value !== null) {
+            ctx.addIssue({
+              code: 'custom',
+              message: `phenotype preset "${p.id}" overrides halfLife, but this compound also stores disposition.clearance, which TAKES PRECEDENCE when ke is resolved — the override would be silently ignored and the curve would not move. Either drop the stored clearance (it is usually a circular cross-check anyway) or model the phenotype some other way.`,
+              path: ['variability', 'phenotypes', 'presets', i, 'overrides', 'halfLife'],
+            });
+          }
+          if (mmModel) {
+            ctx.addIssue({
+              code: 'custom',
+              message: `phenotype preset "${p.id}" overrides halfLife, but a Michaelis–Menten compound has no half-life to re-anchor (its apparent half-life rises with concentration). Re-anchor dispositionMM parameters instead — not supported yet.`,
+              path: ['variability', 'phenotypes', 'presets', i, 'overrides', 'halfLife'],
+            });
+          }
+        }
+        overrides?.fractionFormed?.forEach((f, j) => {
+          checkRef(f.param.sourceRef, `${at}.overrides.fractionFormed.${j}.param`);
+          if (!metaboliteIds.has(f.metaboliteId)) {
+            ctx.addIssue({
+              code: 'custom',
+              message: `phenotype preset "${p.id}" overrides fractionFormed for metaboliteId "${f.metaboliteId}", which is not a metabolite of this compound (have: ${[...metaboliteIds].join(', ') || 'none'})`,
+              path: [
+                'variability',
+                'phenotypes',
+                'presets',
+                i,
+                'overrides',
+                'fractionFormed',
+                j,
+                'metaboliteId',
+              ],
+            });
+          }
+        });
+      });
+    }
+
     // The two-compartment model and its parameter block must agree, so neither a
     // 2-comp compound is missing its parameters nor a 1-comp compound carries an
     // ignored block (handoff §12).
@@ -509,7 +702,8 @@ export const CompoundSchema = z
     if (isTwoComp && !compound.disposition2c) {
       ctx.addIssue({
         code: 'custom',
-        message: 'model "two_compartment_first_order" requires a disposition2c block (CL, Vc, Q, Vp)',
+        message:
+          'model "two_compartment_first_order" requires a disposition2c block (CL, Vc, Q, Vp)',
         path: ['disposition2c'],
       });
     }
@@ -546,7 +740,8 @@ export const CompoundSchema = z
     if (isMichaelisMenten && !compound.dispositionMM) {
       ctx.addIssue({
         code: 'custom',
-        message: 'model "one_compartment_michaelis_menten" requires a dispositionMM block (Vd, Vmax, Km)',
+        message:
+          'model "one_compartment_michaelis_menten" requires a dispositionMM block (Vd, Vmax, Km)',
         path: ['dispositionMM'],
       });
     }

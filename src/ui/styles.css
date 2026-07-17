@@ -202,6 +202,46 @@ body {
   color: var(--muted);
 }
 
+/* ── Phenotype picker ────────────────────────────────────────────────────── */
+
+/* A fieldset needs the control's flex column re-asserted (UA styles reset it). */
+.control--phenotype {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.phenotype__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.9rem;
+}
+
+.phenotype__option {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.phenotype__option input {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* The bright-line caveat: it must not read as ordinary muted caption text, for
+   the same reason .caption--emphasis exists. */
+.control__note--emphasis {
+  padding: 0.4rem 0.6rem;
+  border-left: 3px solid var(--accent, #4a90d9);
+  background: color-mix(in srgb, var(--accent, #4a90d9) 8%, transparent);
+  color: var(--text, inherit);
+}
+
 /* ── Variability slider ──────────────────────────────────────────────────── */
 
 .control__hint {

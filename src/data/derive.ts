@@ -113,6 +113,68 @@ function fmt(x: number): string {
   return Number(x.toPrecision(4)).toString();
 }
 
+// ── Phenotype presets (§12: variability beyond half-life) ────────────────────
+
+/**
+ * The phenotype a compound opens on — its FIRST preset, which the schema requires
+ * to carry no overrides. Undefined for a compound with no phenotypes, which is
+ * every compound predating the feature.
+ */
+export function defaultPhenotypeId(compound: Compound): string | undefined {
+  return compound.variability?.phenotypes?.presets[0]?.id;
+}
+
+/**
+ * Re-anchor a compound onto one illustrative phenotype, returning the compound
+ * that every downstream `derive*` call should be handed.
+ *
+ * This is a pure Compound→Compound transform applied BEFORE derivation, and that
+ * is the whole design: by the time any model function runs, a phenotype has
+ * already collapsed into ordinary numbers that look like they were always there.
+ * No `derive*` signature knows phenotypes exist, and — the invariant that matters
+ * — nothing about genotype crosses the engine boundary. The engine stays a pure
+ * function of parameters, exactly as `CLAUDE.md` requires.
+ *
+ * Switching phenotype swaps EVERY affected parameter at once (half-life and each
+ * polymorphic `fm` together), which is what makes the mixed state unreachable:
+ * you cannot end up on one phenotype's half-life while `fm` is pinned to the
+ * other's. That state is the documented procainamide catch, and it is now a thing
+ * the type system cannot express rather than a thing a curator must remember.
+ *
+ * The default preset overrides nothing, so this returns the SAME OBJECT — the
+ * default render is the base compound by construction, not by reconstruction.
+ */
+export function applyPhenotype(compound: Compound, phenotypeId?: string): Compound {
+  const phenotypes = compound.variability?.phenotypes;
+  if (!phenotypes) return compound;
+
+  const id = phenotypeId ?? defaultPhenotypeId(compound);
+  const preset = phenotypes.presets.find((p) => p.id === id);
+  if (!preset) {
+    throw new Error(
+      `applyPhenotype: "${id}" is not a phenotype of "${compound.id}" (have: ${phenotypes.presets.map((p) => p.id).join(', ')})`,
+    );
+  }
+
+  const overrides = preset.overrides;
+  if (!overrides || (!overrides.halfLife && !overrides.fractionFormed?.length)) {
+    return compound;
+  }
+
+  const next: Compound = { ...compound };
+  if (overrides.halfLife && compound.disposition) {
+    next.disposition = { ...compound.disposition, halfLife: overrides.halfLife };
+  }
+  if (overrides.fractionFormed?.length && compound.metabolites) {
+    const byId = new Map(overrides.fractionFormed.map((f) => [f.metaboliteId, f.param]));
+    next.metabolites = compound.metabolites.map((m) => {
+      const fm = byId.get(m.id);
+      return fm ? { ...m, fractionFormed: fm } : m;
+    });
+  }
+  return next;
+}
+
 /**
  * Invert the oral Tmax relationship `Tmax = ln(ka/ke) / (ka − ke)` for `ka`,
  * given `ke` and a measured `Tmax` (both in canonical units, h and 1/h).
@@ -188,7 +250,10 @@ export function kaFromTmax2c(tmax: number, params: TwoCompParams): number {
   // Slope of the oral curve at `tmax` for a candidate `ka` (up to the positive
   // F·D scale, which cannot move the root); monotone decreasing in `ka`.
   const slopeAtTmax = (ka: number): number =>
-    unitModes.reduce((s, { coef: g, rate }) => s + batemanModeDerivative(ka * g, ka, rate, tmax), 0);
+    unitModes.reduce(
+      (s, { coef: g, rate }) => s + batemanModeDerivative(ka * g, ka, rate, tmax),
+      0,
+    );
 
   // Bracket [lo, hi] so slopeAtTmax(lo) > 0 (ka too small) and slopeAtTmax(hi) < 0
   // (ka too large). Expand outward from a unit seed until both signs hold.
@@ -233,7 +298,10 @@ export function kaFromTmax3c(tmax: number, params: ThreeCompParams): number {
   // Slope of the oral curve at `tmax` for a candidate `ka` (up to the positive
   // F·D scale, which cannot move the root); monotone decreasing in `ka`.
   const slopeAtTmax = (ka: number): number =>
-    unitModes.reduce((s, { coef: g, rate }) => s + batemanModeDerivative(ka * g, ka, rate, tmax), 0);
+    unitModes.reduce(
+      (s, { coef: g, rate }) => s + batemanModeDerivative(ka * g, ka, rate, tmax),
+      0,
+    );
 
   // Bracket [lo, hi] so slopeAtTmax(lo) > 0 (ka too small) and slopeAtTmax(hi) < 0
   // (ka too large). Expand outward from a unit seed until both signs hold.
@@ -289,7 +357,11 @@ function requireDisposition(compound: Compound): NonNullable<Compound['dispositi
  * contradictory case — a linear model whose file claims superposition is invalid
  * — which the schema also rejects, but which a hand-built object could reach.
  */
-function assertLinearModel(compound: Compound, expected: Compound['model'], resolver: string): void {
+function assertLinearModel(
+  compound: Compound,
+  expected: Compound['model'],
+  resolver: string,
+): void {
   if (compound.model !== expected) {
     const handler = NONLINEAR_MODELS.has(compound.model)
       ? 'deriveParamsMM'
@@ -306,11 +378,7 @@ function assertLinearModel(compound: Compound, expected: Compound['model'], reso
 }
 
 /** Resolve absolute Vd (L) from the disposition entry, noting any scaling. */
-function resolveVd(
-  compound: Compound,
-  weightKg: number,
-  derived: DerivedNote[],
-): number {
+function resolveVd(compound: Compound, weightKg: number, derived: DerivedNote[]): number {
   const vd = requireDisposition(compound).vd;
   if (vd.unit === 'L/kg') {
     const absolute = absoluteVdFromPerKg(vd.value, weightKg);
@@ -339,7 +407,10 @@ function resolveKe(
   const cl = disposition.clearance;
   if (cl && cl.value !== null) {
     // Convert clearance to absolute L/h (per-kg forms scale by the reference weight).
-    const clAbs = cl.unit === 'L/h/kg' ? cl.value * weightKg : clearanceConverter.toCanonical(cl.value, cl.unit);
+    const clAbs =
+      cl.unit === 'L/h/kg'
+        ? cl.value * weightKg
+        : clearanceConverter.toCanonical(cl.value, cl.unit);
     const keFromCl = clAbs / vd;
     derived.push({
       parameter: 'ke',
@@ -412,7 +483,8 @@ export function deriveParams(
       params.F = 1;
       warnings.push({
         parameter: 'F',
-        message: 'oral bioavailability F not provided; assuming F = 1, which overestimates exposure for an incompletely absorbed drug',
+        message:
+          'oral bioavailability F not provided; assuming F = 1, which overestimates exposure for an incompletely absorbed drug',
       });
       derived.push({ parameter: 'F', note: 'F assumed 1 (no value provided)' });
     }
@@ -557,7 +629,8 @@ export function deriveParams2c(
       params.F = 1;
       warnings.push({
         parameter: 'F',
-        message: 'oral bioavailability F not provided; assuming F = 1, which overestimates exposure for an incompletely absorbed drug',
+        message:
+          'oral bioavailability F not provided; assuming F = 1, which overestimates exposure for an incompletely absorbed drug',
       });
       derived.push({ parameter: 'F', note: 'F assumed 1 (no value provided)' });
     }
@@ -677,7 +750,8 @@ export function deriveParams3c(
       params.F = 1;
       warnings.push({
         parameter: 'F',
-        message: 'oral bioavailability F not provided; assuming F = 1, which overestimates exposure for an incompletely absorbed drug',
+        message:
+          'oral bioavailability F not provided; assuming F = 1, which overestimates exposure for an incompletely absorbed drug',
       });
       derived.push({ parameter: 'F', note: 'F assumed 1 (no value provided)' });
     }

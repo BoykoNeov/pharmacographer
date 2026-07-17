@@ -88,6 +88,61 @@ binding) are **not** Michaelis–Menten in shape, so they would need a further
 model, not just parameters; theophylline and salicylate are the plausible next
 MM ships.
 
+### Phenotype presets — curating a polymorphic compound (2026-07-17)
+
+`variability.phenotypes` lets one compound ship SEVERAL illustrative populations
+(fast/slow acetylator, poor/extensive metaboliser) and lets the reader switch. It
+replaces "anchor one phenotype, put the other in prose" — but it does not replace
+**anchoring**, which still governs each preset individually. Shipped on
+procainamide (NAT2); `geneticFactors` was a bare label before this and is now
+cross-checked against the presets.
+
+**What it is, mechanically.** `applyPhenotype(compound, id)` in `derive.ts` is a
+pure Compound→Compound transform applied BEFORE derivation. The engine never
+learns what a genotype is — by the time a model function runs, the phenotype has
+collapsed into ordinary numbers. Adding a preset needs **no engine change**.
+
+- **The default preset must override NOTHING.** `presets[0]` IS the compound's
+  base values (schema-enforced), so the default render is the pre-preset compound
+  *by construction* rather than by reconstruction, and `applyPhenotype` returns the
+  same object. Put the contrasting phenotype in a later preset. This is what makes
+  "presets didn't change the shipped curve" provable instead of hopeful.
+- **Every preset is a separately-cited population, not a multiplier.** Each
+  override is a full parameter (value + unit + derived + sourceRef + conditions).
+  Prefer both phenotypes from ONE study/design — procainamide takes fast 2.4 ± 0.7 h
+  and slow 3.6 ± 1.0 h from the same Wierzchowiecki 1980 arm, and declines Bauer's
+  longer slow t½ (~5.2 h) precisely to keep the pair comparable.
+- **Override only what the polymorphism touches.** Lima 1979 found procainamide's
+  Vd unaffected by acetylator status, and NAPA is renally cleared (not acetylated),
+  so neither preset touches Vd or NAPA's own disposition. A preset that quietly
+  moves an unaffected parameter is inventing data.
+- **The half-life band stays inside its own preset** (the pre-existing catch,
+  unchanged). Crossing populations is the preset's job — it swaps t½ and fm
+  atomically, so the mixed state is unreachable rather than merely discouraged.
+- **`clearance` must not be stored on a compound with a half-life preset.**
+  `resolveKe` prefers a stored CL over half-life, so the override would be
+  silently discarded and the curve would not move. The schema rejects this — but
+  note the general shape of the trap: an override that is *ignored* looks exactly
+  like a feature that works, since nothing errors.
+- **Cross-check the pair for internal coherence.** Procainamide's two presets come
+  out consistent: Lima's CL ratio 22.6/34.8 = 0.65 vs the t½-implied 2.4/3.6 = 0.67,
+  within 3% — evidence the phenotypes are one model, not two studies stitched
+  together. Report it; do NOT store CL to "prove" it (circular).
+- **The UI copy is a gate, not polish (bright line).** A control that switches
+  genotype-driven curves sits close to the line. It must offer illustrative
+  POPULATIONS to look at ("Illustrative population (NAT2)"), never solicit the
+  user's own genotype. `tests/ui/phenotype-picker.test.tsx` asserts the copy.
+
+**The teaching payoff, and why it justifies the machinery.** Procainamide's two
+presets move parent and metabolite in OPPOSITE directions: slow acetylators show
+~1.5× the parent exposure (AUC = F·D/CL) but ~0.5× the NAPA (AUC_m = fm·F·D/(k_m·Vd_m),
+which is *independent* of the parent's disposition, so the fm ratio alone sets it).
+The NAPA/parent AUC ratio flips across the toggle — 1.95 (NAPA dominates) to 0.65
+(parent dominates). Both ratios are exact closed forms, so they are oracles rather
+than magnitude eyeballs (`tests/data/phenotype.test.ts`). "A slow metaboliser has
+more drug in them" is only half true once the metabolite is active, and this is the
+compound that shows it.
+
 ### Curating a Michaelis–Menten compound — the extra gates
 
 - **Oral needs an explicit, cited `ka`.** Every linear resolver estimates a
@@ -1156,9 +1211,12 @@ genetically-polymorphic rate (NAT2 fast vs slow acetylators) — the textbook ph
   fm, but acetylation is bimodal — so anchor a SINGLE illustrative phenotype and keep every input
   consistent to it. Modelled the **FAST acetylator** (the striking case: more NAPA, NAPA exceeds
   parent): fm 0.40 (Lima 1979 formation-clearance fraction) AND parent t½ 2.4 h AND CL 34.8 L/h are
-  ALL fast-acetylator values; NAPA's disposition is phenotype-independent. The slow case (fm ~0.20,
-  t½ ~3.6–5.2 h) is the documented prose contrast. **Bright line:** an illustrative phenotype is like
-  the 70 kg reference subject — an educational population choice, never patient genotyping.
+  ALL fast-acetylator values; NAPA's disposition is phenotype-independent. **Bright line:** an
+  illustrative phenotype is like the 70 kg reference subject — an educational population choice,
+  never patient genotyping.
+  **SUPERSEDED IN PART (2026-07-17): the slow case is no longer prose-only** — see "Phenotype
+  presets" below. Anchoring, and every consistency rule above, still governs each individual preset;
+  what changed is that a compound may now ship SEVERAL anchored phenotypes and let the reader switch.
 - **The band-must-stay-within-the-phenotype catch (advisor completion-review — automated checks
   can't see it).** For a 1-comp compound, `disposition.halfLife.range` drives the variability
   slider. An early draft set the range `[2.2, 3.6]` — but 3.6 h is the *slow*-acetylator mean, so the
@@ -1168,7 +1226,9 @@ genetically-polymorphic rate (NAT2 fast vs slow acetylators) — the textbook ph
   range to the FAST-acetylator variability (2.4 ± 0.7 → [1.7, 3.1]) so the band never reaches the
   slow value. **General rule:** when you anchor one phenotype, the half-life range (which becomes the
   interactive band) must stay WITHIN that phenotype — do not let it span to the other phenotype's
-  value, or the slider exposes a state the fixed fm contradicts.
+  value, or the slider exposes a state the fixed fm contradicts. **Still the rule under presets** —
+  each preset carries its OWN within-phenotype range (fast [1.7, 3.1], slow [2.6, 4.6]), and crossing
+  between phenotypes is the preset's job, not the slider's.
 - **1-comp ORAL collapse (reverses the old 2-comp rejection).** IV procainamide is genuinely
   2-compartment (~5 min distribution), but oral absorption masks it, so oral reads 1-comp
   (cefotaxime/ibuprofen posture). Shipped oral-only (F 83%, Tmax 90–120 min → ka); the biphasic IV
