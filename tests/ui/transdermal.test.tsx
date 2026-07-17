@@ -1,6 +1,8 @@
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { loadAllCompounds } from '../../src/data/loader.ts';
 import { engineRouteOf, resolveTransdermalInput } from '../../src/data/derive.ts';
+import { PeakNote } from '../../src/ui/App.tsx';
 import { buildCurve, routeOptions, type DoseSchedule } from '../../src/ui/curve.ts';
 
 /**
@@ -150,6 +152,47 @@ describe('clonidine — the first transdermal compound', () => {
     const tail = result.points.slice(-5);
     for (let i = 1; i < tail.length; i++) {
       expect(tail[i]!.c).toBeGreaterThanOrEqual(tail[i - 1]!.c - 1e-12);
+    }
+  });
+});
+
+/**
+ * THE FALLTHROUGH GUARD. `PeakNote`'s route explanation is a ternary chain, and
+ * `transdermal` originally fell through its `else` and told the viewer a patch
+ * "rises as it is absorbed and falls as it is eliminated; the peak (Tmax) is where
+ * those balance" — the ORAL story, on a curve that never falls at all. Every test
+ * passed and the typechecker was satisfied: a new route silently inherits the last
+ * branch. Only launching the app showed it.
+ *
+ * So the copy gets pinned. A patch has no peak, and nothing here may say it does.
+ */
+describe('PeakNote — a patch is not described as peaking', () => {
+  const schedule: DoseSchedule = { amount: 0.7, count: 1, interval: 0, adHoc: [] };
+  const html = renderToStaticMarkup(<PeakNote route="transdermal" schedule={schedule} />);
+
+  it('does not claim a Tmax, or reuse the oral absorption/elimination story', () => {
+    expect(html).not.toMatch(/Tmax/);
+    expect(html).not.toMatch(/rises as it is absorbed/);
+    expect(html).not.toMatch(/Cmax/);
+  });
+
+  it('explains the plateau and what the marker actually is', () => {
+    expect(html).toMatch(/End of wear/);
+    expect(html).toMatch(/no peak/);
+    expect(html).toMatch(/Css = R0\/CL/);
+    // The plateau is set by clearance alone — the point of a zero-order input.
+    expect(html).toMatch(/clearance alone/);
+  });
+
+  /**
+   * The other routes must be untouched: this fix must not have "fixed" them into
+   * the patch branch, which is the mirror-image of the bug it repairs.
+   */
+  it('leaves the peaking routes still describing a peak', () => {
+    for (const route of ['oral', 'iv_bolus', 'iv_infusion'] as const) {
+      const other = renderToStaticMarkup(<PeakNote route={route} schedule={schedule} />);
+      expect(other).toMatch(/Cmax \/ Tmax/);
+      expect(other).not.toMatch(/End of wear/);
     }
   });
 });

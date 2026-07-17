@@ -73,6 +73,21 @@ interface ConcentrationChartProps {
   horizonH: number;
   /** The model-predicted peak (Cmax at Tmax) of the main curve, marked on the plot. */
   peak: CurvePoint;
+  /**
+   * What the marked point MEANS, which is not the same on every route. On a
+   * bolus/oral/infusion curve it is a true peak: the curve rises, turns over and
+   * falls, so "Cmax at Tmax" is a fact about the drug. A continuously-worn patch
+   * never turns over — it climbs monotonically toward `Css = R0/CL` — so its
+   * marker is just the concentration reached when the wear period (and with it the
+   * plot) ends. Calling that a Tmax would assert a peak that does not exist and
+   * make 168 h look like a property of the drug rather than of the product.
+   *
+   * Deliberately NOT "plateau": that is true of clonidine (7 days is ~13
+   * half-lives) but would be false for a future short-wear patch that comes off
+   * still rising. "End of wear" holds for every zero-order-in/first-order-out
+   * patch, because such a curve is monotone up to — and never past — the plateau.
+   */
+  peakKind?: 'peak' | 'end_of_wear';
   /** Display unit for every concentration on the chart (data stays canonical mg/L). */
   concUnit: ConcentrationDisplayUnit;
   /** Change the concentration display unit (owned by App so the caption agrees). */
@@ -166,6 +181,7 @@ export function ConcentrationChart({
   parentName,
   horizonH,
   peak,
+  peakKind = 'peak',
   concUnit,
   onConcUnitChange,
 }: ConcentrationChartProps) {
@@ -288,7 +304,7 @@ export function ConcentrationChart({
             onClick={() => setShowPeak((v) => !v)}
             aria-pressed={showPeak}
           >
-            Cmax / Tmax
+            {peakKind === 'end_of_wear' ? 'End of wear' : 'Cmax / Tmax'}
           </button>
         </div>
         <span className="chart__toolbar-label">units</span>
@@ -424,7 +440,7 @@ export function ConcentrationChart({
                 ifOverflow="extendDomain"
               >
                 <Label
-                  value={`Cmax ${fmtNum(toDisplayConcentration(peak.c, concUnit))} ${concUnit} @ ${fmtNum(peak.t)} h`}
+                  value={`${peakKind === 'end_of_wear' ? 'End of wear' : 'Cmax'} ${fmtNum(toDisplayConcentration(peak.c, concUnit))} ${concUnit} @ ${fmtNum(peak.t)} h`}
                   // Peaks sitting on the y-axis (IV bolus, Tmax = 0) would clip a
                   // top-centred label off the left edge, so anchor those to the right.
                   position={peak.t < horizonH * 0.08 ? 'right' : 'top'}

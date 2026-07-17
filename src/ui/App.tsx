@@ -233,6 +233,7 @@ export function App() {
                   parentName={compound?.names.inn ?? 'Parent'}
                   horizonH={curve.value.horizonH}
                   peak={curve.value.peak}
+                  peakKind={route === 'transdermal' ? 'end_of_wear' : 'peak'}
                   concUnit={concUnit}
                   onConcUnitChange={setConcUnit}
                 />
@@ -359,7 +360,11 @@ function ModelCaption({ route, schedule, infusionDuration, curve, concUnit }: Mo
     if (route === 'iv_infusion') parts.push(`infused over ${fmtNum(infusionDuration)} h`);
   }
   parts.push(
-    `Cmax ${fmtNum(toDisplayConcentration(peak.c, concUnit))} ${concUnit} at Tmax ${fmtNum(peak.t)} h`,
+    route === 'transdermal'
+      ? // A worn patch never turns over, so it has no Tmax: this is where the wear
+        // period ends, not where the curve peaked. See PeakNote.
+        `${fmtNum(toDisplayConcentration(peak.c, concUnit))} ${concUnit} at end of wear (${fmtNum(peak.t)} h)`
+      : `Cmax ${fmtNum(toDisplayConcentration(peak.c, concUnit))} ${concUnit} at Tmax ${fmtNum(peak.t)} h`,
   );
   parts.push(`${REFERENCE_WEIGHT_KG} kg illustrative reference subject`);
   return <p className="caption">{parts.join(' · ')}</p>;
@@ -371,24 +376,33 @@ function ModelCaption({ route, schedule, infusionDuration, curve, concUnit }: Mo
  * The peak means something different per route, so the phrasing is route-aware;
  * a recurring course marks the whole-course peak, NOT a steady-state value.
  */
-function PeakNote({ route, schedule }: { route: DataRoute; schedule: DoseSchedule }) {
+export function PeakNote({ route, schedule }: { route: DataRoute; schedule: DoseSchedule }) {
   const totalDoses = schedule.count + schedule.adHoc.length;
   const routeMeaning =
     route === 'iv_bolus'
       ? 'An IV bolus peaks the instant it is given (Tmax = 0), at Cmax = dose / Vd, then only falls.'
       : route === 'iv_infusion'
         ? 'A constant infusion peaks at the end of the infusion, then falls.'
-        : 'An oral dose rises as it is absorbed and falls as it is eliminated; the peak (Tmax) is where those balance.';
+        : route === 'transdermal'
+          ? // Deliberately NOT the Cmax/Tmax language: a worn patch has no peak to
+            // name. Phrased for every patch, not just one that reached its plateau.
+            'A patch worn continuously has no peak at all: it climbs steadily toward a plateau at Css = R0/CL — set by clearance alone, not by Vd — and never turns over, because nothing is ever taken off. The marker is simply the concentration reached when the wear period ends, so its time is a property of the product, not of the drug.'
+          : 'An oral dose rises as it is absorbed and falls as it is eliminated; the peak (Tmax) is where those balance.';
   const scheduleCaveat =
     totalDoses > 1
       ? ' With repeated doses the marker is the highest point of the whole plotted course (the last-dose accumulation peak) — not a steady-state value; the course may not have reached steady state.'
       : '';
+  const heading = route === 'transdermal' ? 'End of wear' : 'Cmax / Tmax';
+  const opener =
+    route === 'transdermal'
+      ? 'the concentration the model predicts the patch reaches by the time it comes off.'
+      : 'the peak concentration the model predicts and the time it occurs.';
   return (
     <p className="caption">
-      <strong>Cmax / Tmax</strong> — the peak concentration the model predicts and the time it
-      occurs. {routeMeaning}
+      <strong>{heading}</strong> — {opener} {routeMeaning}
       {scheduleCaveat} This is model-predicted for the {REFERENCE_WEIGHT_KG} kg illustrative subject
-      and scales with the dose you chose — it is not a measured Cmax from any study.
+      and scales with the dose you chose — it is not a measured{' '}
+      {route === 'transdermal' ? 'concentration' : 'Cmax'} from any study.
     </p>
   );
 }
