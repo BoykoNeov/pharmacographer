@@ -157,6 +157,39 @@ describe('clonidine — the first transdermal compound', () => {
 });
 
 /**
+ * THE OPENING-DOSE GUARD — the number that has to agree with itself.
+ *
+ * A patch's magnitude does NOT come from its `deliveryRate`: `buildCurve` takes the
+ * rate from the SCHEDULE, as `R0 = amount / wearDuration`, so what the chart opens at
+ * is the dose App puts in the box. App only overrides the typed dose when a compound
+ * declares `illustrativeDoseMg` (otherwise the user's number is kept) — so for a patch
+ * that field is not cosmetic, it is load-bearing:
+ *
+ *  - if it is ABSENT, switching from a 500 mg compound plots the patch at 500/168 =
+ *    2.98 mg/h — the right shape at ~700× the right concentration;
+ *  - if it DISAGREES with `deliveryRate × wearDuration` (they are the same quantity
+ *    written twice), the chart opens at a rate the compound's own data denies.
+ *
+ * Neither is visible: both render a perfectly plausible plateau. So the duplication is
+ * pinned here rather than trusted.
+ */
+describe('a patch opens at the dose its own data implies', () => {
+  const patches = compounds.filter((c) => c.routes.transdermal !== undefined);
+
+  it('there is at least one patch compound to check', () => {
+    expect(patches.length).toBeGreaterThan(0);
+  });
+
+  for (const compound of patches) {
+    it(`${compound.id}: illustrativeDoseMg = deliveryRate × wearDuration`, () => {
+      const patch = resolveTransdermalInput(compound)!;
+      expect(compound.illustrativeDoseMg).toBeDefined();
+      expect(compound.illustrativeDoseMg!).toBeCloseTo(patch.doseMg, 9);
+    });
+  }
+});
+
+/**
  * THE FALLTHROUGH GUARD. `PeakNote`'s route explanation is a ternary chain, and
  * `transdermal` originally fell through its `else` and told the viewer a patch
  * "rises as it is absorbed and falls as it is eliminated; the peak (Tmax) is where
