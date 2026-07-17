@@ -513,10 +513,18 @@ export const CompoundSchema = z
     notes: z.string(),
     /**
      * Optional short caption surfaced ON SCREEN beneath the chart (unlike `notes`,
-     * which is curator-only). For a compound whose plotted axis needs a caveat the
-     * viewer must see — e.g. lithium, dosed/plotted as elemental-lithium mg but
-     * clinically an mEq/L (mmol/L) ion concentration. Keep it to one or two plain
-     * sentences; deeper reasoning stays in `notes`.
+     * which is curator-only). For a compound whose curve needs a caveat the viewer
+     * must see. Two kinds so far: **what the axis means** — lithium, dosed/plotted
+     * as elemental-lithium mg but clinically an mEq/L (mmol/L) ion concentration;
+     * psilocin, dosed as the prodrug — and **what the curve is not** — the
+     * Michaelis–Menten compounds, which have no fixed half-life to quote.
+     *
+     * It began as the units case alone, and the UI hardcoded a "Units." lead-in;
+     * that became a false label once the nonlinear compounds used the slot, so the
+     * note now renders bare. **Make the first clause name its own subject** — it
+     * arrives on screen without a heading.
+     *
+     * Keep it to one or two plain sentences; deeper reasoning stays in `notes`.
      */
     displayNote: z.string().optional(),
   })

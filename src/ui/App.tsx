@@ -242,10 +242,15 @@ export function App() {
                   curve={curve.value}
                   concUnit={concUnit}
                 />
+                {/* No hardcoded lead-in: `displayNote` started as a units caveat
+                    (lithium's mEq/L) and the label said "Units.", but it is now
+                    the general "caveat the viewer must see" slot — three of the
+                    five notes are about a compound having no fixed half-life at
+                    all. Labelling those "Units." states something false in the
+                    one panel whose whole job is not to. Each note names its own
+                    subject in its first clause. */}
                 {compound?.displayNote && (
-                  <p className="caption caption--emphasis">
-                    <strong>Units.</strong> {compound.displayNote}
-                  </p>
+                  <p className="caption caption--emphasis">{compound.displayNote}</p>
                 )}
                 <PeakNote route={route} schedule={schedule} />
                 {/* Metabolite derivation cautions are folded in alongside the
