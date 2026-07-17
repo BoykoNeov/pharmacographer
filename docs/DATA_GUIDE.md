@@ -124,6 +124,19 @@ generalise:
   both had to flip in the same commit. **Nothing in CI sees this** — `loader.test`
   derives each file's own routes and never compares two files' claims. Before
   shipping, grep the repo for the compound's name.
+- **A number from a SEARCH SUMMARY is not a citation — and it is often the
+  load-bearing one.** Theophylline's competing Vmax (2,640 mg/day) arrived in a
+  web-search blurb and reached shipped `notes` in three places before anyone had
+  identified the study, let alone opened it. It was not decoration: the whole
+  "Wagner is bracketed, not an outlier" argument rested on that second fit
+  existing. All three gates were green over it, because *every automated check is
+  blind to whether a citation is real*. **The discriminator is simply: does the
+  source open?** Fetch it and cite it properly, or delete the number and let the
+  argument stand on what you did open — never leave it in as atmosphere. Here it
+  opened (Dahlqvist 1984, PMID 6506136) and the argument got *stronger*: the two
+  fits bracket both direct clearance measurements. The lesson generalises past
+  "verify citations": **the detail you are least sure of is disproportionately
+  likely to be the one holding up your confidence.**
 
 ### Phenotype presets — curating a polymorphic compound (2026-07-17)
 
@@ -1002,7 +1015,7 @@ theobromine's oral Tmax.
   L/kg = CL·t½/ln2). Built curves (200 mg oral): parent 4.15 mg/L @ 1 h, paraxanthine 1.02 @ 6 h,
   theobromine 0.17 @ 9 h, theophylline 0.08 @ 8 h. **Theophylline is drawn HERE as a LINEAR line and
   ALSO ships as a MICHAELIS-MENTEN standalone** (2026-07-17) — no contradiction, and the tie is exact:
-  as a ~3.4% metabolite it peaks ~0.1-0.2 mg/L, ~150-300× below its Km (24.1 mg/L), and at `c ≪ Km`
+  as a ~3.4% metabolite it peaks ~0.1-0.2 mg/L, ~100-300× below its Km (24.1 mg/L), and at `c ≪ Km`
   the saturable rate `Vmax·c/(Km+c)` collapses to `(Vmax/Km)·c`, so this line **is** the standalone's own
   low-concentration limit — the same tie the engine's `Km ≫ C` collapse test pins. It must still not be
   read as endorsing a linear plot of a *therapeutic* theophylline dose. Byte-identical Vd (0.5 L/kg) holds

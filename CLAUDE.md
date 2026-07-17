@@ -130,7 +130,7 @@ engine/schema/derive change needed.
   `Km·ln(C0/C)+(C0−C)=(Vmax/Vd)·t`, the AUC + steady-state closed forms, mass
   balance, and the `Km≫C` collapse onto `models.ts`. Ships **phenytoin + ethanol +
   theophylline**. Theophylline is the one to study: the same molecule ALSO appears as a
-  *linear* metabolite line on caffeine, ~150-300× below its Km, so that line is this
+  *linear* metabolite line on caffeine, ~100-300× below its Km, so that line is this
   model's own low-concentration limit rather than a contradiction — the `Km≫C` collapse
   as data. Its Vd is byte-identical across the two files on purpose; **no test compares
   them**.

@@ -33,7 +33,7 @@ already here.
   shipping a compound, grep the repo for its name** — a data-only ship is not a data-only diff.
 - **And the flip is a BETTER note than the exclusion was.** The same molecule now ships in two
   representations — linear as caffeine's ~0.1-0.2 mg/L metabolite, nonlinear as the therapeutic-range
-  standalone — because Km sits ~150-300× above the metabolite's concentration, where `Vmax·c/(Km+c)`
+  standalone — because Km sits ~100-300× above the metabolite's concentration, where `Vmax·c/(Km+c)`
   collapses to `(Vmax/Km)·c`. The linear line **is** the saturable model's own low-concentration limit,
   the same tie the engine's `Km≫C` collapse test already pins. The `Km≫C` oracle, as data.
 - **The discrepancy was owned, not smoothed (advisor).** The first framing — "7.2 h lands inside Lelo's
@@ -45,8 +45,26 @@ already here.
 - **What actually raised confidence was the FOUR-clearance ordering.** The FDA label's mean adult CL
   (0.65 mL/kg/min, range 0.27-1.03) is an *apparent* CL at therapeutic levels, so under saturation it
   must sit **below** the dilute-limit ceiling — and it does: the model gives 0.81 at c→0, 0.67 at 5 mg/L
-  (≈ the label's mean), 0.50-0.57 across 10-15 mg/L. All four figures fall inside the label's own range
+  (≈ the label's mean), 0.50-0.57 across 10-15 mg/L. All figures fall inside the label's own range
   and their *ordering* is what a saturable model predicts. Coherent picture, one named 15% residual.
+- **THE SECOND ADVISOR CATCH — a search-summary number reached shipped prose.** A WebSearch blurb
+  mentioned a competing fit ("Km 133 µmol/L, Vmax 611 µmol/h = 2,640 mg/day"). That study was never
+  identified or fetched, yet its numbers went into `theophylline.json` in three places as fact — and
+  they were **load-bearing**: the "Wagner is bracketed, not an outlier" confidence argument leaned on
+  that second fit existing. Exactly the trap `CLAUDE.md` names (*every automated check is blind to
+  whether a citation is real*), and all three gates were green over it. The discriminator the advisor
+  gave is the right one and is now the rule: **does the source open?** — fetch it and cite it, or delete
+  the numbers and let the argument stand on what you did open.
+  It opened: **Dahlqvist R, Billing B, Miners JO, Birkett DJ, Ther Drug Monit 1984;6(3):290-7 (PMID
+  6506136)**, 11 healthy volunteers. And opening it made the argument *stronger* than the version built
+  on the blurb: the two independent overall fits agree on Km to **0.6%** (24.1 vs 23.96 mg/L) while
+  differing **35%** on Vmax (1960 vs 2642 mg/day), and their dilute-limit clearances **literally
+  bracket** both direct measurements — 0.81 (Wagner) < 0.93 (Lelo) ≈ 0.94 (Gundert-Remy) < 1.09
+  (Dahlqvist) mL/kg/min. Wagner is the low end of a real spread, which also makes the shipped cliff the
+  conservative of the two. (Dahlqvist shares two authors — Miners, Birkett — with the Lelo papers this
+  file takes its Vd from.) **The lesson is not "verify citations" — it is that a fabricated-looking
+  detail can be the load-bearing one, and that opening the source is cheap next to the argument it
+  carries.**
 - **The honesty point: a single Vmax/Km is a LUMPED fit.** Tang-Liu 1982 followed all three products to
   0.020 mg/L and found each pathway saturating separately (Km 2.7 / 9.3 / 14.2 mg/L) plus ~10%
   never-saturating renal. A sum of MM terms plus a linear term is **not** an MM term — so the stored Km
