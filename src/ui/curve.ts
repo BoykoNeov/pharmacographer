@@ -522,7 +522,36 @@ function curveHorizonMM(
   if (route === 'iv_infusion' && params.infusionDuration !== undefined) {
     tail = Math.max(tail, params.infusionDuration + decayTimeMM(params, peakC));
   }
-  return niceCeil(lastDoseTime + tail);
+  return niceCeilFine(lastDoseTime + tail);
+}
+
+/**
+ * Round a NONLINEAR horizon up to a readable axis bound, on a finer ladder than
+ * {@link niceCeil}'s 1 / 2 / 5 / 10.
+ *
+ * The coarse ladder is right for a linear curve, whose tail is a heuristic ("5
+ * half-lives") and whose exponential keeps decaying visibly however far the axis
+ * runs — spare axis there costs nothing and rounds to a friendlier number. A
+ * nonlinear decay time is not a heuristic: {@link decayTimeMM} computes it exactly
+ * from the implicit solution, so rounding (say) 5.07 h up to 10 h discards
+ * precision we actually have and spends half the axis on a tail that is already
+ * spent.
+ *
+ * The SEMI-LOG view is what makes that unacceptable rather than untidy. On the
+ * linear axis a spent tail is a flat line hugging zero; on a log axis those same
+ * hours are several empty decades, because a saturable drug below its Km reverts
+ * to first-order at `Vmax/(Vd·Km)` and free-falls (ethanol's dilute-limit
+ * half-life is ~7 minutes). Decades of nothing compress the part that teaches —
+ * the flat, saturated plateau and the knee where it ends — into a sliver. The
+ * lin/semi-log toggle is pedagogy, not polish (CLAUDE.md), so the horizon owes it
+ * a tight bound.
+ */
+function niceCeilFine(x: number): number {
+  if (!(x > 0)) return 1;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(x)));
+  const normalized = x / magnitude;
+  const stops = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+  return (stops.find((stop) => normalized <= stop) ?? 10) * magnitude;
 }
 
 /**
@@ -608,8 +637,22 @@ function buildCurveMM(input: CurveInput): MichaelisMentenCurveResult {
   // Pass 2 — re-size from what the course actually leaves behind. The tail has to
   // clear the highest concentration reached AT OR AFTER the last dose; anything
   // earlier has already decayed and does not govern the right edge.
+  //
+  // This deliberately TRUSTS the measured peak rather than taking `max(measured,
+  // provisional)`. The provisional ceiling `F·D/Vd` is what a dose would reach with
+  // nothing eliminated during input — real for an IV bolus, but an overestimate for
+  // an oral dose (ethanol absorbs over hours and is being cleared throughout, so it
+  // peaks at ~455 mg/L against a 782 mg/L ceiling) and for an infusion. Keeping the
+  // max would size every horizon off a concentration the curve never reaches, which
+  // is exactly the second pass being cancelled out. Fall back only if the probe
+  // found nothing at all (an empty schedule).
   const tailPeak = probe.reduce((most, p) => (p.t >= lastDoseTime && p.c > most ? p.c : most), 0);
-  const horizonH = curveHorizonMM(route, params, lastDoseTime, Math.max(tailPeak, provisionalPeak));
+  const horizonH = curveHorizonMM(
+    route,
+    params,
+    lastDoseTime,
+    tailPeak > 0 ? tailPeak : provisionalPeak,
+  );
   const points = build(horizonH);
   const peak = findPeak(points);
 
