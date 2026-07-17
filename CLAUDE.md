@@ -98,9 +98,12 @@ all pass.
 
 Follow the phases in handoff §13 — engine + tests before UI.
 
-**Phase 7 (polish & expand). The static-site deploy (vite `base` + GitHub Pages)
-is the sole remaining Phase 7 item** — a prior attempt was reverted (`4721f0c`);
-investigate why before retrying.
+**Phase 7 (polish & expand) is complete. There is no public deploy, and that is a
+decision, not a gap** — a GitHub Pages workflow was built and then removed at the
+user's request (`4721f0c`): the workflow was deleted, the live Pages site was
+unpublished, and the in-flight run cancelled. Do **not** re-add a deploy without
+asking first. Work now comes from handoff §12 (extension points), picked for
+teaching value.
 
 **Seed set: 43 compounds** — the file count in `src/data/compounds/` is
 authoritative, not this number. Adding a compound is pure data: drop in a JSON
