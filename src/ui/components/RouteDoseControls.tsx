@@ -10,14 +10,14 @@
  * the full provenance treatment lands in Phase 5.
  */
 
-import type { Route } from '../../engine/types.ts';
+import type { DataRoute } from '../../data/schema.ts';
 import type { RouteOption } from '../curve.ts';
 import { INPUT_LIMITS, clampInput } from '../limits.ts';
 
 interface RouteDoseControlsProps {
   routeOptions: RouteOption[];
-  route: Route;
-  onRouteChange: (route: Route) => void;
+  route: DataRoute;
+  onRouteChange: (route: DataRoute) => void;
   dose: number;
   onDoseChange: (dose: number) => void;
   infusionDuration: number;
@@ -49,7 +49,7 @@ export function RouteDoseControls({
         <select
           className="control__input"
           value={route}
-          onChange={(event) => onRouteChange(event.target.value as Route)}
+          onChange={(event) => onRouteChange(event.target.value as DataRoute)}
         >
           {routeOptions.map((option) => (
             <option

@@ -219,10 +219,49 @@ const IvRouteSchema = z.strictObject({
   F: optionalParam(FractionUnit).optional(),
 });
 
+/**
+ * Mass delivery rate — the zero-order input of a patch. Canonical mg/h; the
+ * `mg/day` form is how patch labels actually state it (`engine/units.ts`
+ * `massRate` converts).
+ */
+const MassRateUnit = z.enum(['mg/h', 'g/h', 'mg/min', 'mg/day', 'g/day']);
+
+/**
+ * Transdermal route (handoff §12; the "more routes" seam). A patch is a
+ * ZERO-ORDER input — the same input type as an IV infusion — so it needs no new
+ * engine math: `derive.ts` resolves it to the engine's `iv_infusion` route and
+ * the mode spine's `infusionConcentrationFromModes` computes it, for a 1-, 2- or
+ * 3-compartment disposition alike. What is transdermal-specific is not the math
+ * but the DATA: the input is stated as a rate, and the wear duration is a
+ * property of the PRODUCT (a clonidine patch is worn 7 days), unlike an infusion
+ * duration, which is a free clinical choice and therefore a UI input.
+ *
+ * NOTE THE ABSENT `F`, which is deliberate and load-bearing — the same posture as
+ * {@link DispositionMMSchema} refusing a `halfLife`. A patch label states two
+ * different fractions-ish numbers, and confusing them silently halves the curve:
+ * Catapres-TTS "delivers 0.1 mg/day" AND reports "absolute bioavailability
+ * approximately 60%". The delivered rate is ALREADY the systemic input — the
+ * label's own steady-state concentrations prove it (0.1/0.2/0.3 mg/day ÷ CL
+ * 10.62 L/h = 0.39/0.79/1.18 ng/mL, against a stated 0.4/0.8/1.1) — so applying
+ * the 60% on top would double-count and put the curve ~40% low while still
+ * looking plausible. Rather than trust a curator to not write `F`, the schema
+ * makes it unwriteable: `deliveryRate` is the systemic input by definition. A
+ * product whose rate is NOT already systemic needs a new field and a new gate,
+ * not a quietly-reused `F`.
+ */
+const TransdermalRouteSchema = z.strictObject({
+  available: z.boolean(),
+  /** The zero-order systemic input rate the patch delivers (`R0`). */
+  deliveryRate: requiredParam(MassRateUnit),
+  /** How long the product is worn — sets the default zero-order window. */
+  wearDuration: requiredParam(TimeUnit),
+});
+
 const RoutesSchema = z.strictObject({
   oral: OralRouteSchema.optional(),
   iv_bolus: IvRouteSchema.optional(),
   iv_infusion: IvRouteSchema.optional(),
+  transdermal: TransdermalRouteSchema.optional(),
 });
 
 /**
@@ -804,6 +843,19 @@ export type Compound = z.infer<typeof CompoundSchema>;
 
 /** A validated metabolite entry (handoff §12). */
 export type Metabolite = z.infer<typeof MetaboliteSchema>;
+
+/**
+ * A route as the DATA layer names it — a clinical route of administration. This
+ * is deliberately WIDER than the engine's `Route` (handoff §4, §12): the engine's
+ * vocabulary is INPUT TYPES (bolus / first-order / zero-order), and `transdermal`
+ * introduces no new one — a patch is zero-order in, exactly like an IV infusion,
+ * so it resolves onto the engine's `iv_infusion` and the engine stays untouched
+ * (`engineRouteOf` in `derive.ts`). Adding `transdermal` to the engine's own union
+ * would buy a dispatch branch that duplicates `iv_infusion`'s math — code without
+ * meaning. "Which needle/patch/tablet" is a fact about drugs, which the engine is
+ * required not to know.
+ */
+export type DataRoute = 'oral' | 'iv_bolus' | 'iv_infusion' | 'transdermal';
 
 /** A single provenance-carrying parameter (generic over unit). */
 export interface CompoundParameter {

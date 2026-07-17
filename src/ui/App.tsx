@@ -13,8 +13,9 @@
  */
 
 import { useMemo, useState } from 'react';
-import type { DoseEvent, Route } from '../engine/types.ts';
+import type { DoseEvent } from '../engine/types.ts';
 import { applyPhenotype, defaultPhenotypeId, type DeriveWarning } from '../data/derive.ts';
+import type { DataRoute } from '../data/schema.ts';
 import { loadAllCompounds } from '../data/loader.ts';
 import { CompoundAbout, CompoundMetabolism } from './components/CompoundInfo.tsx';
 import { CompoundPicker } from './components/CompoundPicker.tsx';
@@ -49,7 +50,7 @@ const COMPOUNDS = loadAllCompounds();
 
 export function App() {
   const [compoundId, setCompoundId] = useState(() => COMPOUNDS[0]?.id ?? '');
-  const [route, setRoute] = useState<Route>(() => {
+  const [route, setRoute] = useState<DataRoute>(() => {
     const first = COMPOUNDS[0];
     return first ? defaultRoute(first) : 'iv_bolus';
   });
@@ -292,7 +293,7 @@ export function App() {
 }
 
 interface ModelCaptionProps {
-  route: Route;
+  route: DataRoute;
   schedule: DoseSchedule;
   infusionDuration: number;
   curve: CurveResult;
@@ -300,7 +301,7 @@ interface ModelCaptionProps {
 }
 
 /** Describe the dosing schedule in words for the caption. */
-function describeSchedule(schedule: DoseSchedule, route: Route): string {
+function describeSchedule(schedule: DoseSchedule, route: DataRoute): string {
   const routeWord = ROUTE_LABELS[route].toLowerCase();
   const base =
     schedule.count <= 1
@@ -370,7 +371,7 @@ function ModelCaption({ route, schedule, infusionDuration, curve, concUnit }: Mo
  * The peak means something different per route, so the phrasing is route-aware;
  * a recurring course marks the whole-course peak, NOT a steady-state value.
  */
-function PeakNote({ route, schedule }: { route: Route; schedule: DoseSchedule }) {
+function PeakNote({ route, schedule }: { route: DataRoute; schedule: DoseSchedule }) {
   const totalDoses = schedule.count + schedule.adHoc.length;
   const routeMeaning =
     route === 'iv_bolus'

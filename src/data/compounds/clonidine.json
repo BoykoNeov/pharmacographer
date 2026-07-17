@@ -1,0 +1,63 @@
+{
+  "id": "clonidine",
+  "schemaVersion": 1,
+  "names": { "inn": "Clonidine", "synonyms": ["Catapres", "Catapres-TTS"] },
+  "description": "A centrally-acting alpha-2 adrenergic agonist used mainly for high blood pressure, and also for ADHD, opioid and nicotine withdrawal, and some pain syndromes. It works by reducing sympathetic outflow from the brainstem rather than acting on the heart or vessels directly. Shown here as the 7-day skin patch — the clearest illustration of a zero-order input.",
+  "model": "one_compartment_first_order",
+  "linear": true,
+  "illustrativeDoseMg": 0.7,
+  "disposition": {
+    "halfLife": {
+      "value": 12.9,
+      "range": [12, 16],
+      "unit": "h",
+      "derived": true,
+      "sourceRef": "catapres_tts_label",
+      "conditions": "computed as ln2·Vz/CL = ln2·197 L / 10.62 L/h = 12.9 h, from the two label-reported numbers below rather than read off directly. It lands INSIDE the label's own stated elimination half-life of 12–16 h, which is the point: the Vz and CL the curve is drawn from independently reproduce the half-life the label reports, so the three numbers are one coherent set rather than three studies stitched together. The range [12, 16] is the label's stated span and drives the variability band. NOTE this is the terminal half-life; clonidine's disposition is biphasic (label: distribution half-life ~20 min), which this one-compartment model deliberately omits — see notes for why that is faithful for a patch and NOT faithful for an oral dose."
+    },
+    "vd": {
+      "value": 197,
+      "unit": "L",
+      "derived": false,
+      "sourceRef": "catapres_tts_label",
+      "conditions": "\"The apparent volume of distribution (Vz) of clonidine is 197 L (2.9 L/kg)\" — read directly from the label. Already absolute litres, so no reference-weight scaling is applied. This is the TERMINAL (Vz) volume, the one that pairs with CL to give the terminal half-life; for the slow zero-order patch input that is the volume the curve actually probes, because the ~20 min distribution phase is complete thousands of times over before the concentration has moved appreciably."
+    },
+    "clearance": {
+      "value": 177,
+      "unit": "mL/min",
+      "derived": false,
+      "sourceRef": "catapres_tts_label",
+      "conditions": "total clearance 177 mL/min = 10.62 L/h, read directly from the label (of which renal clearance is 102 mL/min — clonidine is roughly half renally excreted unchanged, half hepatically metabolised). Stored because it is the number that SETS the plateau: for a zero-order input the steady state is Css = R0/CL and depends on clearance ALONE, not on Vd. Storing it makes the plateau a cited quantity rather than a derived one (`resolveKe` prefers a stored CL, so this — not the half-life — drives ke)."
+    }
+  },
+  "routes": {
+    "transdermal": {
+      "available": true,
+      "deliveryRate": {
+        "value": 0.1,
+        "unit": "mg/day",
+        "derived": false,
+        "sourceRef": "catapres_tts_label",
+        "conditions": "Catapres-TTS-1: \"The 3.5, 7.0, and 10.5 cm2 systems deliver 0.1, 0.2, and 0.3 mg of clonidine per day, respectively.\" TTS-1 (the lowest strength) is plotted. This is the SYSTEMIC delivery rate, not a patch-release rate that still needs a bioavailability haircut — see notes, 'THE 60% TRAP'. The label's own steady-state concentrations are what establish that: R0/CL reproduces all three of them."
+      },
+      "wearDuration": {
+        "value": 7,
+        "unit": "day",
+        "derived": false,
+        "sourceRef": "catapres_tts_label",
+        "conditions": "\"Catapres-TTS is programmed to release clonidine at an approximately constant rate for 7 days.\" The wear period is a property of the PRODUCT, not a clinical choice, which is why it lives in the data rather than being a UI input the way an infusion duration is."
+      }
+    }
+  },
+  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "displayNote": "This is a patch worn continuously for its full 7-day wear period, so the curve is the approach to a plateau. Taking the patch OFF is deliberately not drawn: clonidine keeps being absorbed from a depot in the skin afterwards, so the real post-removal decline runs on that absorption rate (~20 h apparent) rather than on clonidine's own 12–16 h half-life.",
+  "sources": {
+    "catapres_tts_label": {
+      "type": "FDA drug label",
+      "title": "Catapres-TTS (clonidine transdermal system) — US prescribing information, Boehringer Ingelheim (DailyMed SPL). CLINICAL PHARMACOLOGY: programmed to release clonidine at an approximately constant rate for 7 days; the 3.5, 7.0 and 10.5 cm2 systems deliver 0.1, 0.2 and 0.3 mg/day and contain 2.5, 5.0 and 7.5 mg; mean steady-state plasma concentrations approximately 0.4, 0.8 and 1.1 ng/mL respectively; absolute bioavailability of the Catapres-TTS dosage form approximately 60%; steady-state plasma levels obtained within 3 days; after removal therapeutic levels persist about 8 hours then decline slowly over several days; biphasic disposition with a distribution half-life of about 20 minutes and an elimination half-life of 12 to 16 hours; apparent volume of distribution (Vz) 197 L (2.9 L/kg); total clearance 177 mL/min, renal clearance 102 mL/min",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=d4a55825-7041-42f4-b3b2-dd7a25dbe793",
+      "accessed": "2026-07-17"
+    }
+  },
+  "notes": "The first TRANSDERMAL compound, and the reason the route seam opened at all (handoff §12, 'more routes'). Clonidine is a central alpha-2 agonist: it lowers blood pressure by reducing sympathetic outflow from the brainstem, not by acting on the heart or vessels directly. EDUCATIONAL ILLUSTRATION ONLY.\n\nWHY THIS COMPOUND. A patch is a ZERO-ORDER input, which is the input type the engine's infusion driver already computes — so a patch needs no new engine math, only the data to state a rate instead of a dose. But almost no real patch is honestly a plain rectangular window: nicotine's own popPK fits parallel dual release into a chain of transit compartments, and fentanyl's skin depot makes its post-removal tail run on the absorption rate. Both were opened and DEFERRED (see docs/DATA_GUIDE.md, 'Transdermal route ... on the input-type screen'). Clonidine passes because its label states the input outright — \"programmed to release clonidine at an approximately constant rate for 7 days\" — and because, worn continuously, its curve never has to draw the part that is not zero-order.\n\nMODEL — WHY ONE COMPARTMENT IS FAITHFUL HERE AND WOULD NOT BE ORALLY. The label reports biphasic disposition (distribution t½ ~20 min, terminal 12–16 h), so clonidine is really two-compartment; the label gives only Vz and CL, which is not enough to parameterise one. That does not matter for a patch and would matter enormously for a tablet. A zero-order input this slow never probes the central compartment: over the ~13 h that the concentration takes to move appreciably, the 20-minute distribution phase has equilibrated ~40 times over, so the drug is distributed at every instant that gets plotted and Vz IS the operative volume. A fast oral absorption (Tmax 1–3 h) does probe it, which is exactly why the oral route is NOT offered here — see ROUTES.\n\nMAGNITUDE — THE PLATEAU, CHECKED THREE TIMES. For a zero-order input the steady state is Css = R0/CL and depends on clearance alone. With the label's CL of 177 mL/min = 10.62 L/h, its three stated delivery rates give 0.1 mg/day → 0.392 ng/mL, 0.2 → 0.785, 0.3 → 1.18; the label independently reports the measured steady states as approximately 0.4, 0.8 and 1.1 ng/mL. Three for three (the TTS-3 point ~7% high). This is a genuinely free check — the plateau is not fitted to anything, it falls out of two numbers reported in different paragraphs.\n\nMAGNITUDE — THE APPROACH, CHECKED TOO. Css is only half the curve; the RISE has to be right as well, and that is where Vd re-enters. ke = CL/Vz = 10.62/197 = 0.054/h, a 12.9 h half-life, so the curve should reach ~90% of plateau by ~2 days and be at steady state by ~2.5–3 days. The label: \"Steady-state clonidine plasma levels are obtained within 3 days\" and \"therapeutic plasma clonidine levels are achieved 2 to 3 days after initial application.\" So Vz=197 L with CL=10.62 L/h reproduces the approach as well as the plateau, which is what de-risks using a terminal volume in a one-compartment model.\n\nTHE 60% TRAP (why the transdermal schema has no F field). The label states BOTH that the system \"delivers 0.1 mg of clonidine per day\" AND that \"the absolute bioavailability of clonidine from the Catapres-TTS dosage form is approximately 60%\". Reading those as a dose and its bioavailability — and so plotting 0.6 × 0.1 mg/day — gives Css 0.235 ng/mL against a label-reported 0.4: a curve ~40% low that still looks entirely plausible on screen, with no test able to see it. The delivered rate is ALREADY the systemic input, which the Css arithmetic above proves. What the 60% is measured relative to is NOT recorded here, because the obvious guess does not survive its own numbers (the TTS-1 holds 2.5 mg and gives it up over 7 days ≈ 0.36 mg/day nominal; 0.36 × 0.6 = 0.21, not 0.1) and an unverified gloss is exactly the kind of plausible-but-wrong prose this project exists not to ship. The verified claim is narrow and sufficient: the stated rate is the systemic input, so the 60% must not be applied again. `TransdermalRouteSchema` therefore has no `F` field at all — the double-count is made unwriteable rather than merely warned against, the same posture as the Michaelis–Menten schema refusing a `halfLife`.\n\nROUTES — TRANSDERMAL ONLY; ORAL DEFERRED. Only the patch ships. Oral clonidine is the obvious contrast route and was attempted, but it fails the `F·D/V` ceiling test against this Vz: reported oral Cmax for 0.2 mg is around 1 ng/mL, while F·D/Vz caps the one-compartment peak at 0.2/197 = 1.02 ng/mL even at F = 1 — no headroom at all, and less than that at clonidine's real F. That is the ciprofloxacin/sildenafil failure and it has the same cause as the paragraph above: an oral dose peaks early enough to see the central compartment, so the terminal Vz is the wrong volume for it. The deferral is recorded as PENDING A SOURCE rather than as a settled number, because the oral Cmax/Tmax could not be sourced to a citation that survived being opened: the one candidate bioequivalence paper (Alsarra 2016, LC-MS) reports a Tmax of 30 h and a half-life of 120 h for a REFERENCE immediate-release tablet — against this label's 12–16 h — and contradicts itself internally (its own AUC-infinity of 353 ng/mL·h for a 0.2 mg dose implies CL/F ≈ 0.57 L/h, while its table states 23.6 L/h, a 40-fold gap). It was opened and rejected. Oral clonidine ships when a citable single-population Cmax/Tmax and a central volume surface together — the honest fix is two-compartment, not a smaller Vd.\n\nREMOVAL IS NOT DRAWN, AND THAT IS THE HONESTY CAVEAT. The label: \"If the Catapres-TTS is removed and not replaced with a new system, therapeutic plasma clonidine levels will persist for about 8 hours and then decline slowly over several days\", declining with an apparent half-life of about 20 hours — LONGER than clonidine's own 12–16 h elimination half-life. That gap is a skin depot: absorption continues after the patch is gone, so the post-removal slope is the absorption rate, not the elimination rate (the intrinsic-vs-apparent trap, as with morphine and digitoxin). The engine could draw a rectangular window switching off at removal and it would be WRONG — too fast, on the wrong rate constant. So the modelled window is the wear period, the patch stays on for it, and `displayNote` tells the viewer on screen that removal is out of frame and why. Clonidine passes the transdermal gate not because it has no depot, but because the honest curve never has to show it."
+}

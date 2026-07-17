@@ -45,19 +45,27 @@ import {
   deriveParams2c,
   deriveParams3c,
   deriveParamsMM,
+  engineRouteOf,
+  resolveTransdermalInput,
   type DeriveWarning,
   type DerivedNote,
 } from '../data/derive.ts';
-import type { Compound } from '../data/schema.ts';
+import type { Compound, DataRoute } from '../data/schema.ts';
 
-/** Routes the v1 engine understands, in the order the picker presents them. */
-export const ENGINE_ROUTES: readonly Route[] = ['oral', 'iv_bolus', 'iv_infusion'];
+/**
+ * Routes the picker offers, in presentation order. These are CLINICAL routes
+ * ({@link DataRoute}), which is a wider vocabulary than the engine's input types:
+ * `transdermal` resolves onto the engine's zero-order `iv_infusion` via
+ * `engineRouteOf`, so the engine never learns what a patch is (handoff §4, §12).
+ */
+export const ENGINE_ROUTES: readonly DataRoute[] = ['oral', 'iv_bolus', 'iv_infusion', 'transdermal'];
 
 /** Human-facing route names. */
-export const ROUTE_LABELS: Record<Route, string> = {
+export const ROUTE_LABELS: Record<DataRoute, string> = {
   oral: 'Oral',
   iv_bolus: 'IV bolus',
   iv_infusion: 'IV infusion',
+  transdermal: 'Transdermal patch',
 };
 
 /**
@@ -81,7 +89,7 @@ const DEFAULT_SAMPLES = 300;
 
 /** A route as offered in the UI, with whether the engine can plot it. */
 export interface RouteOption {
-  route: Route;
+  route: DataRoute;
   label: string;
   /**
    * The engine can produce a curve for this route from the compound's data.
@@ -120,6 +128,20 @@ export function routeOptions(compound: Compound): RouteOption[] {
         reason: derivable ? undefined : 'No absorption data (ka or Tmax) in this compound file',
       };
     }
+    if (route === 'transdermal') {
+      // Unlike the IV routes, a patch is NOT derivable from disposition alone: its
+      // whole input is the product's delivery rate and wear period, which only a
+      // compound carrying a `transdermal` block has. Without this, every compound
+      // would offer a patch it has no data for.
+      const derivable = resolveTransdermalInput(compound) !== undefined;
+      return {
+        route,
+        label,
+        derivable,
+        available: compound.routes.transdermal?.available ?? false,
+        reason: derivable ? undefined : 'No transdermal product data (delivery rate and wear duration) in this compound file',
+      };
+    }
     // IV routes only need disposition (Vd + ke), which every compound has.
     return { route, label, derivable: true, available: compound.routes[route]?.available ?? false };
   });
@@ -131,7 +153,7 @@ export function routeOptions(compound: Compound): RouteOption[] {
  * one (every compound has at least `iv_bolus`). Used to reset the route when the
  * user switches compounds so a stale, non-derivable route never sticks.
  */
-export function defaultRoute(compound: Compound): Route {
+export function defaultRoute(compound: Compound): DataRoute {
   const options = routeOptions(compound);
   const preferred = options.find((o) => o.derivable && o.available) ?? options.find((o) => o.derivable);
   return preferred?.route ?? 'iv_bolus';
@@ -414,10 +436,14 @@ export function buildSchedule({ amount, count, interval, adHoc }: DoseSchedule):
 /** Inputs to {@link buildCurve}. */
 export interface CurveInput {
   compound: Compound;
-  route: Route;
+  route: DataRoute;
   /** The dosing schedule (single = `count: 1`). */
   schedule: DoseSchedule;
-  /** Infusion duration, h — used only for `iv_infusion`. */
+  /**
+   * Infusion duration, h — used only for `iv_infusion`. NOT used for
+   * `transdermal`: a patch's zero-order window is its wear period, which is a
+   * property of the product (data), not a clinical choice (a UI input).
+   */
   infusionDuration?: number;
   /**
    * Main-curve half-life override, h — the variability slider. When set, `ke` is
@@ -606,10 +632,13 @@ function criticalTimesMM(
  */
 function buildCurveMM(input: CurveInput): MichaelisMentenCurveResult {
   const { compound, route, schedule, weightKg, samples = DEFAULT_SAMPLES } = input;
+  // No shipped MM compound offers a patch, but the vocabularies still have to
+  // meet here: the integrator, like every engine path, speaks input types.
+  const engineRoute = engineRouteOf(route);
   const { params: base, derived, warnings } = deriveParamsMM(compound, route, { weightKg });
 
   let params = base;
-  if (route === 'iv_infusion') {
+  if (engineRoute === 'iv_infusion') {
     const requested = input.infusionDuration;
     const infusionDuration =
       requested !== undefined && requested > 0 ? requested : DEFAULT_INFUSION_DURATION_H;
@@ -622,17 +651,17 @@ function buildCurveMM(input: CurveInput): MichaelisMentenCurveResult {
   const build = (horizonH: number): CurvePoint[] => {
     const times = mergeGrid(
       sampleGrid(horizonH, samples),
-      criticalTimesMM(route, params, doses, horizonH),
+      criticalTimesMM(engineRoute, params, doses, horizonH),
     );
-    const values = michaelisMentenCurve(route, params, doses, times);
+    const values = michaelisMentenCurve(engineRoute, params, doses, times);
     return times.map((t, i) => ({ t, c: values[i] ?? 0 }));
   };
 
   // Pass 1 — a provisional horizon from the largest single dose's ceiling.
-  const bioavailable = route === 'oral' ? (params.F ?? 1) : 1;
+  const bioavailable = engineRoute === 'oral' ? (params.F ?? 1) : 1;
   const largestDose = doses.reduce((most, dose) => Math.max(most, dose.amount), 0);
   const provisionalPeak = (bioavailable * largestDose) / params.vd;
-  const probe = build(curveHorizonMM(route, params, lastDoseTime, provisionalPeak));
+  const probe = build(curveHorizonMM(engineRoute, params, lastDoseTime, provisionalPeak));
 
   // Pass 2 — re-size from what the course actually leaves behind. The tail has to
   // clear the highest concentration reached AT OR AFTER the last dose; anything
@@ -648,7 +677,7 @@ function buildCurveMM(input: CurveInput): MichaelisMentenCurveResult {
   // found nothing at all (an empty schedule).
   const tailPeak = probe.reduce((most, p) => (p.t >= lastDoseTime && p.c > most ? p.c : most), 0);
   const horizonH = curveHorizonMM(
-    route,
+    engineRoute,
     params,
     lastDoseTime,
     tailPeak > 0 ? tailPeak : provisionalPeak,
@@ -747,13 +776,19 @@ export function buildCurve(input: CurveInput): CurveResult {
   }
 
   const { compound, route, schedule, weightKg, samples = DEFAULT_SAMPLES } = input;
+  // The engine speaks input types, not clinical routes: a patch IS a zero-order
+  // input, so it rides the `iv_infusion` path from here down (handoff §12).
+  const engineRoute = engineRouteOf(route);
+  const patch = route === 'transdermal' ? resolveTransdermalInput(compound) : undefined;
   const { params: base, derived, warnings } = deriveParams(compound, route, { weightKg });
 
   // Disposition + injected infusion duration, shared by the main line and band.
   // Spread (don't mutate) so a memoized `base` stays a faithful cache entry.
   let disposition = base;
-  if (route === 'iv_infusion') {
-    const requested = input.infusionDuration;
+  if (engineRoute === 'iv_infusion') {
+    // A patch's window is its WEAR PERIOD, read from the product data; an IV
+    // infusion's is the user's, from the controls.
+    const requested = patch ? patch.wearDurationH : input.infusionDuration;
     const infusionDuration = requested !== undefined && requested > 0 ? requested : DEFAULT_INFUSION_DURATION_H;
     disposition = { ...base, infusionDuration };
   }
@@ -781,7 +816,7 @@ export function buildCurve(input: CurveInput): CurveResult {
   // isn't clipped mid-decay. Formation is driven by the parent ke actually plotted
   // (mainKe), so moving the half-life slider moves the metabolite consistently.
   const metaboliteDerivations =
-    (route === 'iv_bolus' || route === 'oral' || route === 'iv_infusion') &&
+    (engineRoute === 'iv_bolus' || engineRoute === 'oral' || engineRoute === 'iv_infusion') &&
     compound.metabolites?.length
       ? compound.metabolites.map((m) => ({
           meta: m,
@@ -792,18 +827,27 @@ export function buildCurve(input: CurveInput): CurveResult {
   // Size the grid on the slowest curve in view (smallest ke) so neither the band's
   // long-half-life tail nor a slow metabolite is clipped mid-decay.
   const slowestKe = Math.min(mainKe, keSlow, ...metaboliteDerivations.map((d) => d.params.keM));
-  const horizonH = curveHorizon(route, { ...disposition, ke: slowestKe }, lastDoseTime);
+  // A patch's horizon is the wear period EXACTLY — no decay tail, and no rounding
+  // up past it. Every other route pads the window with ~5 half-lives so the tail
+  // plays out; doing that here would plot the hours AFTER the patch comes off, and
+  // that decline is the one part of a patch curve this model gets wrong (drug keeps
+  // absorbing from a skin depot, so the real slope is the absorption rate, not ke).
+  // Ending the window at patch-off keeps the unfaithful part out of frame rather
+  // than drawing it and disclaiming it. See clonidine.json's `displayNote`.
+  const horizonH = patch
+    ? lastDoseTime + patch.wearDurationH
+    : curveHorizon(engineRoute, { ...disposition, ke: slowestKe }, lastDoseTime);
   // Uniform grid for the overall shape, plus the exact dose/infusion instants so
   // discontinuous IV peaks aren't aliased (and the axis doesn't flicker).
-  const times = mergeGrid(sampleGrid(horizonH, samples), criticalTimes(route, params, doses, horizonH));
+  const times = mergeGrid(sampleGrid(horizonH, samples), criticalTimes(engineRoute, params, doses, horizonH));
 
-  const concentrations = concentrationCurve(route, params, doses, times);
+  const concentrations = concentrationCurve(engineRoute, params, doses, times);
   const points = times.map((t, i) => ({ t, c: concentrations[i] ?? 0 }));
 
   let band: BandPoint[] | undefined;
   if (range) {
-    const high = concentrationCurve(route, { ...disposition, ke: keSlow }, doses, times);
-    const low = concentrationCurve(route, { ...disposition, ke: keFast }, doses, times);
+    const high = concentrationCurve(engineRoute, { ...disposition, ke: keSlow }, doses, times);
+    const low = concentrationCurve(engineRoute, { ...disposition, ke: keFast }, doses, times);
     band = times.map((t, i) => ({ t, cLow: low[i] ?? 0, cHigh: high[i] ?? 0 }));
   }
 
@@ -970,11 +1014,15 @@ function criticalTimes2c(
  */
 export function buildCurve2c(input: CurveInput): TwoCompartmentCurveResult {
   const { compound, route, schedule, weightKg, samples = DEFAULT_SAMPLES } = input;
+  // Routes are model-independent (the mode spine), so a patch on a 2-comp parent
+  // needs nothing here but the same clinical→input-type mapping as the 1-comp path.
+  const engineRoute = engineRouteOf(route);
+  const patch = route === 'transdermal' ? resolveTransdermalInput(compound) : undefined;
   const { params: base, derived, warnings } = deriveParams2c(compound, route, { weightKg });
 
   let disposition = base;
-  if (route === 'iv_infusion') {
-    const requested = input.infusionDuration;
+  if (engineRoute === 'iv_infusion') {
+    const requested = patch ? patch.wearDurationH : input.infusionDuration;
     const infusionDuration =
       requested !== undefined && requested > 0 ? requested : DEFAULT_INFUSION_DURATION_H;
     disposition = { ...base, infusionDuration };
@@ -986,7 +1034,7 @@ export function buildCurve2c(input: CurveInput): TwoCompartmentCurveResult {
   // Metabolites (IV bolus, oral, or IV infusion parent). Derive their disposition up
   // front so a long-lived metabolite (keM < β) extends the horizon below.
   const metaboliteDerivations =
-    (route === 'iv_bolus' || route === 'oral' || route === 'iv_infusion') &&
+    (engineRoute === 'iv_bolus' || engineRoute === 'oral' || engineRoute === 'iv_infusion') &&
     compound.metabolites?.length
       ? compound.metabolites.map((m) => ({
           meta: m,
@@ -996,13 +1044,16 @@ export function buildCurve2c(input: CurveInput): TwoCompartmentCurveResult {
 
   const { beta } = twoCompRates(disposition);
   const slowestRate = Math.min(beta, ...metaboliteDerivations.map((d) => d.params.keM));
-  const horizonH = curveHorizon2c(route, disposition, slowestRate, lastDoseTime);
+  // Patch horizon = the wear period exactly; see buildCurve for why no decay tail.
+  const horizonH = patch
+    ? lastDoseTime + patch.wearDurationH
+    : curveHorizon2c(engineRoute, disposition, slowestRate, lastDoseTime);
   const times = mergeGrid(
     sampleGrid(horizonH, samples),
-    criticalTimes2c(route, disposition, doses, horizonH),
+    criticalTimes2c(engineRoute, disposition, doses, horizonH),
   );
 
-  const concentrations = concentrationCurve2c(route, disposition, doses, times);
+  const concentrations = concentrationCurve2c(engineRoute, disposition, doses, times);
   const points = times.map((t, i) => ({ t, c: concentrations[i] ?? 0 }));
 
   const metabolites: MetaboliteCurve[] | undefined = metaboliteDerivations.length
@@ -1162,11 +1213,15 @@ function criticalTimes3c(
  */
 export function buildCurve3c(input: CurveInput): ThreeCompartmentCurveResult {
   const { compound, route, schedule, weightKg, samples = DEFAULT_SAMPLES } = input;
+  // As in the 1-/2-comp paths: the mode spine makes routes model-independent, so a
+  // patch costs nothing here beyond mapping the clinical route to its input type.
+  const engineRoute = engineRouteOf(route);
+  const patch = route === 'transdermal' ? resolveTransdermalInput(compound) : undefined;
   const { params: base, derived, warnings } = deriveParams3c(compound, route, { weightKg });
 
   let disposition = base;
-  if (route === 'iv_infusion') {
-    const requested = input.infusionDuration;
+  if (engineRoute === 'iv_infusion') {
+    const requested = patch ? patch.wearDurationH : input.infusionDuration;
     const infusionDuration =
       requested !== undefined && requested > 0 ? requested : DEFAULT_INFUSION_DURATION_H;
     disposition = { ...base, infusionDuration };
@@ -1178,7 +1233,7 @@ export function buildCurve3c(input: CurveInput): ThreeCompartmentCurveResult {
   // Metabolites (IV bolus, oral, or IV infusion parent). Derive their disposition up
   // front so a long-lived metabolite (keM < γ) extends the horizon below.
   const metaboliteDerivations =
-    (route === 'iv_bolus' || route === 'oral' || route === 'iv_infusion') &&
+    (engineRoute === 'iv_bolus' || engineRoute === 'oral' || engineRoute === 'iv_infusion') &&
     compound.metabolites?.length
       ? compound.metabolites.map((m) => ({
           meta: m,
@@ -1188,13 +1243,16 @@ export function buildCurve3c(input: CurveInput): ThreeCompartmentCurveResult {
 
   const { alpha, beta, gamma } = threeCompRates(disposition);
   const slowestRate = Math.min(gamma, ...metaboliteDerivations.map((d) => d.params.keM));
-  const horizonH = curveHorizon3c(route, disposition, slowestRate, lastDoseTime);
+  // Patch horizon = the wear period exactly; see buildCurve for why no decay tail.
+  const horizonH = patch
+    ? lastDoseTime + patch.wearDurationH
+    : curveHorizon3c(engineRoute, disposition, slowestRate, lastDoseTime);
   const times = mergeGrid(
     sampleGrid(horizonH, samples),
-    criticalTimes3c(route, disposition, doses, horizonH),
+    criticalTimes3c(engineRoute, disposition, doses, horizonH),
   );
 
-  const concentrations = concentrationCurve3c(route, disposition, doses, times);
+  const concentrations = concentrationCurve3c(engineRoute, disposition, doses, times);
   const points = times.map((t, i) => ({ t, c: concentrations[i] ?? 0 }));
 
   const metabolites: MetaboliteCurve[] | undefined = metaboliteDerivations.length

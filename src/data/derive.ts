@@ -45,7 +45,53 @@ import {
   type ConcentrationUnit,
   type MassRateUnit,
 } from '../engine/units.ts';
-import { NONLINEAR_MODELS, type Compound, type Metabolite } from './schema.ts';
+import { NONLINEAR_MODELS, type Compound, type DataRoute, type Metabolite } from './schema.ts';
+
+/**
+ * Map a clinical {@link DataRoute} onto the engine INPUT TYPE that computes it
+ * (handoff §12). Only `transdermal` moves: a patch is a zero-order input, which
+ * is precisely what the engine's `iv_infusion` already is, so it needs no engine
+ * change — see {@link DataRoute} for why the engine's union deliberately stays
+ * narrower than the data's.
+ *
+ * The two are NOT interchangeable for the user, only for the math: the honesty
+ * UI must still say "absorbed through skin", never "intravenous", and the caller
+ * keeps the DataRoute for labelling. This function is the one place the two
+ * vocabularies meet.
+ */
+export function engineRouteOf(route: DataRoute): Route {
+  return route === 'transdermal' ? 'iv_infusion' : route;
+}
+
+/** A patch's zero-order input, resolved to canonical units. */
+export interface TransdermalInput {
+  /** Systemic delivery rate `R0`, mg/h — already systemic; see the schema. */
+  rateMgPerH: number;
+  /** Wear duration, h — the zero-order window. */
+  wearDurationH: number;
+  /** Total delivered over one wear period, mg (`R0 · wearDuration`). */
+  doseMg: number;
+}
+
+/**
+ * Resolve a compound's `transdermal` route to its canonical zero-order input.
+ * Returns `undefined` for a compound with no patch, so callers can fall back.
+ *
+ * The engine's infusion driver is parameterised by a DOSE over a DURATION, while
+ * a patch label states a RATE over a wear period; this converts between them
+ * (`dose = R0 · wearDuration`), which is the whole of the transdermal route's
+ * arithmetic. There is deliberately no `F` term — the schema forbids one, because
+ * a stated delivered rate is already the systemic input and multiplying by the
+ * separately-reported "absolute bioavailability" would double-count it.
+ */
+export function resolveTransdermalInput(compound: Compound): TransdermalInput | undefined {
+  const td = compound.routes.transdermal;
+  if (!td || td.deliveryRate.value === null || td.wearDuration.value === null) return undefined;
+
+  const rateMgPerH = massRate.toCanonical(td.deliveryRate.value, td.deliveryRate.unit);
+  const wearDurationH = time.toCanonical(td.wearDuration.value, td.wearDuration.unit);
+  return { rateMgPerH, wearDurationH, doseMg: rateMgPerH * wearDurationH };
+}
 
 /**
  * Relative tolerance for the ke cross-check. When a compound supplies BOTH
@@ -449,7 +495,7 @@ function resolveKe(
  */
 export function deriveParams(
   compound: Compound,
-  route: Route,
+  route: DataRoute,
   options: DeriveOptions = {},
 ): DerivedParams {
   assertLinearModel(compound, 'one_compartment_first_order', 'deriveParams');
@@ -582,7 +628,7 @@ function resolveClearanceParam(
  */
 export function deriveParams2c(
   compound: Compound,
-  route: Route,
+  route: DataRoute,
   options: DeriveOptions = {},
 ): DerivedParams2c {
   assertLinearModel(compound, 'two_compartment_first_order', 'deriveParams2c');
@@ -695,7 +741,7 @@ export interface DerivedParams3c {
  */
 export function deriveParams3c(
   compound: Compound,
-  route: Route,
+  route: DataRoute,
   options: DeriveOptions = {},
 ): DerivedParams3c {
   assertLinearModel(compound, 'three_compartment_first_order', 'deriveParams3c');
@@ -871,7 +917,7 @@ function resolveVmax(
  */
 export function deriveParamsMM(
   compound: Compound,
-  route: Route,
+  route: DataRoute,
   options: DeriveOptions = {},
 ): DerivedParamsMM {
   if (compound.model !== 'one_compartment_michaelis_menten') {

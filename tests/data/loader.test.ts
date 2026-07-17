@@ -6,7 +6,7 @@ import {
   deriveParams3c,
   deriveParamsMM,
 } from '../../src/data/derive.ts';
-import type { Route } from '../../src/engine/types.ts';
+import type { DataRoute } from '../../src/data/schema.ts';
 import { baseRawCompound } from './_fixtures.ts';
 
 describe('parseCompound', () => {
@@ -30,7 +30,7 @@ describe('parseCompound', () => {
  */
 describe('loadAllCompounds — every bundled compound is valid and derivable', () => {
   const compounds = loadAllCompounds();
-  const routes: Route[] = ['iv_bolus', 'oral', 'iv_infusion'];
+  const routes: DataRoute[] = ['iv_bolus', 'oral', 'iv_infusion', 'transdermal'];
 
   it('returns an array', () => {
     expect(Array.isArray(compounds)).toBe(true);

@@ -29,9 +29,9 @@
  */
 
 import type { DerivedNote } from '../data/derive.ts';
-import type { Compound, CompoundParameter, CompoundSource } from '../data/schema.ts';
+import type { Compound, CompoundParameter, CompoundSource, DataRoute } from '../data/schema.ts';
 import { SOURCE_REF_SENTINELS } from '../data/schema.ts';
-import type { Route } from '../engine/types.ts';
+
 
 /**
  * The measured-vs-derived classification of a source value (axis 1).
@@ -90,6 +90,8 @@ const ROW_LABELS: Record<string, string> = {
   firstPassFraction: 'First-pass fraction (ffp)',
   vmax: 'Maximum elimination rate (Vmax)',
   km: 'Michaelis constant (Km)',
+  deliveryRate: 'Patch delivery rate (R0)',
+  wearDuration: 'Patch wear duration',
 };
 
 /** Resolve a `sourceRef` against the compound's `sources` map and the sentinels. */
@@ -154,14 +156,17 @@ function makeRow(key: string, param: CompoundParameter, compound: Compound): Pro
 /**
  * The provenance rows for the parameters that actually fed THIS curve, in
  * display order (disposition first, then absorption). Route-truthful: IV routes
- * show disposition only; `oral` adds the absorption parameters. Clearance is
+ * show disposition only; `oral` adds the absorption parameters; `transdermal`
+ * adds the patch's own input (its delivery rate and wear period), which ARE the
+ * parameters its curve is built from — citing only disposition for a patch would
+ * hide the two numbers that set the whole plateau. Clearance is
  * shown whenever the file supplies it, because `derive.ts` uses it (and
  * cross-checks it against the half-life) — hiding it would misrepresent the
  * computation. Runtime derivations are grouped under their input row.
  */
 export function provenanceEntries(
   compound: Compound,
-  route: Route,
+  route: DataRoute,
   derivedNotes: readonly DerivedNote[] = [],
 ): ProvenanceRow[] {
   const rows: ProvenanceRow[] = [];
@@ -186,6 +191,18 @@ export function provenanceEntries(
       if (clearance && clearance.value !== null) {
         rows.push(makeRow('clearance', clearance, compound));
       }
+    }
+  }
+
+  // ── Transdermal input (patch only) ───────────────────────────────────────
+  // A patch has no F row, and that absence is deliberate rather than an omission:
+  // its delivery rate IS the systemic input, so there is no bioavailability term
+  // in the model to cite (see `TransdermalRouteSchema`).
+  if (route === 'transdermal') {
+    const td = compound.routes.transdermal;
+    if (td) {
+      rows.push(makeRow('deliveryRate', td.deliveryRate, compound));
+      rows.push(makeRow('wearDuration', td.wearDuration, compound));
     }
   }
 

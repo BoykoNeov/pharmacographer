@@ -11,7 +11,7 @@
 
 import type { DerivedNote } from '../../data/derive.ts';
 import type { Compound, CompoundParameter } from '../../data/schema.ts';
-import type { Route } from '../../engine/types.ts';
+import type { DataRoute } from '../../data/schema.ts';
 import { fmtNum, metaboliteTag } from '../curve.ts';
 import {
   citedSources,
@@ -26,7 +26,7 @@ import {
 
 interface ProvenancePanelProps {
   compound: Compound;
-  route: Route;
+  route: DataRoute;
   /** Runtime derivations from the curve build, grouped under their input row. */
   derived: DerivedNote[];
   /**
