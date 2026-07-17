@@ -110,7 +110,7 @@ unpublished, and the in-flight run cancelled. Do **not** re-add a deploy without
 asking first. Work now comes from handoff §12 (extension points), picked for
 teaching value.
 
-**Seed set: 45 compounds** — the file count in `src/data/compounds/` is
+**Seed set: 46 compounds** — the file count in `src/data/compounds/` is
 authoritative, not this number. Adding a **linear** compound is pure data: drop in
 a JSON file and `loader.ts`'s `import.meta.glob` picks it up, with
 `loader.test.ts` deriving every route of it as an integration guard. No
@@ -128,7 +128,12 @@ engine/schema/derive change needed.
   the whole schedule is integrated as one ODE (fixed-step RK4 between dose events),
   never summed from single-dose curves. Pinned by the IV-bolus implicit solution
   `Km·ln(C0/C)+(C0−C)=(Vmax/Vd)·t`, the AUC + steady-state closed forms, mass
-  balance, and the `Km≫C` collapse onto `models.ts`. Ships **phenytoin + ethanol**.
+  balance, and the `Km≫C` collapse onto `models.ts`. Ships **phenytoin + ethanol +
+  theophylline**. Theophylline is the one to study: the same molecule ALSO appears as a
+  *linear* metabolite line on caffeine, ~150-300× below its Km, so that line is this
+  model's own low-concentration limit rather than a contradiction — the `Km≫C` collapse
+  as data. Its Vd is byte-identical across the two files on purpose; **no test compares
+  them**.
 - **Metabolites**, N per parent (not one), drawn in parallel off the shared
   parent CL. The route gate is `iv_bolus || oral || iv_infusion` across all
   three **linear** models (no metabolites off an MM parent).

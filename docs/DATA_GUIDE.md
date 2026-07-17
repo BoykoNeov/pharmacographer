@@ -79,8 +79,8 @@ before re-litigating any `linear: false` verdict below.
 doses may be summed as time-shifted single-dose curves (`dosing.ts`). It used to
 double as "we do not ship this", because superposition was the only mechanism the
 engine had. That is no longer true. `src/engine/modelsMM.ts` integrates a saturable
-compound's whole schedule as an ODE, and **phenytoin and ethanol now ship** as
-`linear: false`.
+compound's whole schedule as an ODE, and **phenytoin, ethanol and theophylline now
+ship** as `linear: false`.
 
 Three consequences for curation:
 
@@ -99,14 +99,31 @@ Three consequences for curation:
   moves the one number that must be right — see the ethanol entry.
 
 Still `linear: false` and **not shipped**, because no one has curated Vmax/Km for
-them: **high-dose aspirin/salicylate**, **theophylline**, **omeprazole**, **MDMA**,
-**naproxen**, **ondansetron** (see the notes below). These are no longer
-exclusions on principle — they are *un-curated nonlinear compounds*, and each is
-now a candidate for the MM engine if a source gives Vmax and Km. Note that
-omeprazole (auto-INHIBITION) and naproxen (concentration-dependent protein
-binding) are **not** Michaelis–Menten in shape, so they would need a further
-model, not just parameters; theophylline and salicylate are the plausible next
-MM ships.
+them: **high-dose aspirin/salicylate**, **omeprazole**, **MDMA**, **naproxen**,
+**ondansetron** (see the notes below). These are no longer exclusions on
+principle — they are *un-curated nonlinear compounds*, and each is now a
+candidate for the MM engine if a source gives Vmax and Km. Note that omeprazole
+(auto-INHIBITION) and naproxen (concentration-dependent protein binding) are
+**not** Michaelis–Menten in shape, so they would need a further model, not just
+parameters; **salicylate** is now the plausible next MM ship.
+
+**Theophylline shipped 2026-07-17** — it was on that list, and it is the worked
+example of what taking a compound off it costs. Wagner 1985's pooled Vmax/Km was
+the missing datum; everything else was already in the repo. Two of its lessons
+generalise:
+
+- **A single Vmax/Km may be a LUMPED fit — say so.** Theophylline runs three
+  parallel capacity-limited pathways (Tang-Liu 1982: Km 2.7 / 9.3 / 14.2 mg/L)
+  plus ~10% first-order renal. A sum of MM terms plus a linear term is **not** an
+  MM term, so its stored Km (24.1) is a weighted composite that measures no
+  enzyme. That is legitimate — Wagner fitted it to observed clearances as an
+  empirical whole-body model — but it is a real limit of the curve and belongs in
+  `notes`, not in the gap between them. Salicylate has the same shape.
+- **Shipping a compound can FALSIFY prose in files you are not touching.**
+  `caffeine.json` and `theobromine.json` both asserted theophylline was excluded;
+  both had to flip in the same commit. **Nothing in CI sees this** — `loader.test`
+  derives each file's own routes and never compares two files' claims. Before
+  shipping, grep the repo for the compound's name.
 
 ### Phenotype presets — curating a polymorphic compound (2026-07-17)
 
@@ -696,7 +713,10 @@ value was pulled from a source opened this session (labels/SmPC/reviews — the 
 each was ceiling-tested pre-write and magnitude-checked against the built engine curve.
 **Theophylline was evaluated and excluded** in the same pass — it has capacity-limited
 (Michaelis–Menten) elimination at/above the therapeutic range, the same superposition-breaking
-nonlinearity that excludes phenytoin (an exclude-with-rationale, not a ship-with-caveat).
+nonlinearity that then excluded phenytoin (an exclude-with-rationale, not a ship-with-caveat).
+**Both exclusions are SUPERSEDED** — phenytoin shipped 2026-07-17 with the Michaelis–Menten
+engine and theophylline followed it the same day (see the nonlinear sections above). The
+reasoning above is kept as the record of what was true before that engine existed.
 
 - **Ethosuximide (`compounds/ethosuximide.json`) — a new class (succinimide) and the very-long-
   half-life accumulation teacher.** The first-line absence-seizure drug: near-complete oral
@@ -980,11 +1000,14 @@ theobromine's oral Tmax.
   it). Parent disposition kept from the FDA label (t½ 5 h, Vd 0.6 L/kg, already shipped); metabolite
   params all from Lelo (paraxanthine t½ 3.1 h/Vd 0.59, theobromine 7.2 h/0.75, theophylline 6.2 h/0.50
   L/kg = CL·t½/ln2). Built curves (200 mg oral): parent 4.15 mg/L @ 1 h, paraxanthine 1.02 @ 6 h,
-  theobromine 0.17 @ 9 h, theophylline 0.08 @ 8 h. **Theophylline is drawn HERE but EXCLUDED as a
-  STANDALONE** (Michaelis-Menten nonlinearity at therapeutic 10-20 mg/L) — no contradiction: as a
-  ~3.4% metabolite it peaks ~0.1-0.2 mg/L, two decades below its Km, where first-order kinetics is
-  accurate (low-concentration, linear-valid); it must not be read as endorsing a linear standalone
-  theophylline curve. Theobromine ALSO ships as its own standalone (below), byte-identical disposition.
+  theobromine 0.17 @ 9 h, theophylline 0.08 @ 8 h. **Theophylline is drawn HERE as a LINEAR line and
+  ALSO ships as a MICHAELIS-MENTEN standalone** (2026-07-17) — no contradiction, and the tie is exact:
+  as a ~3.4% metabolite it peaks ~0.1-0.2 mg/L, ~150-300× below its Km (24.1 mg/L), and at `c ≪ Km`
+  the saturable rate `Vmax·c/(Km+c)` collapses to `(Vmax/Km)·c`, so this line **is** the standalone's own
+  low-concentration limit — the same tie the engine's `Km ≫ C` collapse test pins. It must still not be
+  read as endorsing a linear plot of a *therapeutic* theophylline dose. Byte-identical Vd (0.5 L/kg) holds
+  the two files together; the standalone's dilute-limit t½ (7.2 h) sits inside the 5-9 h range stored here.
+  Theobromine ALSO ships as its own standalone (below), byte-identical disposition.
 - **THE fm MW CONVENTION (reusable precedent — this pass's key lesson).** Lelo's "79.6% of total
   clearance" is a **MOLAR** fraction (partial clearance ÷ total clearance is dimensionless — the
   fraction of caffeine *molecules* on that path). But the engine's `fm` multiplies parent **MASS**
@@ -1008,8 +1031,9 @@ theobromine's oral Tmax.
   also caffeine's ~10%-mass-fm metabolite, drawn as one of caffeine.json's three parallel metabolite
   lines with a byte-identical Lelo-measured disposition — this standalone is the same molecule entered
   from the dietary direction, so the two files can never disagree.
-  **Linearity teaching pair:** theobromine (linear, shipped) vs its isomer theophylline (M-M nonlinear,
-  excluded) — two dimethylxanthine isomers on opposite sides of the superposition line. Ceiling test
+  **Linearity teaching pair — both now shipped:** theobromine (linear) vs its isomer theophylline (M-M
+  nonlinear, shipped 2026-07-17) — two dimethylxanthine isomers on opposite sides of the superposition
+  line, so switching between them changes the **model**, not just the numbers. Ceiling test
   clears: 500 mg oral F·D/V ceiling ~9.5 mg/L, built peak 7.1 mg/L @ 3 h (oral only — the dietary route).
 
 ### Three-compartment compounds — remifentanil and propofol shipped

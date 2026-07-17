@@ -8,6 +8,66 @@ must-follow instruction file — `CLAUDE.md` holds the working conventions and
 
 Newest first; test counts and commit hashes are as-of that milestone.
 
+**THEOPHYLLINE — the third `linear: false` ship, and the first compound that had to CONTRADICT the
+repo to be right (2026-07-17, advisor-reviewed, 512 tests, 45 → 46 compounds).** Pure data against the
+existing MM engine: `docs/DATA_GUIDE.md` had named theophylline and salicylate "the plausible next MM
+ships", needing only a citable Vmax/Km. **Wagner 1985** (Clin Pharmacokinet, PMID 3899457 — pooled
+Vmax 1960 mg/day, Km 24.1 mg/L over 10 normal subjects) was the one missing datum; everything else was
+already here.
+
+- **Why it earns a slot next to phenytoin (a gentler nonlinearity, at a different SCALE).** Phenytoin's
+  Km (7.9 mg/L) sits *below* its therapeutic range — already past half-saturation, cliff violent (+33%
+  dose more than doubles Css). Theophylline's Km (24.1) sits just *above* its 10-15 mg/L range: it is
+  used **on the bend**, not past it. Doubling 400 → 800 mg/day moves Css 6.2 → 16.6 mg/L (**2.69×**,
+  built-curve verified) — supralinear enough to respect, gentle enough to dose against. The commoner
+  clinical shape and the softer first lesson.
+- **The isomer pair is the real payload.** Theobromine (linear, shipped) and theophylline (M-M) are both
+  dimethylxanthines — same formula, same mass, differing only in which two of three nitrogens are
+  methylated — on **opposite sides of the superposition line**. Switching between them changes the
+  *model*, not the numbers. Nothing else in the set puts that boundary so close together.
+- **THE ADVISOR CATCH — shipping a compound FALSIFIED prose in files the diff never had to touch.**
+  `caffeine.json` (3 places) and `theobromine.json` both asserted, in shipped `notes`, that theophylline
+  was *excluded as a standalone*. The moment it shipped those became false statements inside the
+  epistemic-honesty product. **No test could ever see this**: `loader.test.ts` derives each file's own
+  routes and never compares two files' claims. The generalised rule now in `DATA_GUIDE.md`: **before
+  shipping a compound, grep the repo for its name** — a data-only ship is not a data-only diff.
+- **And the flip is a BETTER note than the exclusion was.** The same molecule now ships in two
+  representations — linear as caffeine's ~0.1-0.2 mg/L metabolite, nonlinear as the therapeutic-range
+  standalone — because Km sits ~150-300× above the metabolite's concentration, where `Vmax·c/(Km+c)`
+  collapses to `(Vmax/Km)·c`. The linear line **is** the saturable model's own low-concentration limit,
+  the same tie the engine's `Km≫C` collapse test already pins. The `Km≫C` oracle, as data.
+- **The discrepancy was owned, not smoothed (advisor).** The first framing — "7.2 h lands inside Lelo's
+  5-9 h range, so they agree" — understated it. The honest reading: the pooled dilute-limit CL
+  (`Vmax/Km` = 0.81 mL/kg/min) runs **~13% below** two independent direct measurements (Lelo 0.93,
+  Gundert-Remy 0.94), same physical regime. The tempting fix — re-deriving Vmax so `Vmax/Km` equals
+  Lelo's CL — was **refused**: Vmax and Km are correlated estimates from one fit, and moving one
+  produces a saturation curve nobody measured.
+- **What actually raised confidence was the FOUR-clearance ordering.** The FDA label's mean adult CL
+  (0.65 mL/kg/min, range 0.27-1.03) is an *apparent* CL at therapeutic levels, so under saturation it
+  must sit **below** the dilute-limit ceiling — and it does: the model gives 0.81 at c→0, 0.67 at 5 mg/L
+  (≈ the label's mean), 0.50-0.57 across 10-15 mg/L. All four figures fall inside the label's own range
+  and their *ordering* is what a saturable model predicts. Coherent picture, one named 15% residual.
+- **The honesty point: a single Vmax/Km is a LUMPED fit.** Tang-Liu 1982 followed all three products to
+  0.020 mg/L and found each pathway saturating separately (Km 2.7 / 9.3 / 14.2 mg/L) plus ~10%
+  never-saturating renal. A sum of MM terms plus a linear term is **not** an MM term — so the stored Km
+  (24.1) is a weighted composite measuring no enzyme. Wagner published it as exactly that. Right
+  resolution for the lesson (clearance falls with dose), wrong resolution for the mechanism.
+- **Vd is the one borrowed parameter, and that is argued, not smuggled.** `DATA_GUIDE.md` requires
+  Vmax/Km/Vd from one source — but that rule exists for the *ethanol* case, where the payload is the
+  zero-order slope `Vmax/Vd`. Theophylline is the *phenytoin* case: `Css = R0·Km/(Vmax−R0)` contains no
+  Vd at all. Wagner reports no volume, so Vd comes from Lelo — chosen because it keeps this file
+  byte-identical to `caffeine.json`, and corroborated by the label's 0.45 L/kg (0.3-0.7).
+- **IV-only is the right landing, not a compromise** — IV aminophylline is a loading dose plus a
+  constant-rate maintenance infusion, which is literally the `R0` in the Css relation. Oral is **parked
+  on sourcing**, a lighter gate than phenytoin's category error: theophylline oral is real and well
+  absorbed, it simply needs a citable *adult* ka (the one candidate found was paediatric, in a source not
+  opened). An adult ka drops oral straight in as data.
+- **Verification beyond the 512 green tests** (the standing trap): the built RK4 infusion plateau matches
+  the algebraic `Css = R0·Km/(Vmax−R0)` to **0.0000%** at every rate — an oracle, not an eyeball — and
+  0.4 mg/kg/h lands at 12.57 mg/L, inside the label's own 10-15 target (aminophylline ×0.8 cross-checked).
+  A scratch misuse of `firstOrderLimitRateMM` (it returns `ke`, 1/h — *not* clearance) failed the check
+  first; the engine was right and the check was wrong.
+
 **PHENOTYPE PRESETS — the `geneticFactors` seam becomes load-bearing (2026-07-17, advisor-reviewed,
 511 tests, 45 compounds).** §12's "variability beyond half-life". `geneticFactors` had sat in the
 schema as a bare `string[]` on five compounds, rendered nowhere — the data said "CYP2D6 dominates
