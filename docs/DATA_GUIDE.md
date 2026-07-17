@@ -623,6 +623,61 @@ label's 20–33 h — the single-ka model captures the flip-flop qualitatively b
 DR prolongation (a deliberate approximation, like ibuprofen's monophasic collapse). Verified:
 IV decays on the fast 3 h t½ while the oral curve rises to its 7 h peak and outlasts the IV curve.
 
+### Transdermal route — nicotine and fentanyl DEFERRED (2026-07-17), on the input-type screen
+
+The §12 "more routes" seam names transdermal, and the mode spine already computes a
+zero-order input (`infusionConcentrationFromModes`), so a patch looks nearly free: it is an
+IV infusion with `F < 1`. **Two candidates were gated against opened sources and both failed.**
+Recorded so the "a patch is just an infusion" intuition isn't re-litigated from the armchair.
+
+**The screen (reusable — apply it to any extravascular route).** The question is NOT "does the
+drug have a depot tail" or "what is its half-life" — it is **what absorption input TYPE did the
+source actually fit?** That one fact picks the driver, and it decides ship-vs-defer:
+
+| Input type the source fit | Driver | Verdict |
+| --- | --- | --- |
+| zero-order (+ lag) with `F` | `infusionConcentrationFromModes`, `r0·F` | ships |
+| first-order from a depot (`ka_td`) | `oralConcentrationFromModes`, IV-like `F`, no first pass | ships |
+| transit chain / Weibull / multi-phase / parallel paths | neither | **defer** |
+
+- **Nicotine transdermal — DEFERRED (parallel dual release + a transit chain + time-varying CL).**
+  The tempting case: `Gisleskog 2021` is ALREADY the file's IV disposition source and its title
+  covers transdermal, so the parameters looked in-hand, and a patch bypasses first pass entirely —
+  which would dodge the pre-systemic-cotinine problem that deferred oral nicotine (the oseltamivir
+  criterion). The source was opened (PMC8016787, free full text; the PubMed abstract alone is not
+  enough — the sub-model is a different section). It fits **two parallel release pathways** —
+  a fraction `Fr1` first-order at `Krel` 0.146/h, the remainder zero-order — each with its own lag
+  (**Lag1 0.53 h, Lag2 4.06 h**), feeding a **chain of transit compartments** (`Ktrs` 3.62/h, mean
+  transit time 1.1 h), with **product-specific** parameters (Nicorette `Fr1` 40% / `Frdur1` 44.5%
+  vs Invisipatch 71.9% / 96.2%) — so there is no single "nicotine patch" — and a **clearance that
+  rises 11.6% from 24 h**, which is not even time-invariant (superposition across a multi-day patch
+  schedule would not hold). Transdermal `F` = 75.8%. Three rows down the table at once. The
+  alternative source is no better: **Linakis 2017** (PMC5698581) fits an explicit **Weibull**
+  absorption (α 3.72, β 1.53) into a depot, and its 1-comp CL 90.4 L/h contradicts Gisleskog's
+  67.4 L/h anyway. nicotine.json's standing note — "transdermal ... complex absorption not modelled
+  here" — is hereby CONFIRMED with specifics, not overturned.
+- **Fentanyl transdermal — DEFERRED (skin depot ⇒ the washout is absorption-rate-limited).** The
+  best-looking zero-order case, because the label states the input as a constant rate outright
+  (25–100 µg/h) — the zero-order input handed over as data. It fails on the tail: a **cutaneous
+  depot** (1.07 ± 0.43 mg still in skin at removal) keeps absorbing after the patch is off, so the
+  post-removal apparent t½ (~17 h, range 13–22 h; **43 h in the elderly vs 20 h in the young**) is
+  the ABSORPTION rate, not fentanyl's own elimination — flip-flop, the intrinsic-vs-apparent trap
+  (morphine/digitoxin). A rectangular window would draw that tail on the wrong rate. Note the
+  honesty asymmetry: the patch-ON rise is faithfully zero-order, only the washout is not.
+
+**The seam is NOT dead — the untested clean case is a continuously-worn patch.** If the patch stays
+on for the whole plotted window, removal is never in frame and the depot tail cannot be drawn wrong;
+the curve is the honest "patch = wearable infusion → plateau at `R0·F/CL`". Clonidine (7-day constant
+delivery) and scopolamine (72 h) are the candidates; each costs one source-open on the **input-type
+screen above** — a stated constant delivery rate is necessary but NOT sufficient (fentanyl had one).
+
+**Right-sizing note: "more routes" is mostly data/UI, not engine.** The mode spine already computes
+both input types — infusion IS zero-order-in, oral IS first-order-in, and `batemanMode`'s `ka ≈ λ`
+guard already covers `ka < ke` flip-flop. What is actually missing is small: `F < 1` on the
+zero-order path, an optional lag/time-shift, and a first-order route that skips first pass. An
+SC/IM depot route is therefore the **oral driver** with IV-like `F` — a `Route` value, UI, data,
+and framing, with no new engine math. Do not bank a new route as new engine capability.
+
 ### Phase-7 seed expansion — 7 compounds added 2026-07-09
 
 Beyond the metabolite/flip-flop work above, the seed set grew from 10 → 17 compounds in one
