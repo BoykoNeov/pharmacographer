@@ -171,7 +171,17 @@ engine/schema/derive change needed.
   exactly one place, the oracle pair in `curve.test.ts`: parent Vd **cancels** in metabolite
   formation and F does not.
   **`ka` is deliberately not an axis** — it moves Tmax, invalidating the exact Bateman
-  peak instant `criticalTimes` pins.
+  peak instant `criticalTimes` pins. But `ka` still decides what the **half-life** axis
+  means: under **flip-flop** (`ka < ke`) the terminal slope is the ABSORPTION rate, so the
+  t½ slider moves the curve's HEIGHT and leaves its slope alone — the exact reverse of the
+  note the panel printed for every compound alike until acamprosate shipped (tail rate
+  invariant to 4 s.f. across its whole 2.5–3.5 h range while the peak moves 25%).
+  `HalfLifeAxisRegime` (`curve.ts`) computes which rate is limiting and the copy branches
+  on it. Decided at the range's **extremes**, not the nominal — a claim true only at the
+  default is not a claim about a control the reader is about to drag. The unused `mixed`
+  branch (a range straddling `ke = ka`) exists so a future straddling compound gets correct
+  copy instead of a fresh instance of this bug. See `docs/DATA_GUIDE.md`
+  "rate-limiting-step screen".
 - **Transdermal (`transdermal`)** — the §12 "more routes" seam, and it added **no engine
   math**: a patch is a ZERO-ORDER input, which `iv_infusion` already is, so `engineRouteOf`
   (`derive.ts`) maps it onto that path and the mode spine covers 1-/2-/3-comp alike. The

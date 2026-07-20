@@ -86,6 +86,33 @@ describe('variability axes, wired through App', () => {
     expect(text).toMatch(/CL = ke · Vd/);
   });
 
+  it('does NOT tell a flip-flop compound that the slider tilts its tail', () => {
+    // Acamprosate absorbs (ka ≈ 0.081/h) more slowly than it eliminates (ke ≈
+    // 0.198–0.277/h across the whole reported range), so its terminal slope is
+    // the ABSORPTION rate and does not move with this slider at all — pinned
+    // numerically in `curve.test.ts`. The generic axis note claims the opposite,
+    // and the point of this assertion is the negative one: prose written for the
+    // ordinary case must not be inherited by the case where it reverses. That is
+    // the transdermal `PeakNote` defect, which no type or numeric test can see.
+    mount();
+    selectCompound('Acamprosate');
+    const text = panelText();
+    expect(text).toMatch(/absorbs more slowly than it eliminates/i);
+    expect(text).not.toMatch(/changes how fast the curve falls/i);
+  });
+
+  it('DOES tell an ordinary compound that the slider tilts its tail', () => {
+    // The other side of the branch: the generic sentence is correct for every
+    // elimination-limited compound and must survive the flip-flop fix. Ibuprofen,
+    // not caffeine: the assertion needs a compound that HAS a half-life slider
+    // (caffeine reports a point value, so it gets the no-range note instead).
+    mount();
+    selectCompound('Ibuprofen');
+    const text = panelText();
+    expect(text).toMatch(/changes how fast the curve falls/i);
+    expect(text).not.toMatch(/absorbs more slowly than it eliminates/i);
+  });
+
   it('offers NO Vd slider for a two-compartment compound', () => {
     // Digoxin has a central and a peripheral volume; "the" Vd does not exist for
     // it, exactly as "the" half-life does not.
@@ -128,8 +155,7 @@ describe('variability axes, wired through App', () => {
     // usually sit outside the next compound's reported range entirely.
     mount();
     selectCompound('Acamprosate');
-    const slider = () =>
-      container!.querySelectorAll<HTMLInputElement>('.slider')[1]!; // [0] = t½, [1] = Vd
+    const slider = () => container!.querySelectorAll<HTMLInputElement>('.slider')[1]!; // [0] = t½, [1] = Vd
     const nominal = slider().value;
     act(() => {
       slider().value = slider().max;

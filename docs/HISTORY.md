@@ -8,6 +8,41 @@ must-follow instruction file — `CLAUDE.md` holds the working conventions and
 
 Newest first; test counts and commit hashes are as-of that milestone.
 
+**THE HALF-LIFE SLIDER LIED UNDER FLIP-FLOP — the rate-limiting-step screen (2026-07-20,
+advisor-reviewed, 556 → 563 tests, 47 compounds).** Not a feature: a defect found by asking what
+the newest compound falsifies in prose the diff never touched. The half-life slider's note read,
+for every compound alike, "this changes how fast the curve falls, not how high it starts."
+
+- **Under acamprosate it is backwards, and measurably so.** Acamprosate is the one shipped
+  flip-flop compound (`ka` ≈ 0.081/h < `ke` ≈ 0.198–0.277/h), so its terminal slope is the
+  ABSORPTION rate. Dragging the slider across its entire reported 2.5–3.5 h range leaves the tail
+  rate at 0.0806/h — unchanged to four significant figures — while the peak moves 25%. The panel
+  told the reader to watch the one thing that does not move.
+- **This is the third instance of one defect class**, which is why it got a named screen rather
+  than a patch. The transdermal `PeakNote` explained a patch with the oral peak story under a
+  curve that never peaks; the F axis nearly cloned the Vd ceteris-paribus template that does not
+  apply to it; now the t½ note. Every instance is invisible to types, to tests, and to the
+  numeric checks — the sentence renders, and the number it describes is in no assertion. The
+  screen generalises it: *does any on-screen sentence name a parameter as the CAUSE of a visible
+  feature of the curve?* That sentence is conditional on the parameter still being rate-limiting,
+  and a new compound may have taken that away.
+- **The regime is decided at the range's EXTREMES, not the nominal.** The note sits under a
+  control the reader is about to drag, so a claim that holds only at the default is not a claim
+  about the slider. `HalfLifeAxisRegime` compares `ka` against `ke` at both ends.
+- **The unused third branch is the point, not dead code.** `mixed` — a reported range straddling
+  `ke = ka`, where the slider genuinely does one thing at one end and the other at the other —
+  has no compound in it today. A two-state flag would have been smaller and would have silently
+  handed a straddling compound the wrong sentence: the exact failure being fixed, rebuilt while
+  fixing it. The advisor raised the straddle case before any copy was written, which is what made
+  the branch obvious rather than speculative.
+- **What the empirical check bought, and what a test caught after it.** The tail-rate table came
+  from building the curve at both slider extremes — the project's standing trap #1, since `npm
+  test` proves derivation and not numbers. It settled the regime question that algebra alone left
+  open. Then an EXISTING test failed on the new copy for a reason worth keeping: the first draft
+  dropped the "volume of distribution is held at its reported value" clause, which the reader
+  still needs. Rewriting the assertion would have shipped a real omission; the copy was fixed
+  instead.
+
 **VARIABILITY BEYOND HALF-LIFE — two new axes, and the §12 clause we declined to implement
 (2026-07-20, advisor-reviewed, 543 → 556 tests, 47 compounds).** The last unbuilt engine seam in
 §12. `VariabilitySlider` had varied one parameter since Phase 6; it now varies **half-life, Vd and

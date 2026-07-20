@@ -30,14 +30,25 @@ import {
   michaelisMentenCurve,
   type MichaelisMentenParams,
 } from '../engine/modelsMM.ts';
-import { concentrationCurve2c, oralPeakTime2c, twoCompModes, twoCompRates } from '../engine/models2c.ts';
+import {
+  concentrationCurve2c,
+  oralPeakTime2c,
+  twoCompModes,
+  twoCompRates,
+} from '../engine/models2c.ts';
 import {
   concentrationCurve3c,
   oralPeakTime3c,
   threeCompModes,
   threeCompRates,
 } from '../engine/models3c.ts';
-import type { DoseEvent, PkParams, Route, ThreeCompParams, TwoCompParams } from '../engine/types.ts';
+import type {
+  DoseEvent,
+  PkParams,
+  Route,
+  ThreeCompParams,
+  TwoCompParams,
+} from '../engine/types.ts';
 import { REFERENCE_WEIGHT_KG, concentration, time } from '../engine/units.ts';
 import {
   deriveMetaboliteDisposition,
@@ -58,7 +69,12 @@ import type { Compound, DataRoute } from '../data/schema.ts';
  * `transdermal` resolves onto the engine's zero-order `iv_infusion` via
  * `engineRouteOf`, so the engine never learns what a patch is (handoff §4, §12).
  */
-export const ENGINE_ROUTES: readonly DataRoute[] = ['oral', 'iv_bolus', 'iv_infusion', 'transdermal'];
+export const ENGINE_ROUTES: readonly DataRoute[] = [
+  'oral',
+  'iv_bolus',
+  'iv_infusion',
+  'transdermal',
+];
 
 /** Human-facing route names. */
 export const ROUTE_LABELS: Record<DataRoute, string> = {
@@ -139,7 +155,9 @@ export function routeOptions(compound: Compound): RouteOption[] {
         label,
         derivable,
         available: compound.routes.transdermal?.available ?? false,
-        reason: derivable ? undefined : 'No transdermal product data (delivery rate and wear duration) in this compound file',
+        reason: derivable
+          ? undefined
+          : 'No transdermal product data (delivery rate and wear duration) in this compound file',
       };
     }
     // IV routes only need disposition (Vd + ke), which every compound has.
@@ -155,7 +173,8 @@ export function routeOptions(compound: Compound): RouteOption[] {
  */
 export function defaultRoute(compound: Compound): DataRoute {
   const options = routeOptions(compound);
-  const preferred = options.find((o) => o.derivable && o.available) ?? options.find((o) => o.derivable);
+  const preferred =
+    options.find((o) => o.derivable && o.available) ?? options.find((o) => o.derivable);
   return preferred?.route ?? 'iv_bolus';
 }
 
@@ -504,6 +523,37 @@ interface CurveResultBase {
   horizonH: number;
 }
 
+/**
+ * Which rate the half-life slider can actually move, on THIS route.
+ *
+ * The slider's on-screen note used to say, for every compound alike, that it
+ * "changes how fast the curve falls, not how high it starts". That is true only
+ * while elimination is the slow step. Under **flip-flop kinetics** (`ka < ke`)
+ * the terminal slope is set by ABSORPTION, and the sentence inverts: dragging
+ * the slider across acamprosate's whole reported 2.5–3.5 h range leaves the tail
+ * rate pinned at ka (0.0806/h, unchanged to four significant figures) while the
+ * peak moves 25%. Copy written for the ordinary case and inherited silently by a
+ * compound where it reverses is this project's recurring defect — the
+ * transdermal `PeakNote` explaining a patch with the oral peak story, with every
+ * test green. So the regime is computed and the copy branches on it.
+ *
+ * Decided against the ke EXTREMES rather than the nominal, because the note sits
+ * under a control the reader is about to drag: a claim that holds only at the
+ * default is not a claim about the slider. `mixed` is the case no shipped
+ * compound has — a reported range that STRADDLES `ke = ka`, where the slider
+ * genuinely does one thing at one end and the other thing at the other. It earns
+ * its own branch anyway, because the alternative is a two-state flag that would
+ * quietly hand a straddling compound the wrong sentence, which is the exact
+ * failure this type exists to end.
+ */
+export type HalfLifeAxisRegime =
+  /** Ordinary: `ke < ka` across the whole reported range — the slider tilts the tail. */
+  | 'elimination_limited'
+  /** Flip-flop: `ka < ke` across the whole reported range — the slider moves height, not slope. */
+  | 'absorption_limited'
+  /** The reported range crosses `ke = ka`: the slider's effect changes partway along it. */
+  | 'mixed';
+
 /** A one-compartment chart result (the v1 model). */
 export interface OneCompartmentCurveResult extends CurveResultBase {
   model: 'one_compartment_first_order';
@@ -520,6 +570,8 @@ export interface OneCompartmentCurveResult extends CurveResultBase {
   fRange?: FRange;
   /** Elimination half-life, h (ln2 / ke) of the main curve — for the caption. */
   halfLifeH: number;
+  /** Which rate the half-life slider can move here — selects the slider's note. */
+  halfLifeAxisRegime: HalfLifeAxisRegime;
 }
 
 /** A two-compartment chart result (handoff §12). */
@@ -652,7 +704,11 @@ export interface CurveInput {
    * clearance co-vary: `CL = ke·Vd`. That choice is what keeps the two axes
    * visually orthogonal — the half-life slider tilts the tail at a fixed peak,
    * this one raises or lowers the peak at a fixed slope — so a reader can
-   * attribute the movement to a parameter. The alternative (hold CL fixed) would
+   * attribute the movement to a parameter. That orthogonality argument holds for
+   * THIS axis unconditionally (nothing about timing moves when Vd does) but the
+   * half-life half of it does not: under flip-flop the t½ slider moves the peak
+   * and leaves the slope alone, i.e. it does what this one does. See
+   * {@link HalfLifeAxisRegime}. The alternative (hold CL fixed) would
    * push `ke = CL/Vd` around and re-say what the half-life slider already says.
    * The on-screen copy states which is held constant; leaving it implicit would
    * make the curve ambiguous rather than merely under-explained.
@@ -935,7 +991,12 @@ function buildCurveMM(input: CurveInput): MichaelisMentenCurveResult {
  *     can straddle it, so the marked Cmax/Tmax would otherwise land a fraction
  *     of an hour off — visible against the Tmax the provenance panel reports.
  */
-function criticalTimes(route: Route, params: PkParams, doses: DoseEvent[], horizonH: number): number[] {
+function criticalTimes(
+  route: Route,
+  params: PkParams,
+  doses: DoseEvent[],
+  horizonH: number,
+): number[] {
   // Small enough to look vertical, large enough to stay well clear of the
   // dedupe threshold (so the pre-dose point is never merged into the dose time).
   const jumpEps = horizonH * 1e-5;
@@ -1008,7 +1069,8 @@ export function buildCurve(input: CurveInput): CurveResult {
     // A patch's window is its WEAR PERIOD, read from the product data; an IV
     // infusion's is the user's, from the controls.
     const requested = patch ? patch.wearDurationH : input.infusionDuration;
-    const infusionDuration = requested !== undefined && requested > 0 ? requested : DEFAULT_INFUSION_DURATION_H;
+    const infusionDuration =
+      requested !== undefined && requested > 0 ? requested : DEFAULT_INFUSION_DURATION_H;
     disposition = { ...base, infusionDuration };
   }
 
@@ -1018,7 +1080,8 @@ export function buildCurve(input: CurveInput): CurveResult {
   const nominalHalfLifeH = range?.nominal ?? Math.LN2 / base.ke;
 
   // Main line: slider override (if any), scaled around the derived ke.
-  const selectedHalfLifeH = input.halfLifeH !== undefined && input.halfLifeH > 0 ? input.halfLifeH : nominalHalfLifeH;
+  const selectedHalfLifeH =
+    input.halfLifeH !== undefined && input.halfLifeH > 0 ? input.halfLifeH : nominalHalfLifeH;
   const mainKe = scaleKe(base.ke, nominalHalfLifeH, selectedHalfLifeH);
 
   // Vd is varied with ke held fixed (see CurveInput.vdL): a pure vertical
@@ -1053,6 +1116,18 @@ export function buildCurve(input: CurveInput): CurveResult {
   const keSlow = range ? scaleKe(base.ke, nominalHalfLifeH, range.high) : mainKe;
   const keFast = range ? scaleKe(base.ke, nominalHalfLifeH, range.low) : mainKe;
 
+  // Which rate the half-life slider is actually able to move — see
+  // {@link HalfLifeAxisRegime}. Decided against the ke EXTREMES, not the nominal:
+  // the slider's copy has to hold everywhere the slider can go.
+  const halfLifeAxisRegime: HalfLifeAxisRegime =
+    engineRoute !== 'oral' || disposition.ka === undefined
+      ? 'elimination_limited'
+      : disposition.ka < keSlow
+        ? 'absorption_limited'
+        : disposition.ka >= keFast
+          ? 'elimination_limited'
+          : 'mixed';
+
   const doses = buildSchedule(schedule);
   const lastDoseTime = doses.reduce((latest, dose) => Math.max(latest, dose.time), 0);
 
@@ -1084,7 +1159,10 @@ export function buildCurve(input: CurveInput): CurveResult {
     : curveHorizon(engineRoute, { ...disposition, ke: slowestKe }, lastDoseTime);
   // Uniform grid for the overall shape, plus the exact dose/infusion instants so
   // discontinuous IV peaks aren't aliased (and the axis doesn't flicker).
-  const times = mergeGrid(sampleGrid(horizonH, samples), criticalTimes(engineRoute, params, doses, horizonH));
+  const times = mergeGrid(
+    sampleGrid(horizonH, samples),
+    criticalTimes(engineRoute, params, doses, horizonH),
+  );
 
   const concentrations = concentrationCurve(engineRoute, params, doses, times);
   const points = times.map((t, i) => ({ t, c: concentrations[i] ?? 0 }));
@@ -1182,6 +1260,7 @@ export function buildCurve(input: CurveInput): CurveResult {
     points,
     peak: findPeak(points),
     bands: bands.length > 0 ? bands : undefined,
+    halfLifeAxisRegime,
     halfLifeRange: range ?? undefined,
     vdRange: vdRange ?? undefined,
     fRange: fRange ?? undefined,
@@ -1254,17 +1333,22 @@ function criticalTimes2c(
   const jumpEps = horizonH * 1e-5;
   // Densify over the fastest early phase — α, or a faster absorption ka (oral).
   const fastRate =
-    route === 'oral' && params.ka !== undefined && params.ka > 0 ? Math.max(alpha, params.ka) : alpha;
+    route === 'oral' && params.ka !== undefined && params.ka > 0
+      ? Math.max(alpha, params.ka)
+      : alpha;
   const fastHalfLife = Math.LN2 / fastRate;
   const distEnd = Math.min(horizonH, 6 * fastHalfLife);
   const distStart = distEnd * 1e-3;
   const nDist = 40;
   // Geometric offsets spanning the early phase (dense near t = 0).
-  const distOffsets = Array.from({ length: nDist + 1 }, (_, i) =>
-    distStart * Math.pow(distEnd / distStart, i / nDist),
+  const distOffsets = Array.from(
+    { length: nDist + 1 },
+    (_, i) => distStart * Math.pow(distEnd / distStart, i / nDist),
   );
   const oralPeakOffset =
-    route === 'oral' && params.ka !== undefined && params.ka > 0 ? oralPeakTime2c(params) : undefined;
+    route === 'oral' && params.ka !== undefined && params.ka > 0
+      ? oralPeakTime2c(params)
+      : undefined;
   const marks: number[] = [];
   for (const dose of doses) {
     if (dose.time > horizonH) continue;
@@ -1455,16 +1539,21 @@ function criticalTimes3c(
   const jumpEps = horizonH * 1e-5;
   // Densify over the fastest early phase — α, or a faster absorption ka (oral).
   const fastRate =
-    route === 'oral' && params.ka !== undefined && params.ka > 0 ? Math.max(alpha, params.ka) : alpha;
+    route === 'oral' && params.ka !== undefined && params.ka > 0
+      ? Math.max(alpha, params.ka)
+      : alpha;
   const fastHalfLife = Math.LN2 / fastRate;
   const distEnd = Math.min(horizonH, 6 * fastHalfLife);
   const distStart = distEnd * 1e-3;
   const nDist = 40;
-  const distOffsets = Array.from({ length: nDist + 1 }, (_, i) =>
-    distStart * Math.pow(distEnd / distStart, i / nDist),
+  const distOffsets = Array.from(
+    { length: nDist + 1 },
+    (_, i) => distStart * Math.pow(distEnd / distStart, i / nDist),
   );
   const oralPeakOffset =
-    route === 'oral' && params.ka !== undefined && params.ka > 0 ? oralPeakTime3c(params) : undefined;
+    route === 'oral' && params.ka !== undefined && params.ka > 0
+      ? oralPeakTime3c(params)
+      : undefined;
   const marks: number[] = [];
   for (const dose of doses) {
     if (dose.time > horizonH) continue;

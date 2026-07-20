@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { buildCurve, metaboliteTag } from './curve.ts';
+import { buildCurve, halfLifeRangeH, metaboliteTag } from './curve.ts';
 import { loadAllCompounds } from '../data/loader.ts';
 import { REFERENCE_WEIGHT_KG } from '../engine/units.ts';
 import type { Compound } from '../data/schema.ts';
@@ -48,7 +48,11 @@ describe('buildCurve peak (Cmax/Tmax)', () => {
 
   it('reports the whole-course peak for a recurring oral schedule (accumulation)', () => {
     const caffeine = byId('caffeine');
-    const singlePeak = buildCurve({ compound: caffeine, route: 'oral', schedule: single(100) }).peak;
+    const singlePeak = buildCurve({
+      compound: caffeine,
+      route: 'oral',
+      schedule: single(100),
+    }).peak;
     const course = buildCurve({
       compound: caffeine,
       route: 'oral',
@@ -109,5 +113,73 @@ describe('metaboliteTag', () => {
   it('labels an inactive metabolite without the "active" qualifier', () => {
     expect(metaboliteTag(false)).toBe('— metabolite');
     expect(metaboliteTag(false)).not.toContain('active');
+  });
+});
+
+/**
+ * The half-life slider's on-screen note is route- and compound-dependent, and
+ * this is what makes it so: under flip-flop kinetics the slider moves the
+ * curve's HEIGHT and leaves its terminal SLOPE alone — the exact opposite of
+ * the sentence the panel printed for every compound alike before acamprosate
+ * shipped. Copy silently inherited by a case where it inverts is this project's
+ * recurring defect (the transdermal `PeakNote`), and it is invisible to a test
+ * that only checks the copy renders. So the test pins the BEHAVIOUR the copy
+ * describes, not the copy: if the tail ever starts responding to this slider,
+ * the sentence has become false and this fails.
+ */
+describe('half-life axis regime (flip-flop)', () => {
+  /** Terminal decay rate, 1/h, measured over the last quarter of the curve. */
+  const terminalRate = (points: { t: number; c: number }[]) => {
+    const tail = points.filter((p) => p.c > 0);
+    const a = tail[Math.floor(tail.length * 0.75)]!;
+    const b = tail[tail.length - 1]!;
+    return Math.log(a.c / b.c) / (b.t - a.t);
+  };
+
+  it('flags acamprosate’s oral curve as absorption-limited across its whole range', () => {
+    const curve = buildCurve({
+      compound: byId('acamprosate'),
+      route: 'oral',
+      schedule: single(666),
+    });
+    if (curve.model !== 'one_compartment_first_order') throw new Error('expected 1-comp');
+
+    // ka ≈ 0.081/h sits below ke even at the SLOWEST reported half-life (3.5 h
+    // ⇒ ke ≈ 0.198/h), so there is no part of the slider that is not flip-flop.
+    expect(curve.halfLifeAxisRegime).toBe('absorption_limited');
+  });
+
+  it('leaves the tail slope untouched and moves the peak, across that range', () => {
+    const acamprosate = byId('acamprosate');
+    const range = halfLifeRangeH(acamprosate);
+    if (!range) throw new Error('test fixture: acamprosate half-life range missing');
+
+    const at = (halfLifeH: number) =>
+      buildCurve({ compound: acamprosate, route: 'oral', schedule: single(666), halfLifeH });
+    const fast = at(range.low); // 2.5 h — the FASTEST elimination offered
+    const slow = at(range.high); // 3.5 h — the slowest
+
+    // The tail is ka-limited, so a 40% swing in ke moves it not at all. Tight
+    // tolerance on purpose: "barely moves" would pass even if the claim broke.
+    expect(terminalRate(slow.points)).toBeCloseTo(terminalRate(fast.points), 3);
+    // …while the height genuinely moves, which is what the note tells the reader
+    // to watch. Slower elimination ⇒ more accumulates ⇒ a higher peak.
+    expect(slow.peak.c).toBeGreaterThan(fast.peak.c * 1.1);
+  });
+
+  it('calls an ordinary compound elimination-limited', () => {
+    const curve = buildCurve({ compound: byId('caffeine'), route: 'oral', schedule: single(100) });
+    if (curve.model !== 'one_compartment_first_order') throw new Error('expected 1-comp');
+    expect(curve.halfLifeAxisRegime).toBe('elimination_limited');
+  });
+
+  it('calls a non-oral route elimination-limited — there is no ka to be slower', () => {
+    const curve = buildCurve({
+      compound: byId('acamprosate'),
+      route: 'iv_bolus',
+      schedule: single(666),
+    });
+    if (curve.model !== 'one_compartment_first_order') throw new Error('expected 1-comp');
+    expect(curve.halfLifeAxisRegime).toBe('elimination_limited');
   });
 });

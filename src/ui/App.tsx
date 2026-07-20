@@ -234,6 +234,13 @@ export function App() {
     curve.ok && curve.value.model === 'one_compartment_first_order'
       ? (curve.value.fRange ?? null)
       : null;
+  // Likewise the half-life slider's NOTE: whether that slider tilts the tail or
+  // moves the height is a fact about ka vs ke on the plotted route, so it is read
+  // off the same built curve rather than re-derived here.
+  const halfLifeRegime =
+    curve.ok && curve.value.model === 'one_compartment_first_order'
+      ? curve.value.halfLifeAxisRegime
+      : 'elimination_limited';
 
   return (
     <>
@@ -288,6 +295,7 @@ export function App() {
               valueH={halfLifeH ?? halfLifeRange?.nominal ?? 0}
               onChange={setHalfLifeH}
               noRangeReason={noRangeReason}
+              halfLifeRegime={halfLifeRegime}
               vdRange={vdRange}
               vdValueL={vdL ?? vdRange?.nominal}
               onVdChange={setVdL}

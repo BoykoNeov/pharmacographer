@@ -600,7 +600,7 @@ metabolite input rate from the parent `ka`** (a separate formation rate). This w
 intended flagship `ffp` compound and rejected on the timing datum — the reason morphine was shipped
 in its place.
 
-### Flip-flop (ka < ke) candidate — acamprosate (found, pending a curation judgment call)
+### Flip-flop (ka < ke) — acamprosate SHIPPED (the judgment call was made)
 
 The engine gained a flip-flop-aware oral horizon (all three `curveHorizon*` size the oral
 tail on `min(ka, terminal rate)`), but no shipped compound is flip-flop. A signature search
@@ -622,6 +622,38 @@ route. Documented caveat: matching Tmax gives a modelled oral terminal ~8.7 h, S
 label's 20–33 h — the single-ka model captures the flip-flop qualitatively but underestimates the
 DR prolongation (a deliberate approximation, like ibuprofen's monophasic collapse). Verified:
 IV decays on the fast 3 h t½ while the oral curve rises to its 7 h peak and outlasts the IV curve.
+
+**The screen shipping it should have run, run late (2026-07-20): a flip-flop compound falsifies
+the half-life slider's copy.** The slider's note read, for every compound alike, "this changes how
+fast the curve falls, not how high it starts." Under acamprosate oral that is **backwards**, and
+measurably so — dragging the slider across its whole reported 2.5–3.5 h range leaves the terminal
+rate pinned at ka = 0.0806/h (unchanged to four significant figures) while the peak moves 25%:
+
+| t½ | ke | peak (mg/L) | tail rate |
+| --- | --- | --- | --- |
+| 2.5 h | 0.2773 | 0.1411 | 0.08060 |
+| 3.0 h | 0.2310 | 0.1597 | 0.08060 |
+| 3.5 h | 0.1980 | 0.1768 | 0.08059 |
+
+Generalise this into the **rate-limiting-step screen**, and run it whenever a compound makes a
+parameter stop being the rate-limiting one: *does any on-screen sentence name a parameter as the
+cause of a visible feature of the curve?* If so, that sentence is conditional on that parameter
+still being rate-limiting, and the new compound may have taken that away. It is the transdermal
+`PeakNote` defect (oral peak prose under a curve that never peaks) with a different parameter, and
+it has now landed three times — the third being the F-axis copy that nearly cloned the Vd
+template. Every automated check is blind to it: the sentence renders, the types are satisfied,
+and the number it describes is not in any assertion.
+
+Two implementation notes worth reusing:
+
+- **Decide the regime at the range's EXTREMES, not the nominal.** The note sits under a control the
+  reader is about to drag, so a claim true only at the default is not a claim about the slider.
+  `HalfLifeAxisRegime` (`ui/curve.ts`) compares ka against ke at both ends of the reported range.
+- **Give the straddle case its own branch even with no compound in it.** A range that crosses
+  `ke = ka` does one thing at one end and the other at the other. A two-state flag would silently
+  hand such a compound the wrong sentence — rebuilding the exact failure being fixed. `mixed`
+  exists unused on purpose; a future curator who adds a straddling compound gets correct copy for
+  free rather than a fresh instance of this bug.
 
 ### Transdermal route — nicotine and fentanyl DEFERRED (2026-07-17), on the input-type screen
 

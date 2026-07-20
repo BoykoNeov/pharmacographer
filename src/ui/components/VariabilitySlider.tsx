@@ -28,7 +28,13 @@
  * dishonesty this panel exists to prevent.
  */
 
-import type { FRange, HalfLifeRange, VariabilityAxis, VdRange } from '../curve.ts';
+import type {
+  FRange,
+  HalfLifeAxisRegime,
+  HalfLifeRange,
+  VariabilityAxis,
+  VdRange,
+} from '../curve.ts';
 import { fmtNum, fmtPercent } from '../curve.ts';
 
 /** Why a compound has no half-life slider. */
@@ -47,6 +53,33 @@ const NO_RANGE_NOTES: Record<NoRangeReason, string> = {
     'This compound has more than one half-life at once — a fast distribution phase and a slower terminal one — so there is no single value to slide. The caption reports each phase separately.',
   nonlinear:
     'This compound has no fixed half-life to vary. Its elimination saturates, so the apparent half-life rises with concentration: it changes when you change the dose, which the caption shows as a range rather than a number. A slider here would imply a constant that does not exist.',
+};
+
+/**
+ * What the half-life slider does — which is not one thing.
+ *
+ * The ordinary sentence ("changes how fast the curve falls, not how high it
+ * starts") describes elimination being the slow step, which it is for every
+ * shipped compound but one. Under FLIP-FLOP kinetics (`ka < ke`) absorption is
+ * the slow step and the sentence reverses: on acamprosate the tail rate does not
+ * budge across the entire reported 2.5–3.5 h range, while the peak moves 25%.
+ * Printing the ordinary copy there would state the opposite of what the reader
+ * is watching happen. See {@link HalfLifeAxisRegime} for why the regime is
+ * decided at the range's extremes rather than at its nominal.
+ *
+ * The flip-flop copy does not merely negate the ordinary one — it says WHY, and
+ * the why is the whole reason a flip-flop compound is worth shipping: a curve's
+ * terminal slope is the slower of the two rates, so it is not automatically the
+ * elimination rate. That is the lesson acamprosate is on the compound list for,
+ * and the slider is where a reader can watch it fail to happen.
+ */
+const HALF_LIFE_NOTES: Record<HalfLifeAxisRegime, string> = {
+  elimination_limited:
+    'Volume of distribution is held at its reported value, so this changes how fast the curve falls, not how high it starts.',
+  absorption_limited:
+    'Volume of distribution is held at its reported value. This compound absorbs more slowly than it eliminates, so watch what does NOT move: the tail keeps the same slope wherever you put this slider, because that slope is the absorption rate, not the elimination rate. What changes is the height — a longer half-life clears each absorbed amount more slowly, so more accumulates. A curve’s terminal slope is always the slower of the two steps, which is only usually elimination.',
+  mixed:
+    'Volume of distribution is held at its reported value. This slider then does two different things across its own range: over part of it absorption is the slower step, and the tail holds its slope while the height moves; over the rest elimination is slower and the tail tilts as usual. The terminal slope always follows whichever step is slower, and this compound’s reported range crosses over between them.',
 };
 
 /**
@@ -79,8 +112,7 @@ const NO_RANGE_NOTES: Record<NoRangeReason, string> = {
  * adding, and confines itself to what is actually known.
  */
 const AXIS_NOTES: Record<VariabilityAxis, string> = {
-  half_life:
-    'Volume of distribution is held at its reported value, so this changes how fast the curve falls, not how high it starts.',
+  half_life: HALF_LIFE_NOTES.elimination_limited,
   vd: 'Half-life is held at the value above, so this scales the whole curve up or down without changing its slope — clearance moves with it (CL = ke · Vd).',
   f: 'This scales the dose that actually gets in, so it moves the curve up and down in exactly the same way the volume slider does. That is not a coincidence: an oral curve shows only the ratio V/F, so from the height alone you cannot tell whether someone absorbed more drug or has a smaller volume to dilute it in. They are still two different quantities, and the difference shows up off the parent line — changing F moves the metabolite curves, and changing the volume does not.',
 };
@@ -103,6 +135,11 @@ interface AxisSliderProps {
    * the reader work out what it is a fraction of.
    */
   format?: (value: number) => string;
+  /**
+   * Overrides {@link AXIS_NOTES} for this axis. Used only by half-life, whose
+   * note depends on which rate is rate-limiting ({@link HALF_LIFE_NOTES}).
+   */
+  note?: string;
   /** Unit shown after the value and the range, e.g. "h" or "L". */
   unit: string;
   low: number;
@@ -120,6 +157,7 @@ function AxisSlider({
   label,
   shortLabel,
   format,
+  note,
   unit,
   low,
   nominal,
@@ -175,7 +213,7 @@ function AxisSlider({
         />
         Show {shortLabel} band
       </label>
-      <p className="control__note control__note--quiet">{AXIS_NOTES[axis]}</p>
+      <p className="control__note control__note--quiet">{note ?? AXIS_NOTES[axis]}</p>
     </div>
   );
 }
@@ -188,6 +226,12 @@ interface VariabilitySliderProps {
   onChange: (halfLifeH: number) => void;
   /** Why there is no half-life slider — used only when `range` is null. */
   noRangeReason?: NoRangeReason;
+  /**
+   * Which rate the half-life slider can actually move, selecting its note.
+   * Defaults to the ordinary elimination-limited case, which is right for every
+   * shipped compound except the flip-flop one.
+   */
+  halfLifeRegime?: HalfLifeAxisRegime;
   /** The reported Vd range (absolute L), or null when the source gives none. */
   vdRange?: VdRange | null;
   /** Currently selected Vd, L. */
@@ -212,6 +256,7 @@ export function VariabilitySlider({
   valueH,
   onChange,
   noRangeReason = 'no_reported_range',
+  halfLifeRegime = 'elimination_limited',
   vdRange = null,
   vdValueL,
   onVdChange,
@@ -228,6 +273,7 @@ export function VariabilitySlider({
           axis="half_life"
           label="Half-life t½"
           shortLabel="t½"
+          note={HALF_LIFE_NOTES[halfLifeRegime]}
           unit="h"
           low={range.low}
           nominal={range.nominal}
