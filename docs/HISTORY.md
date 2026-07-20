@@ -8,6 +8,69 @@ must-follow instruction file — `CLAUDE.md` holds the working conventions and
 
 Newest first; test counts and commit hashes are as-of that milestone.
 
+**THE INTRAMUSCULAR ROUTE — SHARING AN INPUT TYPE IS NOT SHARING A ROUTE (2026-07-20,
+advisor-reviewed, 564 → 578 tests, 47 compounds).** The §12 "more routes" seam a second time, and
+like transdermal it added **no engine math**: an IM depot is a first-order input, which the engine's
+`oral` route already is, so `engineRouteOf` maps `im` onto it. What made this pass different from
+the patch is that `im` is the **first clinical route to share an engine input type with another
+clinical route**. `transdermal → iv_infusion` was invisible because nothing else used that input
+clinically; `im → oral` is not, because oral carries a fact the input shape does not: pre-systemic
+first-pass extraction.
+
+That produced three defects that all typecheck and none of which a test saw:
+
+- **`ffp` would have ridden an injection.** The engine applies a metabolite's `firstPassFraction` on
+  its `oral` path, and correctly cannot tell a needle from a tablet — that ignorance is what handoff
+  §4 buys. So `appliesFirstPass` strips it in the DATA layer. Nothing ships that exercises it
+  (morphine has `ffp` and defers), so it guards a trap, the unused-`mixed`-branch posture. The test
+  that pins it is the only kind worth writing here: give morphine a synthetic IM route with oral's
+  OWN `F` and `ka`, so the parent curves coincide exactly and any metabolite difference can only be
+  the first-pass term. **Mutating the guard fails it** — checked, because a guard test that passes
+  either way is decoration.
+- **The refactor was not a blanket replace.** Absorption and peak sites had to move from DataRoute
+  `oral` to the ENGINE route; first-pass sites had to STAY on DataRoute `oral`. Classified per site.
+  `criticalTimes`/`curveHorizon` already took a `Route`, so IM inherited its exact Bateman peak free.
+- **`PeakNote` explained an injection with the gut** — the patch-explained-as-a-tablet fallthrough,
+  one route later, 564 green tests and a happy typechecker. Found by launching the app. **The
+  route-ternary fallthrough is now a repeat offender; assume a third.**
+
+**Morphine IM was the best candidate and it DEFERS.** Stanski 1978 (8 healthy adults, IV and IM in
+the same subjects) is a clean first-order fit — absorption t½ 7.7 min, availability 100%, IM Cmax
+51–62 ng/mL. It fails the `F·D/V` ceiling **structurally**: 10 mg / 203 L = 49.3 ng/mL is BELOW the
+reported peak, and a 1-comp model cannot exceed that at any absorption rate. A 7.7-min input is the
+fastest extravascular input there is, so it probes the central compartment — the clonidine-oral
+failure, and the inverse of the clonidine rule: *the faster the input, the more compartments you
+need.* Rejected alternative: taking the low end of morphine's Vd range (2.1 L/kg) lifts the ceiling
+to 68 ng/mL and "passes" — the same manufacturing-a-population move the phenotype presets forbid.
+
+**Ketamine shipped, and redeemed its own prose** — the file, this document and DATA_GUIDE had all
+said "IV/IM" since it landed while offering IV alone. Three opened sources (Clements 1982, Hornik
+2018, Abuhelwa 2022) agree on the input TYPE while disagreeing sharply on `F` (41–93%), which is
+precisely why the screen asks about shape and not magnitude.
+
+**THE ADVISOR CATCH, and the sharpest thing in the pass: the app's own lesson turned on its author.**
+The first draft justified `F` = 0.644 partly because it pulled the peak from 1.76× to 1.22×, then
+attributed the leftover to Vc. **Both halves cannot stand.** A peak constrains `F` and Vc only
+through `F/Vc` — the V/F non-identifiability the variability panel exists to teach — so it can
+neither validate `F` nor convict Vc. The Vc-free discriminator (AUC = `F·D/CL`) was unusable: the one
+reported IM AUC is ~700× too small for its stated dose, so its units are wrong or elided, and an
+unresolvable number resolves nothing. `F` now rests on source choice alone, the counter-argument
+(Clements' 93% is the better population/route match) is written down beside it, and the ~1.1×
+residual is recorded as **unattributed** rather than blamed. Writing a false diagnosis into the
+curation record would have been worse than the residual.
+
+**A citation defect surfaced only because IM forced Vc to be looked at.** `centralVd` cited the
+Ketalar label for ~70 L and the clearance note credited the label with a "12–20 mL/min/kg range";
+**the SPL states no volume and no clearance anywhere**. Both are Mion 2013. Values right, citation
+wrong. The narrow lesson: *a value nothing ever tested is a value nobody ever had to open the source
+for* — every route ketamine offered before IM peaked somewhere unobservable (IV bolus at C(0), an
+infusion at a user-chosen rate), so IM is the first time these numbers faced a measured peak.
+
+**SC deliberately not shipped**, though the user asked for "IM / SC": Abuhelwa reports IM and SC
+pooled with "indistinguishable first-order absorption rate constants" and one combined 64% `F`. That
+is evidence they share an input shape, not a licence to write a route whose own numbers were never
+separated out. SC ships when a source reports SC alone.
+
 **THE HALF-LIFE SLIDER LIED UNDER FLIP-FLOP — the rate-limiting-step screen (2026-07-20,
 advisor-reviewed, 556 → 563 tests, 47 compounds).** Not a feature: a defect found by asking what
 the newest compound falsifies in prose the diff never touched. The half-life slider's note read,
