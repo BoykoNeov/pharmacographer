@@ -22,10 +22,59 @@
  * bright line, CLAUDE.md).
  */
 
-import type { Compound } from '../../data/schema.ts';
+import type { Compound, DataRoute } from '../../data/schema.ts';
+import { engineRouteOf } from '../../data/derive.ts';
 import { REFERENCE_WEIGHT_KG } from '../curve.ts';
 
-export function ModelAssumptionsNote({ model }: { model: Compound['model'] }) {
+/**
+ * The absorption assumption, which is a claim about the INPUT and therefore about
+ * the route — not about the compound. It used to be one fixed line reading "Oral
+ * input is a single exponential", printed under every curve regardless, and the
+ * rectal route's audit is what surfaced how wrong that had quietly become:
+ *
+ *  - under a TRANSDERMAL patch it was doubly false — the input is zero-order, not
+ *    first-order at all, so the panel named the wrong KIND of absorption while the
+ *    heading promised "what this model assumes";
+ *  - under an IV bolus or infusion there is no absorption step to assume anything
+ *    about, so the bullet was pure noise;
+ *  - under IM and rectal the shape claim was right but "oral" was the wrong noun,
+ *    and the gut caveat named organs those routes do not use.
+ *
+ * Same lesson as `PeakNote`, one panel over: prose keyed on nothing at all is prose
+ * keyed on whatever route happened to be in view when it was written.
+ */
+function absorptionAssumption(route: DataRoute) {
+  const engineRoute = engineRouteOf(route);
+  if (engineRoute === 'iv_bolus') return null;
+  if (engineRoute === 'iv_infusion') {
+    return (
+      <li>
+        <strong>Zero-order input.</strong>{' '}
+        {route === 'transdermal'
+          ? 'A patch is modelled as delivering drug at a constant rate for the whole wear period — no lag while the skin depot loads, and no variation with site, temperature, or adhesion.'
+          : 'The infusion is modelled as a constant rate over its stated duration, starting and stopping instantly.'}
+      </li>
+    );
+  }
+  return (
+    <li>
+      <strong>First-order absorption.</strong>{' '}
+      {route === 'oral'
+        ? 'Oral input is a single exponential; food, formulation, and gut effects are not modelled.'
+        : route === 'im'
+          ? 'Input from the muscle depot is a single exponential; injection site, volume, and formulation are not modelled.'
+          : 'Input from the rectal mucosa is a single exponential; insertion depth, formulation, and retention are not modelled — and it is insertion depth that decides how much of the dose drains portally, so the split behind this route’s F is exactly what a single exponential cannot show.'}
+    </li>
+  );
+}
+
+export function ModelAssumptionsNote({
+  model,
+  route,
+}: {
+  model: Compound['model'];
+  route: DataRoute;
+}) {
   const michaelisMenten = model === 'one_compartment_michaelis_menten';
   return (
     <section className="panel assumptions" aria-label="Model assumptions">
@@ -82,10 +131,7 @@ export function ModelAssumptionsNote({ model }: { model: Compound['model'] }) {
             differently for exactly this reason.
           </li>
         )}
-        <li>
-          <strong>First-order absorption.</strong> Oral input is a single
-          exponential; food, formulation, and gut effects are not modelled.
-        </li>
+        {absorptionAssumption(route)}
         <li>
           <strong>{REFERENCE_WEIGHT_KG} kg illustrative reference subject.</strong> Per-kilogram
           parameters are scaled to a fixed {REFERENCE_WEIGHT_KG} kg figure. This is a teaching

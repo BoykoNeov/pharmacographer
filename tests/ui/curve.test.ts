@@ -494,7 +494,7 @@ describe('buildCurve — Vd variability axis', () => {
 describe('fRangeOral — the bioavailability axis bounds', () => {
   it('converts percent to a fraction via the derived nominal', () => {
     // 60/80/100% against a derived nominal of 0.8.
-    const range = fRangeOral(rangedFCompound(), 0.8)!;
+    const range = fRangeOral(rangedFCompound(), 0.8, 'oral')!;
     expect(range.low).toBeCloseTo(0.6, 12);
     expect(range.nominal).toBe(0.8);
     expect(range.high).toBeCloseTo(1.0, 12);
@@ -502,7 +502,24 @@ describe('fRangeOral — the bioavailability axis bounds', () => {
 
   it('is null when the source reports a point F', () => {
     // `rangedOralCompound`'s F is 80% with no range.
-    expect(fRangeOral(rangedOralCompound(), 0.8)).toBeNull();
+    expect(fRangeOral(rangedOralCompound(), 0.8, 'oral')).toBeNull();
+  });
+
+  // Regression for the defect the rectal route's audit surfaced: this axis used to
+  // read `compound.routes.oral` directly while its caller gated on the ENGINE route,
+  // so an IM-only compound (ketamine has an `im` block and no `oral` one) silently
+  // lost its F band even though `im.F` carried a range. The band must come from the
+  // block belonging to the route being drawn.
+  it('reads the F range of the route being drawn, not always the oral block', () => {
+    const compound = rangedFCompound();
+    compound.routes.im = compound.routes.oral;
+    delete compound.routes.oral;
+    const range = fRangeOral(compound, 0.8, 'im')!;
+    expect(range).not.toBeNull();
+    expect(range.low).toBeCloseTo(0.6, 12);
+    expect(range.high).toBeCloseTo(1.0, 12);
+    // And it must not find an oral range that isn't there for this route.
+    expect(fRangeOral(compound, 0.8, 'oral')).toBeNull();
   });
 });
 

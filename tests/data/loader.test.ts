@@ -6,7 +6,7 @@ import {
   deriveParams3c,
   deriveParamsMM,
 } from '../../src/data/derive.ts';
-import type { DataRoute } from '../../src/data/schema.ts';
+import { DATA_ROUTES, type DataRoute } from '../../src/data/schema.ts';
 import { baseRawCompound } from './_fixtures.ts';
 
 describe('parseCompound', () => {
@@ -30,7 +30,10 @@ describe('parseCompound', () => {
  */
 describe('loadAllCompounds — every bundled compound is valid and derivable', () => {
   const compounds = loadAllCompounds();
-  const routes: DataRoute[] = ['iv_bolus', 'oral', 'iv_infusion', 'transdermal'];
+  // Iterate the schema's exhaustive tuple rather than a literal list. The literal
+  // that used to be here silently omitted `im`, so ketamine's IM route generated no
+  // derivation tests at all; DATA_ROUTES makes that omission a compile error.
+  const routes: readonly DataRoute[] = DATA_ROUTES;
 
   it('returns an array', () => {
     expect(Array.isArray(compounds)).toBe(true);

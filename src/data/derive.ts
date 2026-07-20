@@ -67,7 +67,7 @@ import { NONLINEAR_MODELS, type Compound, type DataRoute, type Metabolite } from
  */
 export function engineRouteOf(route: DataRoute): Route {
   if (route === 'transdermal') return 'iv_infusion';
-  if (route === 'im') return 'oral';
+  if (route === 'im' || route === 'rectal') return 'oral';
   return route;
 }
 
@@ -85,6 +85,21 @@ export function engineRouteOf(route: DataRoute): Route {
  * IM route (morphine has `ffp` but defers IM on the `F·D/V` ceiling test), so this
  * guards a trap rather than fixing a live bug — the same posture as the unused `mixed`
  * branch of `HalfLifeAxisRegime`.
+ *
+ * `rectal` RETURNS FALSE, AND THAT IS AN APPROXIMATION RATHER THAN A FACT — the one
+ * place this function stops being a clean partition (see {@link RectalRouteSchema}).
+ * Rectal drainage is split between the portal and systemic circulations, so part of a
+ * rectal dose genuinely does form metabolite pre-systemically. `false` is chosen over
+ * `true` because `ffp` needs a FRACTION, and no source quantifies the split: `true`
+ * would apply oral's whole `ffp` to a route that only partly earns it, which overstates
+ * by an unknown amount, while `false` understates by an amount bounded by the same
+ * unknown. What makes the approximation tolerable rather than merely convenient is
+ * that a rectal `F` is stored as an EMPIRICAL, lumped number — the pre-systemic loss is
+ * already inside it, so the parent curve is right either way, and only a metabolite's
+ * pre-systemic FORMATION is at stake. No shipped compound pairs `rectal` with `ffp`
+ * (diazepam is the only rectal compound and nordiazepam fails the first-pass timing
+ * screen outright), so, like the IM case above, this guards a trap. A compound that
+ * ever needs both wants a quantified split, not a flipped boolean.
  *
  * The stripping happens HERE, in the data layer, and not in the engine, because
  * "an injection bypasses first pass" is a clinical fact about routes of
@@ -106,20 +121,38 @@ export function appliesFirstPass(route: DataRoute): boolean {
 export function absorptionRouteOf(
   compound: Compound,
   route: DataRoute,
-): Compound['routes']['oral'] | Compound['routes']['im'] {
+): Compound['routes']['oral'] | Compound['routes']['im'] | Compound['routes']['rectal'] {
   if (route === 'oral') return compound.routes.oral;
   if (route === 'im') return compound.routes.im;
+  if (route === 'rectal') return compound.routes.rectal;
   return undefined;
 }
 
 /**
  * How to name this route's bioavailability in a warning or provenance row. An IM
- * `F` is absorption completeness; an oral `F` additionally carries first-pass loss.
- * Calling both "oral bioavailability" under an injection is the route-ternary
- * fallthrough that shipped a patch explained as a tablet (see `docs/HISTORY.md`).
+ * `F` is absorption completeness; an oral `F` additionally carries first-pass loss;
+ * a rectal `F` carries part of one. Calling both "oral bioavailability" under an
+ * injection is the route-ternary fallthrough that shipped a patch explained as a
+ * tablet (see `docs/HISTORY.md`), which is why this is a lookup and not a ternary
+ * chain — a route added to {@link DataRoute} without a name here fails to compile
+ * instead of silently inheriting the last branch.
  */
+const BIOAVAILABILITY_LABELS: Record<DataRoute, string> = {
+  oral: 'oral bioavailability F',
+  im: 'intramuscular bioavailability F',
+  rectal: 'rectal bioavailability F',
+  // Unreachable: every call site sits inside an `engineRouteOf(route) === 'oral'`
+  // guard, so only the three first-order routes above can arrive here. Named anyway
+  // because the Record is exhaustive by type — that exhaustiveness is the point, and
+  // a plausible-looking 'oral bioavailability F' in these three slots would be a
+  // false string waiting for the day a caller moves.
+  iv_bolus: 'bioavailability F',
+  iv_infusion: 'bioavailability F',
+  transdermal: 'bioavailability F',
+};
+
 export function bioavailabilityLabel(route: DataRoute): string {
-  return route === 'im' ? 'intramuscular bioavailability F' : 'oral bioavailability F';
+  return BIOAVAILABILITY_LABELS[route];
 }
 
 /** A patch's zero-order input, resolved to canonical units. */

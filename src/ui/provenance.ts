@@ -207,10 +207,12 @@ export function provenanceEntries(
     }
   }
 
-  // ── Absorption (the first-order routes: oral and IM) ─────────────────────
+  // ── Absorption (the first-order routes: oral, IM and rectal) ─────────────
   // Keyed on the ENGINE route so a first-order route added later cites its own
   // absorption parameters instead of silently showing none — but read through
-  // `absorptionRouteOf`, so IM cites the IM block and never oral's numbers.
+  // `absorptionRouteOf`, so IM cites the IM block and never oral's numbers. Rectal
+  // needed no change here, which is the design working: this is the seam that
+  // generalised correctly, unlike the prose ones keyed on the clinical route.
   if (engineRouteOf(route) === 'oral') {
     const absorption = absorptionRouteOf(compound, route);
     if (absorption?.F) rows.push(makeRow('F', absorption.F, compound));

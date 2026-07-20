@@ -245,6 +245,47 @@ const ImRouteSchema = z.strictObject({
   tmax: optionalParam(TimeUnit).optional(),
 });
 
+/**
+ * Rectal route (handoff §12; the "more routes" seam). A suppository or gel is a
+ * FIRST-ORDER input from a mucosal depot, so — like {@link ImRouteSchema} — it adds
+ * no engine math: `derive.ts` resolves it to the engine's `oral` route and the mode
+ * spine computes it for a 1-, 2- or 3-compartment disposition alike. The fields are
+ * oral's fields, and the shape-sharing is again the point.
+ *
+ * `F` IS A THIRD KIND, and this is the whole reason the route earns a schema of its
+ * own rather than reusing `ImRouteSchema`. The set now holds all three:
+ *
+ *  - `im`     — absorption completeness, NO first-pass term (an injection drains
+ *               straight to the systemic circulation).
+ *  - `oral`   — absorption × survival of the FULL first pass (gut wall + portal liver).
+ *  - `rectal` — absorption × survival of a PARTIAL first pass. The rectal venous
+ *               drainage is split: the superior rectal vein feeds the portal system,
+ *               the middle and inferior veins drain systemically. So some of the dose
+ *               crosses the liver first and some does not.
+ *
+ * That partial bypass is the route's teaching content, and it is also the trap. The
+ * textbook shorthand is "rectal bypasses first pass"; what the data says for diazepam
+ * is that it recovers only ~15 points of F (0.75 oral → 0.90 rectal) — a small gain,
+ * because diazepam is a LOW-EXTRACTION drug and there was little first pass to escape.
+ * A high-extraction drug would show a large gain. Never write the bypass as complete,
+ * and never copy `im`'s "carries no first-pass loss" sentence onto this route.
+ *
+ * The split fraction itself is NOT stored, and deliberately so: no source quantifies
+ * how much of a given dose took which vein, it varies with insertion depth, and
+ * manufacturing it would be the invented-population failure the phenotype presets and
+ * the unmerged variability bands both refuse. The stored `F` is empirical — it already
+ * contains whatever first-pass loss occurred, lumped and measured, which is the only
+ * honest form the number comes in. See `appliesFirstPass` in `derive.ts` for the one
+ * place that lumping has a consequence (a metabolite's `ffp`).
+ */
+const RectalRouteSchema = z.strictObject({
+  available: z.boolean(),
+  /** Empirical bioavailability — absorption × survival of a PARTIAL first pass. */
+  F: optionalParam(FractionUnit).optional(),
+  ka: optionalParam(RateConstantUnit).optional(),
+  tmax: optionalParam(TimeUnit).optional(),
+});
+
 /** Intravenous routes: F = 1 by definition; no absorption parameters. */
 const IvRouteSchema = z.strictObject({
   available: z.boolean(),
@@ -292,6 +333,7 @@ const TransdermalRouteSchema = z.strictObject({
 const RoutesSchema = z.strictObject({
   oral: OralRouteSchema.optional(),
   im: ImRouteSchema.optional(),
+  rectal: RectalRouteSchema.optional(),
   iv_bolus: IvRouteSchema.optional(),
   iv_infusion: IvRouteSchema.optional(),
   transdermal: TransdermalRouteSchema.optional(),
@@ -893,8 +935,46 @@ export type Metabolite = z.infer<typeof MetaboliteSchema>;
  * route that SHARES an engine input type does not thereby share every clinical fact
  * about that type. Oral carries pre-systemic first-pass extraction; an injection does
  * not. See {@link ImRouteSchema} and `appliesFirstPass` in `derive.ts`.
+ *
+ * `rectal` then shows that the shared fact is not even BINARY. Three routes now map to
+ * the engine's one first-order input, and each means something different by `F`: none
+ * (`im`), all (`oral`), and some-unquantified-part (`rectal`). A boolean was enough to
+ * separate the first two; the third is representable only because its `F` is measured
+ * whole rather than decomposed. See {@link RectalRouteSchema}.
  */
-export type DataRoute = 'oral' | 'im' | 'iv_bolus' | 'iv_infusion' | 'transdermal';
+export type DataRoute = 'oral' | 'im' | 'rectal' | 'iv_bolus' | 'iv_infusion' | 'transdermal';
+
+/**
+ * Every {@link DataRoute} as a RUNTIME value — the list a test can iterate.
+ *
+ * This exists because a hardcoded route list in a test is a silent coverage hole,
+ * and the project has now dug that hole twice: `tests/data/loader.test.ts` derives
+ * every bundled compound against a literal array, and when `im` shipped it was not
+ * added, so ketamine's IM route generated ZERO derivation tests for three days and
+ * nothing failed to tell us. `transdermal` was added by hand and got lucky. The
+ * `satisfies` clause below makes the omission a COMPILE error instead: drop a route
+ * from this tuple and the type no longer covers `DataRoute`.
+ *
+ * Presentation order lives separately in `ui/curve.ts` (`ENGINE_ROUTES`) — that is a
+ * UI concern and may reorder freely; this one is about exhaustiveness alone.
+ */
+export const DATA_ROUTES = [
+  'oral',
+  'im',
+  'rectal',
+  'iv_bolus',
+  'iv_infusion',
+  'transdermal',
+] as const satisfies readonly DataRoute[];
+
+// Compile-time proof the tuple above is EXHAUSTIVE, not merely well-typed: a
+// `satisfies readonly DataRoute[]` alone would happily accept a list missing `im`.
+// This assignment fails if any DataRoute member is absent from DATA_ROUTES.
+type _DataRoutesAreExhaustive = Exclude<DataRoute, (typeof DATA_ROUTES)[number]> extends never
+  ? true
+  : never;
+const _dataRoutesExhaustive: _DataRoutesAreExhaustive = true;
+void _dataRoutesExhaustive;
 
 /** A single provenance-carrying parameter (generic over unit). */
 export interface CompoundParameter {

@@ -379,7 +379,7 @@ export function App() {
                 derived={curve.value.derived}
                 metabolites={curve.value.metabolites}
               />
-              <ModelAssumptionsNote model={compound.model} />
+              <ModelAssumptionsNote model={compound.model} route={route} />
             </aside>
           )}
         </main>
@@ -519,6 +519,15 @@ export function PeakNote({
             // patch-explained-as-a-tablet bug again, one route later, and neither the
             // typechecker nor a test would have said a word.
             'An intramuscular dose rises as it is absorbed from the muscle depot and falls as it is eliminated; the peak (Tmax) is where those balance. The shape is a tablet’s, but the fraction is not: an injection drains straight to the systemic circulation, so its F is absorption completeness only — it carries no first-pass loss through gut wall and liver, which is why the same drug can reach far higher concentrations by needle than by mouth at the same dose.'
+          : route === 'rectal'
+            ? // The third meaning of F, and the reason this branch exists. IM's
+              // sentence above ("carries no first-pass loss") and oral's implicit full
+              // one are both FALSE here: rectal venous drainage is split, so the
+              // bypass is partial. Written for any rectal compound, not for diazepam —
+              // hence "how much it recovers depends on how much the liver was taking",
+              // which is true whatever the extraction ratio, rather than a number that
+              // would be a lie on the next compound (route-keyed copy binds them all).
+              'A rectal dose rises as it is absorbed across the rectal mucosa and falls as it is eliminated; the peak (Tmax) is where those balance — the same shape as a tablet. Its F is a third thing again: rectal veins drain PARTLY to the portal circulation and partly straight to the systemic one, so part of the dose meets the liver first and part escapes it. Rectal administration therefore recovers some, but not all, of what a swallowed dose loses to first pass — and how much it recovers depends on how much the liver was taking in the first place, so for a drug the liver barely extracts the gain is small.'
           : // The peak is where the two rates balance whichever one is slower, so
             // that clause holds in both regimes; what does NOT hold in both is
             // naming elimination as the cause of the fall.

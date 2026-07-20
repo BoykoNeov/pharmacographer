@@ -76,6 +76,7 @@ import type { Compound, DataRoute } from '../data/schema.ts';
 export const ENGINE_ROUTES: readonly DataRoute[] = [
   'oral',
   'im',
+  'rectal',
   'iv_bolus',
   'iv_infusion',
   'transdermal',
@@ -85,6 +86,7 @@ export const ENGINE_ROUTES: readonly DataRoute[] = [
 export const ROUTE_LABELS: Record<DataRoute, string> = {
   oral: 'Oral',
   im: 'Intramuscular',
+  rectal: 'Rectal',
   iv_bolus: 'IV bolus',
   iv_infusion: 'IV infusion',
   transdermal: 'Transdermal patch',
@@ -170,10 +172,11 @@ function hasAbsorptionData(compound: Compound, route: DataRoute): boolean {
 export function routeOptions(compound: Compound): RouteOption[] {
   return ENGINE_ROUTES.map((route) => {
     const label = ROUTE_LABELS[route];
-    if (route === 'oral' || route === 'im') {
-      // Both first-order routes need their OWN absorption data. An IM route must not
-      // fall back to the oral block: the two have different ka (a depot is not a gut)
-      // and different F (only one of them is net of first pass).
+    if (route === 'oral' || route === 'im' || route === 'rectal') {
+      // All three first-order routes need their OWN absorption data. None may fall
+      // back to the oral block: they have different ka (a depot is not a gut, a rectal
+      // mucosa is neither) and different F (oral's is net of a full first pass, IM's of
+      // none, rectal's of a partial one).
       const derivable = hasAbsorptionData(compound, route);
       return {
         route,
@@ -470,8 +473,16 @@ export interface FRange {
  * reproduces the derived F exactly, so "every slider at nominal" stays provably
  * the pre-feature curve.
  */
-export function fRangeOral(compound: Compound, baseF: number): FRange | null {
-  const f = compound.routes.oral?.F;
+export function fRangeOral(compound: Compound, baseF: number, route: DataRoute): FRange | null {
+  // Read through `absorptionRouteOf`, NOT `compound.routes.oral`. Reaching for the
+  // oral block directly was a live defect this route's audit surfaced: the caller
+  // gates on the ENGINE route, so every first-order route arrived here, and ketamine
+  // — which has an `im` block and no `oral` one — silently lost its F band entirely
+  // while `im.F` carried a perfectly good range. A compound with BOTH blocks would
+  // have been worse than a missing band: it would have painted oral's relative spread
+  // onto the IM number, and nothing on screen would have said so. Same lesson as
+  // `absorptionRouteOf`'s own docstring, one axis later.
+  const f = absorptionRouteOf(compound, route)?.F;
   // `F` is an OPTIONAL param, so its `value` may be null even when the field is
   // present — a compound can record a range with no point estimate. That is not a
   // case this axis can serve: without a nominal there is nothing for the ratio
@@ -1136,7 +1147,7 @@ export function buildCurve(input: CurveInput): CurveResult {
   // axis is gated on the ENGINE route — which puts `transdermal` on the excluded
   // side along with the IV routes, exactly where it belongs.
   const baseF = base.F ?? 1;
-  const fRange = engineRoute === 'oral' ? fRangeOral(compound, baseF) : null;
+  const fRange = engineRoute === 'oral' ? fRangeOral(compound, baseF, route) : null;
   const mainF = fRange && input.F !== undefined && input.F > 0 ? input.F : baseF;
 
   // `F` is written back only on the oral path. On an IV/transdermal curve
