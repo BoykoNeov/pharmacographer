@@ -644,6 +644,18 @@ it has now landed three times — the third being the F-axis copy that nearly cl
 template. Every automated check is blind to it: the sentence renders, the types are satisfied,
 and the number it describes is not in any assertion.
 
+**Run the screen per CLAUSE, not per component — the first pass at this fix failed its own
+screen.** Having written the screen above, the fixing session then looked at the chart caption
+(`PeakNote`), reasoned that "the peak (Tmax) is where those balance" survives flip-flop (it does —
+the peak is where the rates cross whichever is slower), and waved the caption through. The
+sentence's OTHER clause was "and **falls as it is eliminated**" — naming elimination as the cause
+of the falling limb, the identical misattribution, on screen directly under the chart, on the one
+compound that exists to teach otherwise. An advisor pass caught it. Half a sentence holding is not
+the sentence holding, and a component is not the unit of review: the unit is every clause that
+asserts a cause. It also shows what the nearby flip-flop warning strip does NOT buy — a correct
+statement elsewhere on the page never repairs a false one here, the same reason it did not rescue
+the slider note.
+
 Two implementation notes worth reusing:
 
 - **Decide the regime at the range's EXTREMES, not the nominal.** The note sits under a control the

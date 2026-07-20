@@ -113,6 +113,20 @@ describe('variability axes, wired through App', () => {
     expect(text).not.toMatch(/absorbs more slowly than it eliminates/i);
   });
 
+  it('does NOT tell a flip-flop compound its curve falls as it is eliminated', () => {
+    // The CAPTION, not the slider — a separate surface making the identical
+    // misattribution, and the one the first pass at this fix walked past because
+    // the sentence's OTHER clause ("the peak is where those balance") does
+    // survive flip-flop. Half a sentence holding is not the sentence holding.
+    // Reads the whole document, since the caption lives under the chart rather
+    // than in the controls panel.
+    mount();
+    selectCompound('Acamprosate');
+    const text = container!.textContent ?? '';
+    expect(text).toMatch(/what the curve falls at after the peak is the absorption rate/i);
+    expect(text).not.toMatch(/rises as it is absorbed and falls as it is eliminated/i);
+  });
+
   it('offers NO Vd slider for a two-compartment compound', () => {
     // Digoxin has a central and a peripheral volume; "the" Vd does not exist for
     // it, exactly as "the" half-life does not.

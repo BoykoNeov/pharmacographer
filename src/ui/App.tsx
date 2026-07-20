@@ -40,6 +40,7 @@ import {
   type ConcentrationDisplayUnit,
   type CurveResult,
   type DoseSchedule,
+  type HalfLifeAxisRegime,
   type VariabilityAxis,
   DEFAULT_DOSE_MG,
   DEFAULT_INFUSION_DURATION_H,
@@ -343,7 +344,7 @@ export function App() {
                 {compound?.displayNote && (
                   <p className="caption caption--emphasis">{compound.displayNote}</p>
                 )}
-                <PeakNote route={route} schedule={schedule} />
+                <PeakNote route={route} schedule={schedule} halfLifeRegime={halfLifeRegime} />
                 {/* Metabolite derivation cautions are folded in alongside the
                     parent's — currently dormant (diazepam's fm is in range) but
                     honest plumbing so a metabolite warning is never dropped. */}
@@ -475,8 +476,26 @@ function ModelCaption({ route, schedule, infusionDuration, curve, concUnit }: Mo
  * distinct from the dynamic values in the caption (which restate the numbers).
  * The peak means something different per route, so the phrasing is route-aware;
  * a recurring course marks the whole-course peak, NOT a steady-state value.
+ *
+ * The oral clause is ALSO regime-aware, which the first pass at the flip-flop fix
+ * missed: "falls as it is eliminated" names elimination as the cause of the
+ * falling limb, and under flip-flop the limb falls at ka instead. Fixing the
+ * slider's note and leaving this one would have left the misattribution on screen
+ * in a second place, directly under the chart, on the very compound that exists
+ * to teach that a terminal slope is not automatically elimination. The
+ * rate-limiting-step screen in `docs/DATA_GUIDE.md` is written to catch exactly
+ * this — every sentence naming a parameter as the CAUSE of a visible feature —
+ * and it has to be run against each such sentence, not against the component.
  */
-export function PeakNote({ route, schedule }: { route: DataRoute; schedule: DoseSchedule }) {
+export function PeakNote({
+  route,
+  schedule,
+  halfLifeRegime = 'elimination_limited',
+}: {
+  route: DataRoute;
+  schedule: DoseSchedule;
+  halfLifeRegime?: HalfLifeAxisRegime;
+}) {
   const totalDoses = schedule.count + schedule.adHoc.length;
   const routeMeaning =
     route === 'iv_bolus'
@@ -487,7 +506,12 @@ export function PeakNote({ route, schedule }: { route: DataRoute; schedule: Dose
           ? // Deliberately NOT the Cmax/Tmax language: a worn patch has no peak to
             // name. Phrased for every patch, not just one that reached its plateau.
             'A patch worn continuously has no peak at all: it climbs steadily toward a plateau at Css = R0/CL — set by clearance alone, not by Vd — and never turns over, because nothing is ever taken off. The marker is simply the concentration reached when the wear period ends, so its time is a property of the product, not of the drug.'
-          : 'An oral dose rises as it is absorbed and falls as it is eliminated; the peak (Tmax) is where those balance.';
+          : // The peak is where the two rates balance whichever one is slower, so
+            // that clause holds in both regimes; what does NOT hold in both is
+            // naming elimination as the cause of the fall.
+            halfLifeRegime === 'elimination_limited'
+            ? 'An oral dose rises as it is absorbed and falls as it is eliminated; the peak (Tmax) is where those balance.'
+            : 'An oral dose rises as it is absorbed and falls once elimination outpaces what is still arriving; the peak (Tmax) is where those balance. Here absorption is the slower step, so what the curve falls at after the peak is the ABSORPTION rate — the drug is eliminated as fast as it gets in, and the tail measures how slowly it arrives, not how quickly it leaves.';
   const scheduleCaveat =
     totalDoses > 1
       ? ' With repeated doses the marker is the highest point of the whole plotted course (the last-dose accumulation peak) — not a steady-state value; the course may not have reached steady state.'

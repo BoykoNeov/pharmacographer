@@ -35,6 +35,14 @@ for every compound alike, "this changes how fast the curve falls, not how high i
   handed a straddling compound the wrong sentence: the exact failure being fixed, rebuilt while
   fixing it. The advisor raised the straddle case before any copy was written, which is what made
   the branch obvious rather than speculative.
+- **The screen's own author walked past a fourth instance of it.** With the slider fixed, the
+  chart caption (`PeakNote`) was inspected and cleared on the grounds that "the peak (Tmax) is
+  where those balance" survives flip-flop — true, and the wrong half of the sentence. The other
+  clause read "and falls as it is eliminated", the identical misattribution, on screen under the
+  chart, on the compound shipped to teach otherwise. An advisor pass caught it and it is fixed in
+  the same commit. The lesson is the review UNIT: the screen has to run against every clause that
+  asserts a cause, not against components, and a correct sentence nearby (the flip-flop warning
+  strip sits inches away) never repairs a false one.
 - **What the empirical check bought, and what a test caught after it.** The tail-rate table came
   from building the curve at both slider extremes — the project's standing trap #1, since `npm
   test` proves derivation and not numbers. It settled the regime question that algebra alone left
