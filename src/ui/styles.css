@@ -274,6 +274,31 @@ body {
   padding: 0;
 }
 
+/* The show-band checkbox sits with its own slider, so the reported range and the
+   shaded region it draws read as one control rather than two related settings in
+   different corners of the screen. */
+.band-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.band-toggle input {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* The per-axis "what is held constant" line. Quieter than `.control__note`,
+   which is styled as a caveat (warn colour) — this is standing explanation, not
+   a caution, and colouring it as one would cry wolf on every compound. */
+.control__note--quiet {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
 /* ── Compound "About" box (above the chart) ──────────────────────────────────
    FIXED height on purpose: the box must not change size when the compound
    switches, so the chart's top edge stays anchored (no jump). The schema caps

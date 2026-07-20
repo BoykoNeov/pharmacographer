@@ -5,7 +5,9 @@ import {
   buildCurve2c,
   buildCurve3c,
   buildSchedule,
+  bandFor,
   halfLifeRangeH,
+  vdRangeL,
   type DoseSchedule,
 } from '../../src/ui/curve.ts';
 import { singleDoseAuc2c } from '../../src/engine/pk.ts';
@@ -57,6 +59,65 @@ function rangedOralCompound() {
     F: { value: 80, unit: 'percent', derived: false, sourceRef: 'ref' },
     tmax: { value: 1.5, unit: 'h', derived: false, sourceRef: 'ref' },
   };
+  return parseCompound(raw);
+}
+
+/**
+ * The IV-bolus fixture with a reported Vd range 0.3–0.9 L/kg (nominal 0.5) and no
+ * half-life range — so the ONLY band it produces is the Vd one.
+ */
+function rangedVdCompound() {
+  const raw = baseRawCompound();
+  (raw.disposition as Record<string, unknown>).vd = {
+    value: 0.5,
+    range: [0.3, 0.9],
+    unit: 'L/kg',
+    derived: false,
+    sourceRef: 'ref',
+  };
+  return parseCompound(raw);
+}
+
+/** Both parameters ranged — the fixture that can expose a merged envelope. */
+function rangedBothCompound() {
+  const raw = baseRawCompound();
+  (raw.disposition as Record<string, unknown>).halfLife = {
+    value: 4,
+    range: [2, 8],
+    unit: 'h',
+    derived: false,
+    sourceRef: 'ref',
+  };
+  (raw.disposition as Record<string, unknown>).vd = {
+    value: 0.5,
+    range: [0.3, 0.9],
+    unit: 'L/kg',
+    derived: false,
+    sourceRef: 'ref',
+  };
+  return parseCompound(raw);
+}
+
+/** `rangedVdCompound` that also forms a metabolite off the shared parent CL. */
+function rangedVdMetaboliteCompound() {
+  const raw = baseRawCompound();
+  (raw.disposition as Record<string, unknown>).vd = {
+    value: 0.5,
+    range: [0.3, 0.9],
+    unit: 'L/kg',
+    derived: false,
+    sourceRef: 'ref',
+  };
+  raw.metabolites = [
+    {
+      id: 'testmetabolite',
+      name: 'Testmetabolite',
+      active: true,
+      fractionFormed: { value: 0.6, unit: 'fraction', derived: false, sourceRef: 'ref' },
+      vd: { value: 1.0, unit: 'L/kg', derived: false, sourceRef: 'ref' },
+      halfLife: { value: 20, unit: 'h', derived: false, sourceRef: 'ref' },
+    },
+  ];
   return parseCompound(raw);
 }
 
@@ -234,19 +295,22 @@ describe('halfLifeRangeH — reading the reported range', () => {
   });
 });
 
-describe('buildCurve — variability band', () => {
+describe('buildCurve — half-life variability band', () => {
   const ranged = rangedCompound();
+  const halfLifeBand = (input: Parameters<typeof buildCurve>[0]) =>
+    bandFor(build1c(input).bands, 'half_life');
 
   it('omits the band when the compound reports no half-life range', () => {
-    const { band, halfLifeRange } = build1c({ compound, route: 'iv_bolus', schedule: single(350) });
-    expect(band).toBeUndefined();
+    const { bands, halfLifeRange } = build1c({ compound, route: 'iv_bolus', schedule: single(350) });
+    expect(bandFor(bands, 'half_life')).toBeUndefined();
     expect(halfLifeRange).toBeUndefined();
   });
 
   it('envelopes the main curve: cLow ≤ c ≤ cHigh at every sample', () => {
-    const { points, band } = build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350) });
+    const { points, bands } = build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350) });
+    const band = bandFor(bands, 'half_life');
     expect(band).toBeDefined();
-    band!.forEach((b, i) => {
+    band!.points.forEach((b, i) => {
       const c = points[i]!.c;
       expect(b.cLow).toBeLessThanOrEqual(c + 1e-9);
       expect(c).toBeLessThanOrEqual(b.cHigh + 1e-9);
@@ -254,25 +318,145 @@ describe('buildCurve — variability band', () => {
   });
 
   it('the slow (long-t½) edge decays above the fast edge after the peak', () => {
-    const { band } = build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350) });
+    const band = halfLifeBand({ compound: ranged, route: 'iv_bolus', schedule: single(350) })!;
     // Pick a mid-curve sample; IV bolus starts at the same C(0), then the longer
     // half-life sits strictly above the shorter one.
-    const mid = band![Math.floor(band!.length / 2)]!;
+    const mid = band.points[Math.floor(band.points.length / 2)]!;
     expect(mid.cHigh).toBeGreaterThan(mid.cLow);
   });
 
-  it('the band is FIXED at the reported extremes, independent of the slider', () => {
-    const atLow = build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350), halfLifeH: 2 });
-    const atHigh = build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350), halfLifeH: 8 });
-    expect(atLow.band).toEqual(atHigh.band);
+  it('the band is FIXED at the reported extremes, independent of its own slider', () => {
+    const atLow = halfLifeBand({ compound: ranged, route: 'iv_bolus', schedule: single(350), halfLifeH: 2 });
+    const atHigh = halfLifeBand({ compound: ranged, route: 'iv_bolus', schedule: single(350), halfLifeH: 8 });
+    expect(atLow).toEqual(atHigh);
   });
 
   it('envelopes the ORAL curve too (absorption phase included)', () => {
     const oral = rangedOralCompound();
-    const { points, band } = build1c({ compound: oral, route: 'oral', schedule: single(350) });
-    expect(band).toBeDefined();
-    band!.forEach((b, i) => {
+    const { points, bands } = build1c({ compound: oral, route: 'oral', schedule: single(350) });
+    const band = bandFor(bands, 'half_life')!;
+    band.points.forEach((b, i) => {
       const c = points[i]!.c;
+      expect(b.cLow).toBeLessThanOrEqual(c + 1e-9);
+      expect(c).toBeLessThanOrEqual(b.cHigh + 1e-9);
+    });
+  });
+});
+
+describe('vdRangeL — the Vd axis bounds', () => {
+  it('returns null when the source reports no Vd range', () => {
+    expect(vdRangeL(compound, VD_ABS)).toBeNull();
+  });
+
+  it('scales the reported per-kg range against the DERIVED nominal', () => {
+    // Fixture Vd is 0.5 L/kg (range 0.3–0.9) → 35 L nominal against the 70 kg
+    // reference subject, so the edges must land on 21 L and 63 L. Expressing the
+    // range as a ratio of the derived nominal is what keeps the slider on the same
+    // scale as the curve for a per-kg compound.
+    const range = vdRangeL(rangedVdCompound(), VD_ABS)!;
+    expect(range.low).toBeCloseTo(21, 12);
+    expect(range.nominal).toBe(VD_ABS);
+    expect(range.high).toBeCloseTo(63, 12);
+  });
+});
+
+describe('buildCurve — Vd variability axis', () => {
+  const ranged = rangedVdCompound();
+
+  it('the nominal Vd reproduces the compound default EXACTLY (identity anchor)', () => {
+    // The whole default view rests on this: every slider at nominal must be the
+    // pre-feature curve, not merely one that looks like it.
+    const dflt = build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350) });
+    const nominal = build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350), vdL: VD_ABS });
+    expect(nominal.params.vd).toBe(dflt.params.vd);
+    expect(nominal.points).toEqual(dflt.points);
+  });
+
+  it('holds ke FIXED as Vd moves, so clearance is what co-varies', () => {
+    const small = build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350), vdL: 21 });
+    const large = build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350), vdL: 63 });
+    expect(small.params.ke).toBeCloseTo(large.params.ke, 12);
+    expect(small.halfLifeH).toBeCloseTo(large.halfLifeH, 12);
+  });
+
+  it('is a pure VERTICAL rescale: C scales as 1/Vd at every sample', () => {
+    // The analytic oracle for this axis. Every 1-comp mode coefficient carries
+    // 1/Vd, so at fixed ke halving the volume must double the whole curve —
+    // timing untouched. This is what makes the axis visually orthogonal to the
+    // half-life slider, and it is checked rather than assumed.
+    const dflt = build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350) });
+    const half = build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350), vdL: VD_ABS / 2 });
+    expect(half.horizonH).toBe(dflt.horizonH);
+    half.points.forEach((p, i) => {
+      expect(p.t).toBeCloseTo(dflt.points[i]!.t, 12);
+      expect(p.c).toBeCloseTo(dflt.points[i]!.c * 2, 10);
+    });
+  });
+
+  it('the Vd band inverts: the LARGE volume is the LOW-concentration edge', () => {
+    const band = bandFor(
+      build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350) }).bands,
+      'vd',
+    )!;
+    // C(0) = D/Vd, so the edges are 350/63 and 350/21 — the large volume below.
+    expect(band.points[0]!.cLow).toBeCloseTo(350 / 63, 9);
+    expect(band.points[0]!.cHigh).toBeCloseTo(350 / 21, 9);
+    expect(band.lowLabel).toMatch(/large vd/i);
+    expect(band.highLabel).toMatch(/small vd/i);
+  });
+
+  it('AT THE DEFAULT no band edge combines two extremes', () => {
+    // The design rule, asserted rather than left to the comments — and stated at
+    // the strength it actually holds. With both parameters ranged there are two
+    // separate bands, and with every slider at nominal neither edge is the
+    // product of both extremes: the half-life band's C(0) is the nominal-Vd one
+    // (an IV bolus starts at D/Vd whatever the half-life), which it could not be
+    // if the envelopes had been merged. Move a slider off nominal and a combined
+    // edge becomes reachable — that is the documented trade, not a violation, and
+    // the test below covers the behaviour that makes it so.
+    const both = build1c({ compound: rangedBothCompound(), route: 'iv_bolus', schedule: single(350) });
+    expect(both.bands?.map((b) => b.axis)).toEqual(['half_life', 'vd']);
+    const hl = bandFor(both.bands, 'half_life')!;
+    expect(hl.points[0]!.cLow).toBeCloseTo(350 / VD_ABS, 9);
+    expect(hl.points[0]!.cHigh).toBeCloseTo(350 / VD_ABS, 9);
+  });
+
+  it('leaves every METABOLITE line exactly unchanged (Vd cancels in formation)', () => {
+    // A closed-form consequence of holding ke fixed, and the one place this axis
+    // could plausibly double-count. The parent's metabolite formation rate is
+    //
+    //   fm · ke · A(t) = fm · ke · C_p(t) · Vd = fm · ke · D · e^(−ke·t)
+    //
+    // in which Vd has cancelled — so at fixed ke the metabolite curve cannot
+    // depend on the parent's volume at all. The glue passes the parent Vd into
+    // the metabolite path TWICE (as the mode coefficient 1/Vd and as the
+    // clearance ke·Vd), and the two must cancel; if either were dropped or
+    // applied once, the metabolite would ride the Vd slider. Asserted exactly
+    // (not approximately) because the cancellation is algebraic, not numeric.
+    const compoundWithMeta = rangedVdMetaboliteCompound();
+    const at = (vdL?: number) =>
+      build1c({ compound: compoundWithMeta, route: 'iv_bolus', schedule: single(350), vdL })
+        .metabolites![0]!.points;
+    const nominal = at();
+    expect(at(21)).toEqual(nominal);
+    expect(at(63)).toEqual(nominal);
+    // Guard against a vacuous pass: the metabolite must actually be a curve.
+    expect(nominal.some((p) => p.c > 0)).toBe(true);
+  });
+
+  it('bands track the plotted line, so each still envelopes the curve on screen', () => {
+    // A band pinned to the compound's nominals would detach from the main line as
+    // soon as the OTHER slider moved. Here the half-life band is read while the Vd
+    // slider sits at an extreme, and it must still contain the curve.
+    const moved = build1c({
+      compound: rangedBothCompound(),
+      route: 'iv_bolus',
+      schedule: single(350),
+      vdL: 21,
+    });
+    const hl = bandFor(moved.bands, 'half_life')!;
+    hl.points.forEach((b, i) => {
+      const c = moved.points[i]!.c;
       expect(b.cLow).toBeLessThanOrEqual(c + 1e-9);
       expect(c).toBeLessThanOrEqual(b.cHigh + 1e-9);
     });

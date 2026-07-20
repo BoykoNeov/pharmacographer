@@ -34,10 +34,11 @@ import {
   fmtNum,
   metaboliteTag,
   toDisplayConcentration,
-  type BandPoint,
   type ConcentrationDisplayUnit,
   type CurvePoint,
   type MetaboliteCurve,
+  type VariabilityAxis,
+  type VariabilityBand,
 } from '../curve.ts';
 
 type YScale = 'linear' | 'log';
@@ -52,13 +53,42 @@ const PARENT_COLOR = '#5b9dd9';
  */
 const METABOLITE_COLORS = ['#e0794f', '#9b8cf5', '#4fbf9f', '#d95b9d'];
 
+/**
+ * How each variability band is shaded. Two bands can overlap, and on a semi-log
+ * axis an overlap of two flat translucent fills reads as a third colour that means
+ * nothing — so each axis gets a distinct diagonal HATCH as well as a hue. The
+ * hatching is what survives the overlap: crossing strokes stay individually
+ * traceable where crossing washes do not, and it keeps the bands distinguishable
+ * without relying on colour alone.
+ */
+const BAND_STYLES: Record<VariabilityAxis, { color: string; angle: number; label: string }> = {
+  // The half-life band keeps the parent's own blue: it is the long-standing
+  // default band, and re-hueing it would make every existing screenshot wrong.
+  half_life: { color: PARENT_COLOR, angle: 45, label: 'half-life t½' },
+  vd: { color: '#c9a227', angle: -45, label: 'volume Vd' },
+};
+
+/** Stable empty default for `visibleBands` (a fresh Set would re-render on every pass). */
+const EMPTY_AXES: ReadonlySet<VariabilityAxis> = new Set();
+
 interface ConcentrationChartProps {
   points: CurvePoint[];
   /**
-   * The low/high half-life variability envelope, shaded behind the main line.
-   * Absent when the compound reports no half-life range.
+   * Variability envelopes, one per varied parameter, shaded behind the main line.
+   * Each is that parameter's reported range with the others held where the main
+   * line has them — deliberately NOT merged into a single outer envelope, whose
+   * edge would be a person extreme on two parameters at once (see
+   * {@link VariabilityAxis}). Empty/absent when the compound reports no ranges.
    */
-  band?: BandPoint[];
+  bands?: VariabilityBand[];
+  /**
+   * Which bands to draw. Owned by App rather than the chart because each band's
+   * on/off control sits with its slider in the controls panel, so the range and
+   * the shaded region it produces are visibly the same idea. Defaults to none,
+   * which pairs with the `bands` prop: a caller that supplies no envelopes has
+   * nothing to make visible.
+   */
+  visibleBands?: ReadonlySet<VariabilityAxis>;
   /**
    * Metabolite curves to overlay (handoff §12). Each is drawn as its own dashed
    * line sharing the parent's time grid (evaluated over the same `times` in
@@ -105,14 +135,17 @@ const TOOLTIP_STYLE: CSSProperties = {
   lineHeight: 1.5,
 };
 
-/** One row of the datum the chart plots (t, main c, and — when present — the band). */
+/** One row of the datum the chart plots (t, main c, and — when present — the bands). */
 interface ChartDatum {
   t: number;
   c: number | null;
-  /** Log-clamped band the Area draws; non-positive bounds floored to the axis. */
-  band?: [number, number];
-  /** The true, unclamped band for the tooltip — honest even where the Area floors. */
-  bandRaw?: [number, number];
+  /**
+   * Log-clamped band ranges the Areas draw, keyed `band_<axis>`; non-positive
+   * bounds floored to the axis. One key per VISIBLE band.
+   */
+  [bandKey: `band_${string}`]: [number, number] | undefined;
+  /** The true, unclamped band edges by axis — honest even where the Area floors. */
+  bandRaw?: Partial<Record<VariabilityAxis, [number, number]>>;
   /** True (unclamped) metabolite concentrations by id, for the tooltip. */
   mRaw?: Record<string, number>;
   /**
@@ -125,11 +158,15 @@ interface ChartDatum {
 }
 
 /**
- * Tooltip content that reports the main concentration and, when a variability
- * band exists, its extremes labelled by what they MEAN (short vs long half-life)
- * rather than a bare low/high. Reads the raw band so it is truthful even at
- * points where the log axis floored the shaded area. Survives no band and a
- * null main concentration (oral C(0) = 0 on a log axis).
+ * Tooltip content that reports the main concentration and, for each visible
+ * variability band, its extremes labelled by what they MEAN (short vs long
+ * half-life; large vs small volume) rather than a bare low/high. The labelling
+ * carries real weight once there is more than one axis, because the two do not
+ * point the same way: a LONG half-life raises concentration while a LARGE volume
+ * lowers it, so "the top edge" is a different kind of extreme on each band.
+ * Reads the raw edges so it is truthful even where the log axis floored the
+ * shaded area. Survives no bands and a null main concentration (oral C(0) = 0 on
+ * a log axis).
  */
 function ConcTooltip(props: {
   active?: boolean;
@@ -139,8 +176,10 @@ function ConcTooltip(props: {
   metabolites: { id: string; name: string; color: string }[];
   /** Parent display name for its concentration row (when metabolites are shown). */
   parentName: string;
+  /** The bands being drawn, for their edge labels. */
+  bands: VariabilityBand[];
 }) {
-  const { active, payload, concUnit, metabolites, parentName } = props;
+  const { active, payload, concUnit, metabolites, parentName, bands } = props;
   if (!active || !payload || payload.length === 0) return null;
   // Recharts hands one payload entry per series, but they all share the same
   // `.payload` datum — read metabolite columns off it by known key, never by
@@ -164,19 +203,31 @@ function ConcTooltip(props: {
           </div>
         );
       })}
-      {datum.bandRaw && (
-        <>
-          <div style={{ color: '#9aa0a6' }}>Short t½ (fast elim.): {fmt(datum.bandRaw[0])}</div>
-          <div style={{ color: '#9aa0a6' }}>Long t½ (slow elim.): {fmt(datum.bandRaw[1])}</div>
-        </>
-      )}
+      {bands.map((band) => {
+        const edges = datum.bandRaw?.[band.axis];
+        if (!edges) return null;
+        return (
+          <div key={band.axis} style={{ color: '#9aa0a6', marginTop: 4 }}>
+            <div style={{ color: BAND_STYLES[band.axis].color }}>
+              varying {BAND_STYLES[band.axis].label}
+            </div>
+            <div>
+              {band.lowLabel}: {fmt(edges[0])}
+            </div>
+            <div>
+              {band.highLabel}: {fmt(edges[1])}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 export function ConcentrationChart({
   points,
-  band,
+  bands,
+  visibleBands = EMPTY_AXES,
   metabolites,
   parentName,
   horizonH,
@@ -218,11 +269,17 @@ export function ConcentrationChart({
       return next;
     });
 
-  // The log axis spans every VISIBLE plotted series — band and metabolites included,
-  // or a metabolite that accumulates above the parent (e.g. nordiazepam) overflows.
+  // Only the bands the user has switched on are drawn — and, below, only they
+  // widen the axis. A hidden band must not stretch the y-axis, or turning one off
+  // would leave the plot mysteriously zoomed out around empty space.
+  const shownBands = (bands ?? []).filter((b) => visibleBands.has(b.axis));
+
+  // The log axis spans every VISIBLE plotted series — shown bands and metabolites
+  // included, or a metabolite that accumulates above the parent (e.g. nordiazepam)
+  // overflows.
   const positives = [
     ...points.map((p) => p.c),
-    ...(band ?? []).flatMap((b) => [b.cLow, b.cHigh]),
+    ...shownBands.flatMap((band) => band.points.flatMap((b) => [b.cLow, b.cHigh])),
     ...visibleSeries.flatMap((m) => m.points.map((p) => p.c)),
   ].filter((c) => c > 0);
   const minPositive = positives.length > 0 ? Math.min(...positives) : 1e-6;
@@ -246,13 +303,21 @@ export function ConcentrationChart({
   // values for the tooltip, which should not lie about a floored point.
   const clampLog = (value: number): number => (isLog && !(value > 0) ? minPositive : value);
   const data: ChartDatum[] = points.map((point, i) => {
-    const b = band?.[i];
     const row: ChartDatum = {
       t: point.t,
       c: isLog && !(point.c > 0) ? null : point.c,
-      band: b ? [clampLog(b.cLow), clampLog(b.cHigh)] : undefined,
-      bandRaw: b ? [b.cLow, b.cHigh] : undefined,
     };
+    if (shownBands.length > 0) {
+      const bandRaw: Partial<Record<VariabilityAxis, [number, number]>> = {};
+      for (const band of shownBands) {
+        // Bands share the parent grid (built over the same `times`), so index-align.
+        const b = band.points[i];
+        if (!b) continue;
+        bandRaw[band.axis] = [b.cLow, b.cHigh];
+        row[`band_${band.axis}`] = [clampLog(b.cLow), clampLog(b.cHigh)];
+      }
+      row.bandRaw = bandRaw;
+    }
     if (visibleSeries.length > 0) {
       const mRaw: Record<string, number> = {};
       for (const m of visibleSeries) {
@@ -383,25 +448,51 @@ export function ConcentrationChart({
                   concUnit={concUnit}
                   metabolites={visibleSeries}
                   parentName={parentName}
+                  bands={shownBands}
                 />
               }
             />
             {visibleSeries.length > 0 && (
               <Legend verticalAlign="top" height={28} iconType="plainline" />
             )}
-            {band && (
+            {/* Hatch fills, one per axis. Defined inside the chart's own SVG so
+                the pattern ids resolve without a document-level <defs>. */}
+            {shownBands.length > 0 && (
+              <defs>
+                {shownBands.map((band) => {
+                  const { color, angle } = BAND_STYLES[band.axis];
+                  return (
+                    <pattern
+                      key={band.axis}
+                      id={`band-hatch-${band.axis}`}
+                      patternUnits="userSpaceOnUse"
+                      width={6}
+                      height={6}
+                      patternTransform={`rotate(${angle})`}
+                    >
+                      {/* A faint wash under the strokes so a band still reads as a
+                          region at a glance, with the hatch doing the work of
+                          telling two overlapping regions apart. */}
+                      <rect width={6} height={6} fill={color} fillOpacity={0.1} />
+                      <line x1={0} y1={0} x2={0} y2={6} stroke={color} strokeWidth={1.4} strokeOpacity={0.45} />
+                    </pattern>
+                  );
+                })}
+              </defs>
+            )}
+            {shownBands.map((band) => (
               <Area
+                key={band.axis}
                 type="monotone"
-                dataKey="band"
+                dataKey={`band_${band.axis}`}
                 stroke="none"
-                fill={PARENT_COLOR}
-                fillOpacity={0.18}
+                fill={`url(#band-hatch-${band.axis})`}
                 isAnimationActive={false}
                 activeDot={false}
                 tooltipType="none"
                 legendType="none"
               />
-            )}
+            ))}
             <Line
               type="monotone"
               dataKey="c"

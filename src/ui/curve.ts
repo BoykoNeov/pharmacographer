@@ -201,13 +201,76 @@ function findPeak(points: CurvePoint[]): CurvePoint {
   return peak;
 }
 
-/** A sampled point of the variability envelope, mg/L at time `t` (h). */
+/** A sampled point of a variability envelope, mg/L at time `t` (h). */
 export interface BandPoint {
   t: number;
-  /** Concentration at the short (fast-elimination) half-life. */
+  /** The LOWER concentration edge — which parameter extreme produces it is per-axis. */
   cLow: number;
-  /** Concentration at the long (slow-elimination) half-life. */
+  /** The UPPER concentration edge. */
   cHigh: number;
+}
+
+/**
+ * A parameter whose reported range the UI can explore (handoff §12, "variability
+ * beyond half-life"). Each axis is varied ALONE, holding the others at their
+ * reported point values.
+ *
+ * That one-at-a-time rule is the whole design, not a simplification. §12's text
+ * says to "combine them" into a single envelope, but the phenotype-preset work
+ * that landed afterwards settled the opposite principle: do not manufacture
+ * populations nobody observed. The outer edge of a combined envelope is a person
+ * at the 5th-percentile volume AND the 95th-percentile half-life — a pairing no
+ * source reports, and (because Vd and t½ are correlated through clearance) one
+ * that may not be physiologically coherent at all. Presets went to the trouble of
+ * making the mixed state UNREACHABLE rather than merely discouraged; a merged
+ * band here would quietly rebuild it in the chart.
+ *
+ * Bands are therefore computed per axis and rendered as separate regions. The
+ * user may show several at once and compare which parameter dominates the spread
+ * — that is honest, because each region is still individually a real reported
+ * range.
+ *
+ * The exact invariant, which is weaker than "no edge ever combines two extremes"
+ * and worth stating precisely because overclaiming it here would be the same
+ * category of dishonesty the design exists to avoid: **at the default — every
+ * slider at nominal — no band edge combines two extremes.** A combined edge IS
+ * reachable, by dragging one axis's slider to its own end and then reading
+ * another axis's band, because bands are anchored to the plotted line rather than
+ * to the compound's nominals (see {@link buildCurve}, where that trade is made
+ * and why). The difference from a merged envelope is real but is one of agency,
+ * not of arithmetic: the app never draws a doubly-extreme edge on its own, and
+ * the second extreme is one the reader chose and can see selected on a slider —
+ * where a merged envelope would present it, unbidden, as the compound's reported
+ * spread.
+ */
+export type VariabilityAxis = 'half_life' | 'vd';
+
+/** Presentation order and short names for the axes the UI offers. */
+export const VARIABILITY_AXES: readonly VariabilityAxis[] = ['half_life', 'vd'];
+
+/** One axis's envelope: the curve at that parameter's reported extremes. */
+export interface VariabilityBand {
+  axis: VariabilityAxis;
+  /**
+   * What the LOW-concentration edge means, in the parameter's own terms. Worth
+   * spelling out per axis because the mapping inverts: a long half-life raises
+   * concentration, but a large volume LOWERS it — so "low" is the slow-elimination
+   * edge on one axis and the large-volume edge on the other. A bare low/high would
+   * invite the reader to assume both extremes point the same way.
+   */
+  lowLabel: string;
+  /** What the HIGH-concentration edge means. */
+  highLabel: string;
+  /** The envelope, index-aligned with the main curve's `points`. */
+  points: BandPoint[];
+}
+
+/** The band for one axis, if the compound reports that parameter's range. */
+export function bandFor(
+  bands: VariabilityBand[] | undefined,
+  axis: VariabilityAxis,
+): VariabilityBand | undefined {
+  return bands?.find((b) => b.axis === axis);
 }
 
 /** A half-life range in canonical hours, as read from the compound's source. */
@@ -222,10 +285,15 @@ export interface HalfLifeRange {
 
 /**
  * The compound's reported half-life range in canonical hours, or `null` if the
- * source gives no range (then there is no variability band to draw). This is the
- * ONE parameter v1 varies — Vd/F/ka variability is a documented non-goal
- * (handoff §11). All three values come from the same `disposition.halfLife`
- * field, so the point value always lies within the range (schema-enforced).
+ * source gives no range (then there is no half-life band to draw). All three
+ * values come from the same `disposition.halfLife` field, so the point value
+ * always lies within the range (schema-enforced).
+ *
+ * No longer the only parameter varied — {@link vdRangeL} is the second axis
+ * (handoff §12). `F` is a candidate third; `ka` is deliberately NOT, because it
+ * moves Tmax, which would invalidate the exact Bateman peak instant
+ * {@link criticalTimes} pins and force each band edge to carry its own grid
+ * densification. That is a separate piece of work, not a slider.
  *
  * Always `null` for a Michaelis–Menten compound, which has no `disposition` block
  * to read (handoff §12). That is not a missing feature: the band answers "how
@@ -241,6 +309,39 @@ export function halfLifeRangeH(compound: Compound): HalfLifeRange | null {
     low: time.toCanonical(hl.range[0], hl.unit),
     nominal: time.toCanonical(hl.value, hl.unit),
     high: time.toCanonical(hl.range[1], hl.unit),
+  };
+}
+
+/** A volume-of-distribution range in canonical absolute litres. */
+export interface VdRange {
+  /** Smallest reported Vd, L — the edge that RAISES concentration. */
+  low: number;
+  /** Point (nominal) Vd, L — where the slider starts. */
+  nominal: number;
+  /** Largest reported Vd, L — the edge that LOWERS concentration. */
+  high: number;
+}
+
+/**
+ * The compound's reported Vd range in absolute litres, or `null` when the source
+ * gives no range. About 30 of the 47 shipped compounds report one, so this is a
+ * genuinely populated axis rather than a hook waiting for data.
+ *
+ * Expressed as RATIOS around the already-derived nominal (`baseVdL`) rather than
+ * re-converting the range from source units. That is the same trick {@link scaleKe}
+ * uses, and it buys the same two things: the per-kg → absolute scaling (against the
+ * illustrative reference subject) is never re-implemented and so cannot drift from
+ * `derive.ts`'s, and the nominal reproduces the compound's default Vd EXACTLY —
+ * making "every slider at nominal" provably the pre-feature curve rather than a
+ * curve that merely looks like it.
+ */
+export function vdRangeL(compound: Compound, baseVdL: number): VdRange | null {
+  const vd = compound.disposition?.vd;
+  if (!vd?.range || !(vd.value > 0)) return null;
+  return {
+    low: baseVdL * (vd.range[0] / vd.value),
+    nominal: baseVdL,
+    high: baseVdL * (vd.range[1] / vd.value),
   };
 }
 
@@ -300,10 +401,14 @@ interface CurveResultBase {
    */
   peak: CurvePoint;
   /**
-   * The low/high half-life envelope, present only when the compound reports a
-   * half-life range (one-compartment only). Fixed at the reported extremes.
+   * One envelope per varied parameter that reports a range (one-compartment
+   * only), each fixed at that parameter's reported extremes and independent of
+   * the sliders. Never merged — see {@link VariabilityAxis}. Which of them are
+   * DRAWN is a display choice the chart owns; they are all computed because the
+   * cost is one engine pass each and the alternative is threading visibility
+   * state down into the math layer.
    */
-  band?: BandPoint[];
+  bands?: VariabilityBand[];
   /**
    * Metabolite curves, one per declared metabolite. Present for an IV-bolus, oral, or
    * IV-infusion parent (any compartment count) that declares metabolites; `undefined`
@@ -324,8 +429,10 @@ export interface OneCompartmentCurveResult extends CurveResultBase {
   model: 'one_compartment_first_order';
   /** The resolved engine parameters that produced the (main) curve. */
   params: PkParams;
-  /** The half-life range the band spans, for the slider's bounds. */
+  /** The half-life range its band spans, for the slider's bounds. */
   halfLifeRange?: HalfLifeRange;
+  /** The Vd range its band spans, for the slider's bounds. */
+  vdRange?: VdRange;
   /** Elimination half-life, h (ln2 / ke) of the main curve — for the caption. */
   halfLifeH: number;
 }
@@ -446,11 +553,26 @@ export interface CurveInput {
    */
   infusionDuration?: number;
   /**
-   * Main-curve half-life override, h — the variability slider. When set, `ke` is
-   * scaled to this half-life (via {@link scaleKe}); unset, the compound's derived
-   * `ke` is used. Does NOT move the band, which stays at the reported extremes.
+   * Main-curve half-life override, h — the half-life variability slider. When set,
+   * `ke` is scaled to this half-life (via {@link scaleKe}); unset, the compound's
+   * derived `ke` is used. Does NOT move any band, which stay at the reported
+   * extremes.
    */
   halfLifeH?: number;
+  /**
+   * Main-curve volume-of-distribution override, L — the Vd variability slider.
+   * Unset, the compound's derived Vd is used.
+   *
+   * `ke` (and therefore the half-life) is held FIXED as this moves, which makes
+   * clearance co-vary: `CL = ke·Vd`. That choice is what keeps the two axes
+   * visually orthogonal — the half-life slider tilts the tail at a fixed peak,
+   * this one raises or lowers the peak at a fixed slope — so a reader can
+   * attribute the movement to a parameter. The alternative (hold CL fixed) would
+   * push `ke = CL/Vd` around and re-say what the half-life slider already says.
+   * The on-screen copy states which is held constant; leaving it implicit would
+   * make the curve ambiguous rather than merely under-explained.
+   */
+  vdL?: number;
   /** Reference-subject weight, kg, for scaling per-kg Vd (defaults to 70 kg). */
   weightKg?: number;
   /** Grid resolution; defaults to {@link DEFAULT_SAMPLES}. */
@@ -801,10 +923,19 @@ export function buildCurve(input: CurveInput): CurveResult {
   // Main line: slider override (if any), scaled around the derived ke.
   const selectedHalfLifeH = input.halfLifeH !== undefined && input.halfLifeH > 0 ? input.halfLifeH : nominalHalfLifeH;
   const mainKe = scaleKe(base.ke, nominalHalfLifeH, selectedHalfLifeH);
-  const params: PkParams = { ...disposition, ke: mainKe };
 
-  // Band extremes are FIXED at the reported low/high half-life (not the slider):
-  // longer half-life ⇒ smaller ke ⇒ slower elimination ⇒ higher exposure (cHigh).
+  // Vd is varied with ke held fixed (see CurveInput.vdL): a pure vertical
+  // rescale, because every 1-comp mode coefficient carries 1/Vd. Nothing about
+  // TIMING moves, so the horizon, the critical-time marks, and the oral Bateman
+  // peak instant below are all untouched by this axis.
+  const vdRange = vdRangeL(compound, base.vd);
+  const mainVd = input.vdL !== undefined && input.vdL > 0 ? input.vdL : base.vd;
+  const params: PkParams = { ...disposition, ke: mainKe, vd: mainVd };
+
+  // Band extremes are FIXED at each parameter's reported low/high (not the
+  // sliders): longer half-life ⇒ smaller ke ⇒ slower elimination ⇒ higher
+  // exposure; larger Vd ⇒ more dilution ⇒ LOWER exposure (the two axes map onto
+  // concentration in opposite directions, which is why the edges are labelled).
   const keSlow = range ? scaleKe(base.ke, nominalHalfLifeH, range.high) : mainKe;
   const keFast = range ? scaleKe(base.ke, nominalHalfLifeH, range.low) : mainKe;
 
@@ -844,11 +975,38 @@ export function buildCurve(input: CurveInput): CurveResult {
   const concentrations = concentrationCurve(engineRoute, params, doses, times);
   const points = times.map((t, i) => ({ t, c: concentrations[i] ?? 0 }));
 
-  let band: BandPoint[] | undefined;
+  // Each band varies ITS OWN axis across the reported range while every other
+  // parameter stays where the main line has it. Anchoring to the plotted curve
+  // (rather than to the compound's nominals) is what keeps a band an envelope OF
+  // the line on screen: a Vd band pinned to the nominal half-life would simply
+  // detach from the curve as soon as the half-life slider moved, which reads as a
+  // rendering bug and answers a question nobody asked. The cost is that dragging
+  // a slider to its own extreme and then reading the other axis's band puts one
+  // reported extreme on top of a user-chosen one — but that is a state the reader
+  // deliberately steered into, not a combined envelope the app draws unprompted,
+  // and at the default (every slider nominal) no edge is doubly extreme.
+  const bands: VariabilityBand[] = [];
+  const bandPoints = (lowParams: PkParams, highParams: PkParams): BandPoint[] => {
+    const low = concentrationCurve(engineRoute, lowParams, doses, times);
+    const high = concentrationCurve(engineRoute, highParams, doses, times);
+    return times.map((t, i) => ({ t, cLow: low[i] ?? 0, cHigh: high[i] ?? 0 }));
+  };
   if (range) {
-    const high = concentrationCurve(engineRoute, { ...disposition, ke: keSlow }, doses, times);
-    const low = concentrationCurve(engineRoute, { ...disposition, ke: keFast }, doses, times);
-    band = times.map((t, i) => ({ t, cLow: low[i] ?? 0, cHigh: high[i] ?? 0 }));
+    bands.push({
+      axis: 'half_life',
+      lowLabel: `Short t½ ${fmtNum(range.low)} h (fast elim.)`,
+      highLabel: `Long t½ ${fmtNum(range.high)} h (slow elim.)`,
+      points: bandPoints({ ...params, ke: keFast }, { ...params, ke: keSlow }),
+    });
+  }
+  if (vdRange) {
+    // Note the inversion: the LARGE volume gives the LOW concentration.
+    bands.push({
+      axis: 'vd',
+      lowLabel: `Large Vd ${fmtNum(vdRange.high)} L (more dilution)`,
+      highLabel: `Small Vd ${fmtNum(vdRange.low)} L (less dilution)`,
+      points: bandPoints({ ...params, vd: vdRange.high }, { ...params, vd: vdRange.low }),
+    });
   }
 
   // Evaluate each metabolite over the same grid/schedule as the parent. An IV-bolus
@@ -898,8 +1056,9 @@ export function buildCurve(input: CurveInput): CurveResult {
     model: 'one_compartment_first_order',
     points,
     peak: findPeak(points),
-    band,
+    bands: bands.length > 0 ? bands : undefined,
     halfLifeRange: range ?? undefined,
+    vdRange: vdRange ?? undefined,
     metabolites,
     params,
     derived,

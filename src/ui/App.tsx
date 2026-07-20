@@ -39,6 +39,7 @@ import {
   type ConcentrationDisplayUnit,
   type CurveResult,
   type DoseSchedule,
+  type VariabilityAxis,
   DEFAULT_DOSE_MG,
   DEFAULT_INFUSION_DURATION_H,
 } from './curve.ts';
@@ -66,6 +67,26 @@ export function App() {
   // Half-life chosen within the reported band; undefined ⇒ the compound's
   // nominal. Compound-specific (its range differs), so reset on compound switch.
   const [halfLifeH, setHalfLifeH] = useState<number | undefined>(undefined);
+  // Vd chosen within its reported range; undefined ⇒ the compound's derived
+  // nominal. Same compound-specific reset rule as the half-life above.
+  const [vdL, setVdL] = useState<number | undefined>(undefined);
+  // Which variability bands are shaded. Half-life alone by default, so the
+  // opening view still shows exactly the one envelope it always did — the same
+  // identity-at-default discipline the phenotype presets use (`presets[0]`
+  // overrides nothing), and what makes the curve.test.ts identity anchor
+  // meaningful. (The band's FILL did change: it is hatched now rather than a flat
+  // wash, so that a second band overlapping it stays traceable. Same data, same
+  // geometry, deliberately different shading.)
+  const [visibleBands, setVisibleBands] = useState<ReadonlySet<VariabilityAxis>>(
+    () => new Set<VariabilityAxis>(['half_life']),
+  );
+  const setBandVisible = (axis: VariabilityAxis, visible: boolean) =>
+    setVisibleBands((prev) => {
+      const next = new Set(prev);
+      if (visible) next.add(axis);
+      else next.delete(axis);
+      return next;
+    });
   // Concentration display unit. Owned here (not in the chart) because the model
   // caption also prints a Cmax — the two must never disagree on screen. The curve
   // math stays in canonical mg/L; this only changes how values are shown.
@@ -127,6 +148,9 @@ export function App() {
     const next = COMPOUNDS.find((c) => c.id === id);
     if (next) setRoute(defaultRoute(next));
     setHalfLifeH(undefined); // back to the new compound's nominal half-life
+    setVdL(undefined); // …and its nominal Vd: an absolute litre value carried over
+    // from another compound is meaningless, and would usually sit outside the new
+    // compound's range entirely (lithium ~50 L vs digoxin ~500 L).
     setPhenotypeId(next ? defaultPhenotypeId(next) : undefined);
     // Only a compound that declares its own scale overrides the dose in the box.
     // Otherwise the typed dose is left alone: resetting every switch would throw
@@ -146,6 +170,12 @@ export function App() {
   const handlePhenotypeChange = (id: string) => {
     setPhenotypeId(id);
     setHalfLifeH(undefined);
+    // Vd resets too, on the same reasoning. A preset that leaves Vd alone (the
+    // usual case — acetylator status does not change a volume, which is why
+    // procainamide's presets override neither) makes this a no-op, but a preset
+    // that DID re-anchor Vd would otherwise strand the slider on the previous
+    // population's litres: the mixed state presets exist to forbid.
+    setVdL(undefined);
   };
 
   // The derive → engine pipeline. `deriveParams` throws for a nonlinear compound
@@ -156,12 +186,22 @@ export function App() {
     try {
       return {
         ok: true as const,
-        value: buildCurve({ compound, route, schedule, infusionDuration, halfLifeH }),
+        value: buildCurve({ compound, route, schedule, infusionDuration, halfLifeH, vdL }),
       };
     } catch (error) {
       return { ok: false as const, error: error instanceof Error ? error.message : String(error) };
     }
-  }, [compound, route, schedule, infusionDuration, halfLifeH]);
+  }, [compound, route, schedule, infusionDuration, halfLifeH, vdL]);
+
+  // The Vd range comes off the built curve rather than the compound file, because
+  // its nominal must be the DERIVED Vd (per-kg values scaled against the
+  // illustrative reference subject) — the same number the engine actually used.
+  // Reading the raw file here would put the slider on a different scale from the
+  // curve for every compound reporting L/kg, which is most of them.
+  const vdRange =
+    curve.ok && curve.value.model === 'one_compartment_first_order'
+      ? (curve.value.vdRange ?? null)
+      : null;
 
   return (
     <>
@@ -216,6 +256,11 @@ export function App() {
               valueH={halfLifeH ?? halfLifeRange?.nominal ?? 0}
               onChange={setHalfLifeH}
               noRangeReason={noRangeReason}
+              vdRange={vdRange}
+              vdValueL={vdL ?? vdRange?.nominal}
+              onVdChange={setVdL}
+              visibleBands={visibleBands}
+              onVisibleBandsChange={setBandVisible}
             />
           </section>
 
@@ -228,7 +273,8 @@ export function App() {
               <>
                 <ConcentrationChart
                   points={curve.value.points}
-                  band={curve.value.band}
+                  bands={curve.value.bands}
+                  visibleBands={visibleBands}
                   metabolites={curve.value.metabolites}
                   parentName={compound?.names.inn ?? 'Parent'}
                   horizonH={curve.value.horizonH}
@@ -354,6 +400,10 @@ function ModelCaption({ route, schedule, infusionDuration, curve, concUnit }: Mo
     parts.push('One-compartment model');
     parts.push(describeSchedule(schedule, route));
     parts.push(`ke = ${fmtNum(curve.params.ke)} /h (t½ ${fmtNum(curve.halfLifeH)} h)`);
+    // Vd is stated here because it is now a slider, not a constant: without it the
+    // caption would describe a curve the reader can no longer identify — two
+    // different volumes give the same ke and t½ but a chart twice the height.
+    parts.push(`Vd = ${fmtNum(curve.params.vd)} L`);
     if (route === 'oral' && curve.params.ka !== undefined) {
       parts.push(`ka = ${fmtNum(curve.params.ka)} /h`);
     }
