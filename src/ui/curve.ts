@@ -254,11 +254,25 @@ export interface BandPoint {
  *
  * That is not a defect to hide, it is the classical non-identifiability of oral
  * PK — an oral concentration curve identifies only the ratio `V/F` (the
- * "apparent" volume), never V and F separately — and the UI states it. The
- * hazard it creates is the mirror image of the merged-envelope one: two vertical
- * bands of different widths invite a reader to treat F-spread and Vd-spread as
- * two independent uncertainties to STACK, when they are one uncertainty seen
- * twice. The copy in `VariabilitySlider` says so in as many words.
+ * "apparent" volume), never V and F separately — and the UI states it.
+ *
+ * Be careful about what that does and does NOT license, because the tempting
+ * short version is wrong. Non-identifiability is a statement about ATTRIBUTION:
+ * given a curve, you cannot say whether its height came from absorption or from
+ * volume. It is not a statement that F and Vd are the same quantity or that
+ * their spreads are the same spread. They are separately measured, they vary
+ * between people for unrelated physiological reasons, and a high-F / small-Vd
+ * person is entirely coherent — for morphine that corner sits at 1.7× the
+ * nominal height, outside either band on its own. So the honest position is that
+ * this tool cannot combine them, not that they must not be combined: nothing in
+ * the data says how F and Vd covary, so both "add these" and "never add these"
+ * would be claims we cannot support. The copy states neither.
+ *
+ * (Contrast the half-life × Vd pair, where declining to merge rests on something
+ * stronger: those two ARE coupled, through clearance, so a merged corner may not
+ * describe a physiologically possible person at all. For F × Vd the reason to
+ * keep the bands separate is legibility and consistency with the other axes —
+ * a weaker argument, and worth not overstating.)
  *
  * The one place the two genuinely diverge is the metabolite lines, and that
  * divergence is the on-screen proof they are different parameters despite the

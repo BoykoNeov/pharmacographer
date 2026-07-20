@@ -39,10 +39,23 @@ oral F**, each as its own slider with its own toggleable, separately-hatched ban
   `F·D/Vd`, so they are **collinear**: halving F and doubling Vd give the identical plot (pinned as
   an equality test). That is the classical non-identifiability of oral PK — a concentration curve
   identifies only `V/F` — so there is no ceteris-paribus to state, and the "X is held constant"
-  template does not apply. The hazard is the mirror of the merged-envelope one: two vertical bands
-  invite a reader to **stack** F-spread and Vd-spread when they are one uncertainty seen twice. The
-  panel says so in as many words, and a test asserts the F note does *not* say "bioavailability is
-  held".
+  template does not apply. A test asserts the F note does *not* say "bioavailability is held".
+- **The claim that shipped wrong and was walked back within the hour — the advisor retracting their
+  own advice.** The first F copy read: *"Treat the two bands as one uncertainty seen twice, not two
+  to add together."* It fuses a true statement to an unsupported one. True: you cannot **attribute**
+  a height change to F or to Vd, because only `F/Vd` is identifiable from the curve. Unsupported:
+  that the two SPREADS are one spread. F and Vd are separately measured, vary between people for
+  unrelated physiological reasons, and their extremes compound — morphine's own numbers settle it,
+  since height ∝ F/Vd gives 0.75–1.23× for the F band, 0.78–1.38× for the Vd band, and **0.59–1.70×
+  at the corners**, materially wider than either. High-F/small-Vd is a perfectly coherent person, so
+  this is emphatically NOT the t½×Vd case. The correction is to instruct on neither: nothing in the
+  data gives the F–Vd covariance, so "add them" and "never add them" are equally unwarranted, and
+  the panel now confines itself to the attribution point plus the metabolite divergence. **The
+  design did not change** — bands stay per-axis — but the stated REASON did: for F×Vd, not merging
+  rests on legibility and consistency with the other axes, not on "a person nobody measured". That
+  argument is sound only for t½×Vd, where clearance couples the two. Third instance of the same
+  failure mode in this repo (after the transdermal `PeakNote` and "no edge combines two extremes"):
+  a true-sounding sentence that misstates the pharmacology, invisible to every automated check.
 - **The metabolite pair is the whole proof, and the advisor's best catch.** F and Vd differ in
   exactly one observable. Metabolite formation is `fm·ke·C·Vd = fm·ke·F·D·e^(−ke·t)`: the parent
   **Vd cancels algebraically** (asserted with `toEqual`, not a tolerance — the glue passes Vd in

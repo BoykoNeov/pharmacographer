@@ -64,15 +64,25 @@ const NO_RANGE_NOTES: Record<NoRangeReason, string> = {
  * shipped a peak explanation copied from the oral one, under a curve that never
  * peaked, with every test green. There is no ceteris-paribus decision to report
  * here: F scales the mass that gets in, and nothing has to be held anywhere for
- * that to be well defined. What DOES need saying is the thing a reader would
- * otherwise get wrong — that this band and the Vd band are the same observable,
- * so their widths must not be added together. See {@link VariabilityAxis}.
+ * that to be well defined. What DOES need saying is why this band looks exactly
+ * like the Vd one — the `V/F` non-identifiability. See {@link VariabilityAxis}.
+ *
+ * Note what this copy stops short of. An earlier draft told the reader to treat
+ * the two bands as "one uncertainty seen twice, not two to add together". That
+ * fused a true claim to a false one: you genuinely cannot ATTRIBUTE a height
+ * change to F or to Vd from the curve, but F and Vd are separately-measured
+ * physical quantities that both vary between people, and a high-F / small-Vd
+ * person is perfectly coherent — for morphine that corner is 1.7× the nominal
+ * height, well outside either band alone. Combining them is not forbidden; it is
+ * simply something this tool cannot do honestly, because nothing in the data
+ * says how F and Vd covary. So the copy instructs on neither adding nor not
+ * adding, and confines itself to what is actually known.
  */
 const AXIS_NOTES: Record<VariabilityAxis, string> = {
   half_life:
     'Volume of distribution is held at its reported value, so this changes how fast the curve falls, not how high it starts.',
   vd: 'Half-life is held at the value above, so this scales the whole curve up or down without changing its slope — clearance moves with it (CL = ke · Vd).',
-  f: 'This scales the dose that actually gets in, so it moves the curve up and down in exactly the same way the volume slider does — an oral curve can only ever show the ratio V/F, never V and F separately. Treat the two bands as one uncertainty seen twice, not two to add together. The one real difference is off the parent line: changing F moves the metabolite curves, and changing the volume does not.',
+  f: 'This scales the dose that actually gets in, so it moves the curve up and down in exactly the same way the volume slider does. That is not a coincidence: an oral curve shows only the ratio V/F, so from the height alone you cannot tell whether someone absorbed more drug or has a smaller volume to dilute it in. They are still two different quantities, and the difference shows up off the parent line — changing F moves the metabolite curves, and changing the volume does not.',
 };
 
 /** One labelled slider over a reported [low, high] range, with its band toggle. */

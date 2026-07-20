@@ -161,15 +161,31 @@ describe('variability axes, wired through App', () => {
     // The transdermal PeakNote defect, pre-empted: F has no ceteris-paribus
     // choice to report, so cloning that sentence would put a true-sounding but
     // meaningless claim on screen. What must appear instead is the
-    // non-identifiability — F and Vd are one observable, so the two bands must
-    // not be added together.
+    // non-identifiability — that the curve's height cannot tell F from Vd.
     mount();
     selectCompound('Morphine');
     selectRoute('oral');
     const text = panelText();
     expect(text).toMatch(/V\/F/); // the apparent-volume ratio, named
-    expect(text).toMatch(/not two to add together/i);
+    expect(text).toMatch(/cannot tell whether/i); // …as a statement about ATTRIBUTION
     expect(text).not.toMatch(/bioavailability is held/i);
+  });
+
+  it('does not tell the reader whether to combine the F and Vd spreads', () => {
+    // An earlier draft said "one uncertainty seen twice, not two to add
+    // together". Half true and half false: you cannot attribute a height change
+    // to one parameter, but F and Vd are separately-measured quantities that
+    // both vary between people, and their extremes compound — morphine's
+    // high-F/small-Vd corner is 1.7× the nominal height, outside either band
+    // alone, and describes a perfectly coherent person. Nothing in the data says
+    // how the two covary, so "add them" and "never add them" are equally
+    // unsupported and the panel asserts neither.
+    mount();
+    selectCompound('Morphine');
+    selectRoute('oral');
+    const text = panelText();
+    expect(text).not.toMatch(/add together/i);
+    expect(text).not.toMatch(/one uncertainty/i);
   });
 
   it('writes F as a percent, not as the canonical fraction', () => {

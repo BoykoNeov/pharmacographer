@@ -159,9 +159,17 @@ engine/schema/derive change needed.
   gated to the ENGINE oral route, which correctly excludes transdermal. **F is not a
   clone of Vd**: the two are COLLINEAR on the parent curve (it depends on them only via
   `F·D/Vd` — the classical `V/F` non-identifiability), so the F slider must NOT reuse the
-  "X is held constant" copy, and the panel says the two bands are one uncertainty seen
-  twice rather than two to add. They diverge in exactly one place, which is the oracle
-  pair in `curve.test.ts`: parent Vd **cancels** in metabolite formation and F does not.
+  "X is held constant" copy. Note the limit of that claim, which an advisor pass had to
+  correct after it shipped: non-identifiability is about **attribution** (the curve cannot
+  tell you *which* parameter moved), NOT about F and Vd being one quantity. They are
+  separately measured, vary for unrelated reasons, and their extremes compound — morphine's
+  high-F/small-Vd corner is 1.7× the nominal height, outside either band alone, and is a
+  coherent person. So the panel instructs neither "add these" nor "never add these": nothing
+  in the data gives the F–Vd covariance. Keeping F×Vd unmerged rests on **legibility**, not
+  on non-observability; only the t½×Vd pair has the stronger argument (coupled via
+  clearance, so a merged corner may be physiologically impossible). F and Vd diverge in
+  exactly one place, the oracle pair in `curve.test.ts`: parent Vd **cancels** in metabolite
+  formation and F does not.
   **`ka` is deliberately not an axis** — it moves Tmax, invalidating the exact Bateman
   peak instant `criticalTimes` pins.
 - **Transdermal (`transdermal`)** — the §12 "more routes" seam, and it added **no engine
