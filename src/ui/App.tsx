@@ -502,38 +502,51 @@ export function PeakNote({
   halfLifeRegime?: HalfLifeAxisRegime;
 }) {
   const totalDoses = schedule.count + schedule.adHoc.length;
-  const routeMeaning =
-    route === 'iv_bolus'
-      ? 'An IV bolus peaks the instant it is given (Tmax = 0), at Cmax = dose / Vd, then only falls.'
-      : route === 'iv_infusion'
-        ? 'A constant infusion peaks at the end of the infusion, then falls.'
-        : route === 'transdermal'
-          ? // Deliberately NOT the Cmax/Tmax language: a worn patch has no peak to
-            // name. Phrased for every patch, not just one that reached its plateau.
-            'A patch worn continuously has no peak at all: it climbs steadily toward a plateau at Css = R0/CL — set by clearance alone, not by Vd — and never turns over, because nothing is ever taken off. The marker is simply the concentration reached when the wear period ends, so its time is a property of the product, not of the drug.'
-        : route === 'im'
-          ? // An IM depot is first-order in, exactly like a tablet, so the peak means
-            // the same THING — but the oral sentence names the gut and, more
-            // importantly, an oral F is net of first-pass extraction while an IM F is
-            // not. Letting `im` fall through to the oral branch would have been the
-            // patch-explained-as-a-tablet bug again, one route later, and neither the
-            // typechecker nor a test would have said a word.
-            'An intramuscular dose rises as it is absorbed from the muscle depot and falls as it is eliminated; the peak (Tmax) is where those balance. The shape is a tablet’s, but the fraction is not: an injection drains straight to the systemic circulation, so its F is absorption completeness only — it carries no first-pass loss through gut wall and liver, which is why the same drug can reach far higher concentrations by needle than by mouth at the same dose.'
-          : route === 'rectal'
-            ? // The third meaning of F, and the reason this branch exists. IM's
-              // sentence above ("carries no first-pass loss") and oral's implicit full
-              // one are both FALSE here: rectal venous drainage is split, so the
-              // bypass is partial. Written for any rectal compound, not for diazepam —
-              // hence "how much it recovers depends on how much the liver was taking",
-              // which is true whatever the extraction ratio, rather than a number that
-              // would be a lie on the next compound (route-keyed copy binds them all).
-              'A rectal dose rises as it is absorbed across the rectal mucosa and falls as it is eliminated; the peak (Tmax) is where those balance — the same shape as a tablet. Its F is a third thing again: rectal veins drain PARTLY to the portal circulation and partly straight to the systemic one, so part of the dose meets the liver first and part escapes it. Rectal administration therefore recovers some, but not all, of what a swallowed dose loses to first pass — and how much it recovers depends on how much the liver was taking in the first place, so for a drug the liver barely extracts the gain is small.'
-          : // The peak is where the two rates balance whichever one is slower, so
-            // that clause holds in both regimes; what does NOT hold in both is
-            // naming elimination as the cause of the fall.
-            halfLifeRegime === 'elimination_limited'
-            ? 'An oral dose rises as it is absorbed and falls as it is eliminated; the peak (Tmax) is where those balance.'
-            : 'An oral dose rises as it is absorbed and falls once elimination outpaces what is still arriving; the peak (Tmax) is where those balance. Here absorption is the slower step, so what the curve falls at after the peak is the ABSORPTION rate — the drug is eliminated as fast as it gets in, and the tail measures how slowly it arrives, not how quickly it leaves.';
+  // EXHAUSTIVE RECORD, not the ternary chain this was until `sc` shipped — and the
+  // chain had already re-armed the bug its own comments describe. Its final `else`
+  // was the ORAL pair, so a subcutaneous curve printed "An oral dose rises as it is
+  // absorbed…" directly under the chart: the patch-explained-as-a-tablet defect, third
+  // instance, and once again with a green suite and a happy typechecker. Adding a
+  // fifth ternary arm would have fixed this route and left the trap armed for the
+  // next one. A `Record<DataRoute, …>` cannot fall through — a new route fails to
+  // compile until someone writes its sentence. Same fix as `BIOAVAILABILITY_LABELS`,
+  // `DATA_ROUTES`, and `FIRST_ORDER_ABSORPTION_COPY`.
+  //
+  // The ORAL entry stays regime-aware (see the flip-flop note above); no other route
+  // branches on regime today, and each is written for ANY compound on that route
+  // rather than for the one that happened to be on screen.
+  const ROUTE_MEANING: Record<DataRoute, string> = {
+    iv_bolus:
+      'An IV bolus peaks the instant it is given (Tmax = 0), at Cmax = dose / Vd, then only falls.',
+    iv_infusion: 'A constant infusion peaks at the end of the infusion, then falls.',
+    // Deliberately NOT the Cmax/Tmax language: a worn patch has no peak to name.
+    // Phrased for every patch, not just one that reached its plateau.
+    transdermal:
+      'A patch worn continuously has no peak at all: it climbs steadily toward a plateau at Css = R0/CL — set by clearance alone, not by Vd — and never turns over, because nothing is ever taken off. The marker is simply the concentration reached when the wear period ends, so its time is a property of the product, not of the drug.',
+    // An IM depot is first-order in, exactly like a tablet, so the peak means the
+    // same THING — but the oral sentence names the gut and, more importantly, an
+    // oral F is net of first-pass extraction while an IM F is not.
+    im: 'An intramuscular dose rises as it is absorbed from the muscle depot and falls as it is eliminated; the peak (Tmax) is where those balance. The shape is a tablet’s, but the fraction is not: an injection drains straight to the systemic circulation, so its F is absorption completeness only — it carries no first-pass loss through gut wall and liver, which is why the same drug can reach far higher concentrations by needle than by mouth at the same dose.',
+    // SC gets its own sentence even though its F is the SAME category as IM's, which
+    // is the opposite of why `im` and `rectal` got theirs. The physiology it must not
+    // misstate is the ANATOMY (fat, not muscle) and the RATE (slower, more variable);
+    // the F claim it makes is deliberately identical in substance to IM's, because
+    // saying anything else would invent a distinction that does not exist.
+    sc: 'A subcutaneous dose rises as it is absorbed from the fatty layer under the skin and falls as it is eliminated; the peak (Tmax) is where those balance. Its F means exactly what an intramuscular F means — absorption completeness, carrying no first-pass loss, because an injection of either kind drains straight to the systemic circulation without crossing gut wall or liver. What differs from a muscle depot is the RATE, not the fraction: subcutaneous fat is less well perfused than muscle, so absorption is typically slower and more variable between people and between injection sites.',
+    // The third meaning of F. IM's sentence above ("carries no first-pass loss") and
+    // oral's implicit full one are both FALSE here: rectal venous drainage is split,
+    // so the bypass is partial. Written for any rectal compound, not for diazepam.
+    rectal:
+      'A rectal dose rises as it is absorbed across the rectal mucosa and falls as it is eliminated; the peak (Tmax) is where those balance — the same shape as a tablet. Its F is a third thing again: rectal veins drain PARTLY to the portal circulation and partly straight to the systemic one, so part of the dose meets the liver first and part escapes it. Rectal administration therefore recovers some, but not all, of what a swallowed dose loses to first pass — and how much it recovers depends on how much the liver was taking in the first place, so for a drug the liver barely extracts the gain is small.',
+    // The peak is where the two rates balance whichever one is slower, so that clause
+    // holds in both regimes; what does NOT hold in both is naming elimination as the
+    // cause of the fall.
+    oral:
+      halfLifeRegime === 'elimination_limited'
+        ? 'An oral dose rises as it is absorbed and falls as it is eliminated; the peak (Tmax) is where those balance.'
+        : 'An oral dose rises as it is absorbed and falls once elimination outpaces what is still arriving; the peak (Tmax) is where those balance. Here absorption is the slower step, so what the curve falls at after the peak is the ABSORPTION rate — the drug is eliminated as fast as it gets in, and the tail measures how slowly it arrives, not how quickly it leaves.',
+  };
+  const routeMeaning = ROUTE_MEANING[route];
   const scheduleCaveat =
     totalDoses > 1
       ? ' With repeated doses the marker is the highest point of the whole plotted course (the last-dose accumulation peak) — not a steady-state value; the course may not have reached steady state.'

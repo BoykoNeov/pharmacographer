@@ -1,0 +1,128 @@
+{
+  "id": "sumatriptan",
+  "schemaVersion": 1,
+  "names": {
+    "inn": "Sumatriptan",
+    "brand": ["Imitrex", "Imigran"],
+    "synonyms": ["Sumatriptan"]
+  },
+  "description": "A serotonin 5-HT1B/1D receptor agonist ('triptan') used to treat acute migraine and cluster headache attacks. It is taken to stop an attack in progress, not to prevent one.",
+  "model": "two_compartment_first_order",
+  "linear": true,
+  "illustrativeDoseMg": 6,
+  "disposition": {
+    "halfLife": {
+      "value": 115,
+      "range": [96, 134],
+      "unit": "min",
+      "derived": false,
+      "sourceRef": "imitrex_injection_label",
+      "conditions": "Terminal (beta-phase) half-life, 115 +/- 19 min, from the Imitrex injection SPL's 9-male 6 mg subcutaneous study. The range is the reported +/- 1 SD. This is the terminal slope carried for the caption and provenance rows; the engine recomputes beta from the disposition2c micro-parameters and round-trips to ~115 min by construction, since beta is one of the four inputs those micro-parameters were solved from. NOTE A SECOND, DIFFERENT FIGURE EXISTS: the Imitrex TABLET label states 'the elimination half-life of sumatriptan is approximately 2.5 hours' (150 min). The two labels are two studies, and this file uses the injection label's set throughout because that is the one that reports four mutually-constraining quantities from a single study. The tablet figure is recorded as a discrepancy, NOT averaged in - averaging would manufacture a number neither source reports."
+    },
+    "vd": {
+      "value": 121.6,
+      "unit": "L",
+      "derived": true,
+      "sourceRef": "derived_from_half_lives",
+      "conditions": "DERIVED steady-state volume, Vss = Vc + Vp = 50.0 + 71.6 = 121.6 L, where Vp is itself solved from the label's alpha/beta half-lives (see disposition2c.peripheralVd and notes for the full arithmetic). NOT a reported number: neither label states a Vss. Corroboration, not input - Cosson 1999's population fit gives Vss 94.5 L (IV data) and 109 L (IV+SC+oral), so this sits ~12% above the larger of the two, which is acceptable agreement across different populations and estimation methods; the Imitrex tablet label separately quotes an APPARENT volume of 2.4 L/kg (~168 L at 70 kg), which is Vd/F and therefore not comparable to a true Vss at all. None of the three are averaged together. Stored in absolute litres rather than L/kg because the source study reports absolute volumes for a stated 77 kg mean weight; the 70 kg reference subject does not enter here."
+    }
+  },
+  "disposition2c": {
+    "clearance": {
+      "value": 1194,
+      "range": [1045, 1343],
+      "unit": "mL/min",
+      "derived": false,
+      "sourceRef": "imitrex_injection_label",
+      "conditions": "Systemic clearance 1,194 +/- 149 mL/min (= 71.6 L/h) from the label's 9-male 6 mg subcutaneous study; range is the reported +/- 1 SD. Stored in the source's own units (mL/min) rather than pre-converted, so the provenance row shows the reader the number the label actually prints. Sets AUC = F.Dose/CL. Independently corroborated by Cosson 1999's population estimate of 71.2 L/hr after IV dosing - agreement to 0.6%, which is the strongest single cross-check in this file."
+    },
+    "centralVd": {
+      "value": 50,
+      "range": [42, 58],
+      "unit": "L",
+      "derived": false,
+      "sourceRef": "imitrex_injection_label",
+      "conditions": "Central compartment volume 50 +/- 8 L, stated directly by the label ('volume of distribution central compartment: 50 +/- 8 liters'); range is the reported +/- 1 SD. Sets the ceiling any curve can reach, F.Dose/Vc, which for the labelled 6 mg subcutaneous dose is 116 ng/mL against a reported Cmax of 74 - the ceiling test passes with room, which is exactly what a 2-comp compound should show and what a 1-comp reading of this drug does NOT (see notes)."
+    },
+    "interCompartmentalClearance": {
+      "value": 50.1,
+      "unit": "L/h",
+      "derived": true,
+      "sourceRef": "derived_from_half_lives",
+      "conditions": "DERIVED, not reported: Q = k12.Vc = 1.0016 /h x 50 L = 50.1 L/h. Solved from the four quantities the label reports in one study - Vc, CL, the 15 min distribution half-life and the 115 min terminal half-life - via the standard two-compartment algebra (k10 = CL/Vc; k21 = alpha.beta/k10; k12 = alpha + beta - k10 - k21). Full arithmetic in notes. This is the first compound in the set whose Q and Vp are computed rather than taken from a published popPK fit, which is why the sentinel sourceRef derived_from_half_lives exists."
+    },
+    "peripheralVd": {
+      "value": 71.6,
+      "unit": "L",
+      "derived": true,
+      "sourceRef": "derived_from_half_lives",
+      "conditions": "DERIVED, not reported: Vp = Q/k21 = 50.08 / 0.6998 = 71.6 L, from the same alpha/beta solve as interCompartmentalClearance. Adding it to Vc gives the Vss of 121.6 L carried in the disposition block. Full arithmetic in notes."
+    }
+  },
+  "routes": {
+    "sc": {
+      "available": true,
+      "F": {
+        "value": 97,
+        "range": [81, 100],
+        "unit": "percent",
+        "derived": false,
+        "sourceRef": "imitrex_injection_label",
+        "conditions": "Bioavailability of a subcutaneous dose: absorption completeness ONLY, with no first-pass term - an injected depot drains to the systemic circulation without crossing gut wall or portal liver. This is the SAME quantity an intramuscular F denotes, not a fourth kind (see schema.ts InjectedDepotRouteSchema); what differs between IM and SC is absorption RATE, not what F means. VALUE: 'The bioavailability of sumatriptan via subcutaneous site injection to 18 healthy male subjects was 97% +/- 16% of that obtained following intravenous injection' - note this is measured against IV, which is what makes it a clean absorption-completeness number rather than an inference. RANGE IS TRUNCATED AT 1.0 AND THAT TRUNCATION IS ITSELF THE FINDING: the reported +/- 1 SD spans 81-113%, which crosses unity, and a bioavailable fraction above 1 is not a possible quantity. The honest reading is not that the upper bound is 113% but that subcutaneous absorption of this drug is INDISTINGUISHABLE FROM COMPLETE within the study's precision - so the band is capped at 100% and the reader is told why here rather than shown an impossible number. Contrast the oral F of ~15% on the same molecule (Imitrex tablet label): the ~6.5x gap is first pass. That contrast is carried in PROSE and not as a second drawn curve - oral sumatriptan fails the single-first-order-input screen and is deliberately not shipped, for reasons set out in notes."
+      },
+      "tmax": {
+        "value": 12,
+        "range": [5, 20],
+        "unit": "min",
+        "derived": false,
+        "sourceRef": "imitrex_injection_label",
+        "conditions": "'Maximum serum concentration is generally reached in about 12 minutes after injection (range: 5 to 20 minutes)' for the labelled 6 mg subcutaneous dose. No source reports a subcutaneous ka, so the engine INVERTS this Tmax through the two-compartment peak solve (kaFromTmax2c) and the resulting ka is flagged derived in the honesty panel. THE HAZARD, recorded because it is invisible on screen: this Tmax (12 min) sits essentially on top of the distribution half-life (15 min), so the early curve is a blend of absorption filling the central compartment and distribution emptying it, and the inverted ka is correspondingly sensitive. That is precisely why the built-curve magnitude check in notes tests the PEAK TIME as well as the peak height - a ka that reproduces one but not the other would be wrong in a way the ceiling test cannot see."
+      }
+    },
+    "iv_bolus": {
+      "available": true,
+      "F": {
+        "value": 1,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "definition"
+      }
+    },
+    "iv_infusion": {
+      "available": true,
+      "F": {
+        "value": 1,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "definition"
+      }
+    }
+  },
+  "metabolites": [],
+  "flags": {
+    "nonlinear": false,
+    "narrowTherapeuticIndex": false
+  },
+  "sources": {
+    "imitrex_injection_label": {
+      "type": "FDA label",
+      "title": "IMITREX (sumatriptan succinate) Injection, for subcutaneous use - FDA/DailyMed Structured Product Label, clinical pharmacology: subcutaneous bioavailability 97% +/- 16% of intravenous in 18 healthy male subjects; mean Cmax 74 +/- 15 ng/mL after a 6 mg subcutaneous dose, reached in about 12 minutes (range 5-20 min); systemic clearance 1,194 +/- 149 mL/min; distribution half-life 15 +/- 2 minutes; terminal half-life 115 +/- 19 minutes; volume of distribution central compartment 50 +/- 8 litres (9 males, mean age 33 y, mean weight 77 kg, 6 mg into the deltoid); protein binding 14-21%; metabolised predominantly by monoamine oxidase A to an indole acetic acid metabolite; 22% +/- 4% excreted unchanged in urine and 38% +/- 7% as the metabolite.",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/fda/fdaDrugXsl.cfm?setid=413cb899-509f-40cb-b898-c44af9611ce7",
+      "accessed": "2026-07-20"
+    },
+    "imitrex_tablet_label": {
+      "type": "FDA label",
+      "title": "IMITREX (sumatriptan succinate) Tablets, for oral use - FDA/DailyMed Structured Product Label, clinical pharmacology: oral bioavailability approximately 15%, 'primarily due to presystemic metabolism and partly due to incomplete absorption'; Tmax approximately 2.0 h migraine-free and 2.5 h during an attack, with similar Cmax in both; mean Cmax 18 ng/mL (range 7-47) after 25 mg and 51 ng/mL (range 28-100) after 100 mg; elimination half-life approximately 2.5 hours; apparent volume of distribution 2.4 L/kg; dose-proportional AUC over 25-200 mg, but Cmax after 100 mg approximately 25% less than expected from the 25 mg dose.",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/fda/fdaDrugXsl.cfm?setid=040abcc1-cc1c-4f00-b302-36070611f7b2",
+      "accessed": "2026-07-20"
+    },
+    "cosson_1999": {
+      "type": "Journal article",
+      "title": "Cosson VF, Fuseau E. Mixed effect modeling of sumatriptan pharmacokinetics during drug development: II. From healthy subjects to phase 2 dose ranging in patients. J Pharmacokinet Biopharm. 1999 (PMID 10567953): NONMEM population analysis of 215 healthy subjects dosed intravenously, subcutaneously and orally plus 143 migraine sufferers dosed orally, using a TWO-COMPARTMENT disposition model; total clearance and steady-state distribution volume 71.2 L/hr and 94.5 L after IV dosing, and 68.7 L/hr and 109 L after inclusion of the subcutaneous and oral data; oral absorption modelled as a first-order input followed by a zero-order input, with the absorption phase lasting about 5 hours; interindividual variability around 20% for clearance and 30% for steady-state volume. CITED AS CORROBORATION of the label-derived disposition and as the source for the oral multiple-input caveat; its parameters are NOT used as inputs and are NOT averaged with the label's.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/10567953/",
+      "accessed": "2026-07-20"
+    }
+  },
+  "metabolism": "Sumatriptan is metabolised mainly by monoamine oxidase A to an indole acetic acid metabolite, which is inactive and is excreted in the urine along with a smaller fraction of unchanged drug. Because that metabolite has no activity it is not drawn here. Note that none of the routes shown depend on that metabolism happening before the drug arrives: an injection reaches the bloodstream without passing through the liver first, which is why a subcutaneous dose delivers almost all of what is given (F ~97%) while a swallowed tablet delivers about 15%.",
+  "notes": "Sumatriptan - the first triptan (Imitrex, FDA-approved 1992), a 5-HT1B/1D agonist for acute migraine and cluster headache. It ships here as the SUBCUTANEOUS route's first compound (handoff section 12, the 'more routes' seam) and as a two-compartment linear parent with no drawn metabolite.\n\nWHY SUMATRIPTAN FOR THE SUBCUTANEOUS ROUTE. The standing gate, recorded in DATA_GUIDE when ketamine's IM route shipped, was that 'SC ships when a source reports SC alone' - ketamine was refused because Abuhelwa pools IM and SC into one 64% F with indistinguishable absorption rate constants, which is evidence of a shared input SHAPE and not a licence to write a route whose own numbers were never separated out. The Imitrex injection label clears that gate exactly: the product is subcutaneous-only, and its 97% bioavailability is measured against IV in a dedicated 18-subject study, not pooled with any other route.\n\nWHAT THIS ROUTE DID AND DID NOT ADD, WHICH IS THE POINT OF SHIPPING IT. No engine math, as with transdermal, IM and rectal: a subcutaneous depot is a FIRST-ORDER input, so engineRouteOf maps sc onto the engine's 'oral' path and the mode spine covers 1-, 2- and 3-compartment dispositions alike. But unlike its three predecessors it added nothing to the F taxonomy either. Transdermal removed F (a stated delivery rate is already systemic); IM kept F but stripped the first-pass term; rectal showed the term is not even binary (portal/systemic split drainage). Subcutaneous drains systemically exactly as intramuscular does, so its F is absorption completeness with no first-pass term - the SAME category as im, to the letter, which is why the two share one schema rather than getting parallel ones. The sequence of 'what does a shared input type NOT share?' closes here. Recorded deliberately: the lesson of the first three routes must not harden into 'a new route always means a new fact', and a schema that implied a distinction the physiology does not contain would be the manufactured-distinction failure this project refuses elsewhere (unmerged variability bands, un-decomposed rectal F). What separates IM from SC is real but is a VALUE, not a meaning: subcutaneous fat is less well perfused than muscle, so absorption is slower and more variable - and that lives in ka, a field both blocks already carry.\n\nWHY TWO COMPARTMENTS, AND HOW THE MICRO-PARAMETERS WERE OBTAINED. A one-compartment reading of this drug FAILS ITS OWN CEILING TEST, which is what forced the model choice rather than any preference for detail. The label's numbers are mutually inconsistent under one compartment: CL/Vc = 71.6/50 = 1.43 /h implies a half-life of 29 min against a reported 115. Reconciling CL with the terminal half-life instead gives an apparent volume of ~198 L, and the ceiling F.Dose/V at 6 mg subcutaneous is then 29 ng/mL - BELOW the reported Cmax of 74. The 50 L is a central volume, and the drug is genuinely biphasic.\n\nUnlike every earlier 2-comp compound in the set, Q and Vp here are COMPUTED rather than cited - ketamine's and diazepam's came from published popPK fits. The label reports four quantities from ONE 9-subject study, which is exactly enough to pin the model with nothing invented: Vc = 50 L, CL = 1194 mL/min = 71.64 L/h, distribution half-life 15 min, terminal half-life 115 min. Working in 1/h: alpha = ln2/0.25 = 2.7726, beta = ln2/1.9167 = 0.36161, k10 = CL/Vc = 1.4328; then k21 = alpha.beta/k10 = 1.00262/1.4328 = 0.69976, and k12 = alpha + beta - k10 - k21 = 3.13420 - 1.4328 - 0.69976 = 1.00164. So Q = k12.Vc = 50.1 L/h and Vp = Q/k21 = 71.6 L, giving Vss = 121.6 L. The inputs are cited and the outputs are algebra on them, so Q, Vp and Vss carry derived: true and the sentinel sourceRef derived_from_half_lives, which this compound is the reason for.\n\nCORROBORATION, NOT INPUT. Cosson 1999's independent NONMEM analysis (215 healthy subjects, IV/SC/oral, two-compartment) gives CL 71.2 L/hr and Vss 94.5 L on IV data, 68.7 L/hr and 109 L on all data. Clearance agrees to 0.6%, which is as close as two independent estimates of anything in this set come; Vss sits ~12% below the label-derived 121.6 L, acceptable across different populations and methods. The two are NOT averaged - that would manufacture a number neither source reports, the same failure the unmerged variability bands and the phenotype presets each refuse in their own layer. The label's set is used throughout because it is internally coherent and comes from a single study.\n\nMAGNITUDE CHECK (built curve, not the ceiling test - the ceiling only proves a peak is not impossible). Subcutaneous 6 mg: the engine peaks at 72.7 ng/mL at 12.0 min, against the label's reported 74 +/- 15 ng/mL at about 12 minutes (range 5-20). Ratio 0.98x on height, and on the minute for the peak instant. BOTH halves matter here and the second is the load-bearing one: the inverted ka is sensitive because Tmax (12 min) nearly coincides with the distribution half-life (15 min), so absorption and distribution overlap in the early curve - a wrong ka could still land the height while missing the peak instant, and the ceiling test would see neither.\n\nWHY NO METABOLITE IS DRAWN. Sumatriptan's indole acetic acid metabolite is INACTIVE, so a line for it would add a curve with no teaching content while dragging the first-pass machinery (ffp, appliesFirstPass) into a compound that does not need it.\n\nWHY ORAL IS NOT SHIPPED, THOUGH THE TABLET IS REAL AND THE CONTRAST WAS THE REASON TO WANT IT. Oral sumatriptan was drafted into this file and then removed, because the magnitude check refused it and the refusal turned out to be principled rather than a tuning problem. NO SINGLE FIRST-ORDER ka REPRODUCES BOTH REPORTED ORAL NUMBERS on this disposition. Inverting the reported Tmax of 2.0 h gives ka = 0.1816 /h and a peak of 5.4 ng/mL at 25 mg, against a reported Cmax of 18 - 3.3x low. Matching the Cmax instead needs ka ~ 1.0 /h, which puts Tmax at 0.68 h, a third of the reported value. A sweep of ka from 0.18 to 9.2 /h confirms Tmax falls monotonically throughout, so this is not a solver picking the wrong root of a two-root problem - there is one root, and the two reported oral observations are simply not simultaneously satisfiable by a single exponential input. The engine's flip-flop warning fires correctly on the way (ka 0.1816 /h sits below the terminal beta of 0.3615 /h).\n\nThat is exactly what the independent source says the shape is: Cosson 1999 fits oral sumatriptan as a first-order input FOLLOWED BY a zero-order input with an absorption phase lasting about 5 hours, and a separate literature describes a multiple-peaks phenomenon after oral dosing. The engine has no such input type. So oral fails the input-type screen outright - the same screen that admitted subcutaneous on row 2 - and is omitted rather than drawn wrong, which is the ketamine and diazepam posture (no route offered where the model would be wrong).\n\nWHY OMISSION AND NOT A CAVEATED CURVE, since a documented residual is elsewhere acceptable in this set: a 3.3x-low oral curve drawn beside an accurate subcutaneous one would make the on-screen peak-to-peak ratio read ~56x at equal dose where the label's own Cmax values put it near 17x. The curve would INFLATE precisely the contrast it was added to teach, and no caption can correct what the line shows. The contrast survives here in prose instead, cited and intact: subcutaneous F ~97% against oral ~15%, the tablet label attributing that loss 'primarily due to presystemic metabolism and partly due to incomplete absorption'. Ketamine carries its ~64%-versus-~17% contrast the same way, in words, with no oral curve drawn.\n\nDOSE. illustrativeDoseMg is 6 mg - the labelled subcutaneous dose, and this file's headline route; the generic 500 mg opening would be ~83x it. With oral omitted, every drawn route (subcutaneous, IV bolus, IV infusion) is one where 6 mg is a real clinical scale, so no route opens at a dose nobody is given. It is a scale, never a recommended dose.\n\nA NOTE ON WHAT THE CURVE IS NOT. Sumatriptan's effect does not track its plasma concentration closely - headache relief outlasts measurable drug, and the label records that Cmax is similar during an attack and between attacks while Tmax shifts. This is the warfarin posture: concentration is not effect. EDUCATIONAL ILLUSTRATION ONLY - not for dosing."
+}

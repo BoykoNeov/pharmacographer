@@ -33,7 +33,6 @@ import type { DerivedNote } from '../data/derive.ts';
 import type { Compound, CompoundParameter, CompoundSource, DataRoute } from '../data/schema.ts';
 import { SOURCE_REF_SENTINELS } from '../data/schema.ts';
 
-
 /**
  * The measured-vs-derived classification of a source value (axis 1).
  *   - `measured`   — read from a source as reported.
@@ -61,6 +60,7 @@ const SENTINEL_LABELS: Record<(typeof SOURCE_REF_SENTINELS)[number], string> = {
   definition: 'True by definition',
   derived_from_tmax: 'Estimated from a reported Tmax',
   derived_from_clearance: 'Computed from clearance and half-life',
+  derived_from_half_lives: 'Computed from the reported distribution and terminal half-lives',
 };
 
 /** One parameter as shown in the provenance panel. */
@@ -101,7 +101,11 @@ export function resolveSource(compound: Compound, sourceRef: string | null): Res
   const source = compound.sources[sourceRef];
   if (source) return { kind: 'source', ref: sourceRef, source };
   if (sourceRef in SENTINEL_LABELS) {
-    return { kind: 'sentinel', ref: sourceRef, label: SENTINEL_LABELS[sourceRef as keyof typeof SENTINEL_LABELS] };
+    return {
+      kind: 'sentinel',
+      ref: sourceRef,
+      label: SENTINEL_LABELS[sourceRef as keyof typeof SENTINEL_LABELS],
+    };
   }
   // Validation guarantees this is unreachable, but resolve gracefully rather than throw.
   return { kind: 'sentinel', ref: sourceRef, label: sourceRef };
@@ -111,7 +115,13 @@ export function resolveSource(compound: Compound, sourceRef: string | null): Res
 function classify(param: CompoundParameter): Provenance {
   if (param.sourceRef === 'definition') return 'definition';
   if (param.derived) return 'derived';
-  if (param.sourceRef === 'derived_from_tmax' || param.sourceRef === 'derived_from_clearance') {
+  // Any `derived_from_*` sentinel means a curator computed the value. Tested by
+  // PREFIX rather than by listing them, because the hand-written list here silently
+  // omitted `derived_from_half_lives` the moment that sentinel was added: a
+  // parameter carrying it but not also `derived: true` would have been badged
+  // "Measured" — the honesty panel asserting the one thing it exists to deny.
+  // Sumatriptan's Q/Vp set both, so this guards the trap rather than a live bug.
+  if (param.sourceRef !== null && param.sourceRef.startsWith('derived_from_')) {
     return 'derived';
   }
   return 'measured';
@@ -125,7 +135,10 @@ function classify(param: CompoundParameter): Provenance {
  * inverted from a Tmax; the assumed-`F` note has no row (F is only shown when the
  * file provides it) and is surfaced as a caution instead.
  */
-function derivationTargetKey(noteParameter: string, present: ReadonlySet<string>): string | undefined {
+function derivationTargetKey(
+  noteParameter: string,
+  present: ReadonlySet<string>,
+): string | undefined {
   switch (noteParameter) {
     case 'vd':
       return 'vd';
@@ -331,7 +344,9 @@ export function metaboliteProvenanceEntries(
 }
 
 /** The distinct literature sources cited by `rows`, in first-seen order. */
-export function citedSources(rows: readonly ProvenanceRow[]): { ref: string; source: CompoundSource }[] {
+export function citedSources(
+  rows: readonly ProvenanceRow[],
+): { ref: string; source: CompoundSource }[] {
   const seen = new Set<string>();
   const out: { ref: string; source: CompoundSource }[] = [];
   for (const row of rows) {

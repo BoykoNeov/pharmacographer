@@ -4,12 +4,12 @@ Interactive, **educational** pharmacokinetics (PK) curve plotter. The product is
 **epistemic honesty**, not a prettier chart. This file is the working conventions
 and the things that are easy to get wrong. The companion docs, read on demand:
 
-| Doc | Holds |
-| --- | --- |
-| `PHARMACOGRAPHER_HANDOFF.md` | the full plan + phase list (§ refs below point here) |
-| `docs/DATA_GUIDE.md` | **curation rules** — every screen/gate, and the rejection log |
-| `docs/PK_MODEL.md` | the PK math |
-| `docs/HISTORY.md` | milestone narrative: rejected alternatives + advisor catches |
+| Doc                          | Holds                                                         |
+| ---------------------------- | ------------------------------------------------------------- |
+| `PHARMACOGRAPHER_HANDOFF.md` | the full plan + phase list (§ refs below point here)          |
+| `docs/DATA_GUIDE.md`         | **curation rules** — every screen/gate, and the rejection log |
+| `docs/PK_MODEL.md`           | the PK math                                                   |
+| `docs/HISTORY.md`            | milestone narrative: rejected alternatives + advisor catches  |
 
 ## The bright line (non-negotiable)
 
@@ -91,9 +91,9 @@ all pass.
   `.max(400)`): what it is + what it's typically used for, ~2 sentences. It renders
   in a **fixed-height "About" box above the chart** so switching compounds never
   jumps the chart — keep it short. Optional `metabolism` (compound-level, uncapped)
-  + per-metabolite `description` render **below** the chart (free to grow). For a
-  toxin, say what it *is*, not a therapy it lacks (bright line). See
-  `docs/DATA_GUIDE.md` "User-facing prose".
+  - per-metabolite `description` render **below** the chart (free to grow). For a
+    toxin, say what it _is_, not a therapy it lacks (bright line). See
+    `docs/DATA_GUIDE.md` "User-facing prose".
 - License is **Apache-2.0**; keep the AS-IS / disclaimer posture intact.
 - Charting is **Recharts**; the lin/semi-log y-axis toggle is a pedagogical
   feature, not optional polish.
@@ -110,7 +110,7 @@ unpublished, and the in-flight run cancelled. Do **not** re-add a deploy without
 asking first. Work now comes from handoff §12 (extension points), picked for
 teaching value.
 
-**Seed set: 47 compounds** — the file count in `src/data/compounds/` is
+**Seed set: 48 compounds** — the file count in `src/data/compounds/` is
 authoritative, not this number. Adding a **linear** compound is pure data: drop in
 a JSON file and `loader.ts`'s `import.meta.glob` picks it up, with
 `loader.test.ts` deriving every route of it as an integration guard. No
@@ -130,7 +130,7 @@ engine/schema/derive change needed.
   `Km·ln(C0/C)+(C0−C)=(Vmax/Vd)·t`, the AUC + steady-state closed forms, mass
   balance, and the `Km≫C` collapse onto `models.ts`. Ships **phenytoin + ethanol +
   theophylline**. Theophylline is the one to study: the same molecule ALSO appears as a
-  *linear* metabolite line on caffeine, ~100-300× below its Km, so that line is this
+  _linear_ metabolite line on caffeine, ~100-300× below its Km, so that line is this
   model's own low-concentration limit rather than a contradiction — the `Km≫C` collapse
   as data. Its Vd is byte-identical across the two files on purpose; **no test compares
   them**.
@@ -145,7 +145,7 @@ engine/schema/derive change needed.
   the default and must override **nothing** — the base values ARE the default
   phenotype, which makes the default render provably the pre-preset compound. Adding a
   preset to a compound is data + citations. See `docs/DATA_GUIDE.md` "Phenotype presets".
-- Routes: oral, IV bolus, IV infusion, **transdermal**, **intramuscular**, **rectal**.
+- Routes: oral, IV bolus, IV infusion, **transdermal**, **intramuscular**, **rectal**, **subcutaneous**.
   Multi-dose via superposition (linear) or whole-schedule integration (MM); per-parameter
   variability bands; Cmax/Tmax markers; lin/semi-log toggle; unit toggle. `DATA_ROUTES`
   (`schema.ts`) is the exhaustive runtime tuple — iterate it, never a literal list, or the
@@ -163,7 +163,7 @@ engine/schema/derive change needed.
   `F·D/Vd` — the classical `V/F` non-identifiability), so the F slider must NOT reuse the
   "X is held constant" copy. Note the limit of that claim, which an advisor pass had to
   correct after it shipped: non-identifiability is about **attribution** (the curve cannot
-  tell you *which* parameter moved), NOT about F and Vd being one quantity. They are
+  tell you _which_ parameter moved), NOT about F and Vd being one quantity. They are
   separately measured, vary for unrelated reasons, and their extremes compound — morphine's
   high-F/small-Vd corner is 1.7× the nominal height, outside either band alone, and is a
   coherent person. So the panel instructs neither "add these" nor "never add these": nothing
@@ -214,13 +214,28 @@ engine/schema/derive change needed.
   read the block for THAT route via `absorptionRouteOf` — reaching for `routes.oral` directly
   is what silently cost ketamine's IM curve its whole F band. See `docs/DATA_GUIDE.md` "The
   intramuscular route" and "The rectal route".
+- **Subcutaneous (`sc`)** — the same seam a fourth time, also **no engine math** (first-order →
+  `oral`), and the first route whose result is **negative**. SC drains systemically exactly as IM
+  does, so its `F` is the SAME category as `im`'s: the taxonomy **closes at three meanings, not
+  four**. Hence `im` and `sc` share ONE schema (`InjectedDepotRouteSchema`) where `rectal` keeps its
+  own — **a separate schema means a different quantity; a shared schema means the same quantity**.
+  What differs between them is `ka` (fat is less perfused than muscle), and _a difference in a
+  field's VALUE is not a difference in what the field MEANS_. Do not let IM's lesson ("a shared input
+  type doesn't carry every clinical fact") harden into "a new route always means a new fact." Ships
+  **sumatriptan**, also the first 2-comp compound whose Q/Vp are **derived** rather than cited
+  (sentinel `derived_from_half_lives`), solved from a label's α/β half-lives + Vc + CL. Its **oral
+  route was drafted and cut on the magnitude check**: no single first-order `ka` fits both the
+  reported oral Tmax and Cmax (3.3× low; a ka sweep proved one root, so not a solver bug — oral
+  absorption is genuinely biphasic). Omitted rather than drawn wrong, because _a residual is
+  tolerable, but not when the wrong quantity IS the teaching point_. See `docs/DATA_GUIDE.md` "The
+  subcutaneous route".
 
 **A nonlinear compound is NOT pure data** — unlike a linear one. It needs
 `dispositionMM`, `linear: false`, and an **explicit cited `ka`** for oral: a Tmax
 cannot be inverted without a `ke`, and Tmax itself moves with dose, so
 `deriveParamsMM` refuses rather than fabricate the dose it was measured at
 (phenytoin therefore ships IV-only; ethanol ships oral). It also has no half-life
-slider and no variability band — `VariabilitySlider`'s `NoRangeReason` says *why*,
+slider and no variability band — `VariabilitySlider`'s `NoRangeReason` says _why_,
 and "no range reported" would be a falsehood under phenytoin, whose label reports
 7–42 h. Optional `illustrativeDoseMg` sets the dose the chart **opens** at, for a
 compound whose scale makes the generic 500 mg misrepresent it (ethanol at 500 mg
@@ -248,16 +263,24 @@ never "select your genotype" — `tests/ui/phenotype-picker.test.tsx` asserts it
 
 **Two standing traps** (both have bitten before, both are invisible to CI):
 
-- `npm test` proves *structure + derivation*, never *numeric correctness*.
+- `npm test` proves _structure + derivation_, never _numeric correctness_.
   Magnitude-check a new compound by building the engine curve and comparing peak
   concentration to a reported Cmax. For a zero-order input use `Css = R0/CL` (it
   depends on clearance ALONE, so it is a free check on the data), and check the
-  *approach* too — `ke = CL/Vd` against a reported time-to-steady-state.
+  _approach_ too — `ke = CL/Vd` against a reported time-to-steady-state.
 - **Tests are blind to on-screen prose, and a route ternary silently inherits its
   last branch.** Adding `transdermal` left `PeakNote` explaining a patch with the
   ORAL story ("the peak (Tmax) is where those balance") under a curve that never
   falls — 522 green tests, typechecker happy. **Launch the app** for anything
   route- or phenotype-keyed, and grep for EVERY surface asserting the same thing
   (caption, note, and chart marker were three independent ones).
+  **This has now recurred THREE times** — transdermal (`PeakNote`), rectal
+  (`ModelAssumptionsNote`, whose final branch then caught `sc`), and `sc` itself,
+  which `PeakNote` printed as _"An **oral** dose rises…"_ under 602 green tests.
+  So the fix is no longer "add your branch": **convert the ternary to an exhaustive
+  `Record<DataRoute, …>`** so the next route fails to COMPILE instead of inheriting
+  a confident paragraph about the wrong organ. Four now exist —
+  `BIOAVAILABILITY_LABELS`, `DATA_ROUTES`, `FIRST_ORDER_ABSORPTION_COPY`,
+  `ROUTE_MEANING`. Extending a chain fixes one route and re-arms the trap.
 - Tests, lint, build, and magnitude checks are all blind to whether a citation
   is real. Never ship a source you did not open.

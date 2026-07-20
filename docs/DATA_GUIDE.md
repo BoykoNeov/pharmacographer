@@ -32,16 +32,16 @@ to one number. This guide is how we keep that honest.
   one-compartment. Drugs that are genuinely multi-compartment get collapsed: e.g.
   using a steady-state Vss as the single Vd, or treating a drug with a
   distribution phase / saturable absorption as monophasic. This is faithful to
-  the *terminal* slope but distorts the *early* curve shape. When you collapse a
+  the _terminal_ slope but distorts the _early_ curve shape. When you collapse a
   multi-compartment drug, say so in `notes` — the shape is an approximation even
   when every number is sourced.
 - **The `F·D/V` ceiling test — run it BEFORE writing JSON.** For a one-compartment
-  model, `F·D/V_reported` is a *hard ceiling* on the peak concentration: an IV
+  model, `F·D/V_reported` is a _hard ceiling_ on the peak concentration: an IV
   bolus hits it exactly, and oral / infusion land strictly below it (via the
   Bateman / accumulation factor). So the cheap pre-write gate is: compute
   `F·D/V_reported` and compare to the reported Cmax. If the ceiling sits
   **comfortably above** Cmax, a one-compartment collapse works — pick the volume
-  *within the cited source range* that lands the peak on Cmax (the diphenhydramine
+  _within the cited source range_ that lands the peak on Cmax (the diphenhydramine
   posture) and move on. If the ceiling is **below** Cmax, the drug is too
   distributed for a one-compartment model at that volume — no `ka`/`ke` choice can
   rescue it (the reported Vd is a tissue Vss larger than the plasma-peak volume);
@@ -55,16 +55,16 @@ to one number. This guide is how we keep that honest.
   **`molar AUC_m/AUC_p = fm_MOLAR · CL_p/CL_m`** — independent of route, dose, `ka`
   and (for the molar ratio) of the MW conversion, which cancels exactly: the ×MW_m/MW_p
   factor enters via the stored mass `fm` and leaves again converting mass AUC back to
-  molar. So the ratio a curator claims in `notes` is *arithmetic*, checkable in one line
+  molar. So the ratio a curator claims in `notes` is _arithmetic_, checkable in one line
   without building anything: procainamide/NAPA is `0.40 × (40.4/9.70) = 1.67`. Two traps
   this closes. (1) **Quote the 0→∞ ratio, and expect the plotted window to read under it**
   — an elimination-limited metabolite is still collecting its tail at the horizon
   (NAPA reads ~1.64 over a 48 h window vs 1.67 to infinity), so a horizon-truncated number
   is not a discrepancy to chase. (2) **"Metabolite exceeds parent" is three different
   claims** — higher Cmax, a crossover, or higher AUC — and they do not imply one another:
-  NAPA's peak is *below* procainamide's (1.7 vs 2.9 mg/L) yet it crosses at ~4.5 h and its
+  NAPA's peak is _below_ procainamide's (1.7 vs 2.9 mg/L) yet it crosses at ~4.5 h and its
   AUC is 1.67×. Say which one you mean. Note `AUC_m` does **not** depend on `CL_p`, so a
-  phenotype that changes parent clearance moves the two AUCs by *different* factors (slow
+  phenotype that changes parent clearance moves the two AUCs by _different_ factors (slow
   acetylator: NAPA's AUC exactly halves with `fm` while the parent's rises ×1.5, so the
   ratio falls ~3×, not 2×). Prose claims like these are invisible to every automated
   check — `npm test`, lint and build all pass with a wrong number sitting in `notes`
@@ -89,7 +89,7 @@ Three consequences for curation:
   contradiction in either direction. Tagging a drug `linear: false` while leaving
   it on a linear model is now a validation error, not a way to shelve it.
 - **A nonlinear compound has NO `disposition` block.** It carries `dispositionMM`
-  (Vd, Vmax, Km) instead, and the schema *forbids* a `disposition` alongside it.
+  (Vd, Vmax, Km) instead, and the schema _forbids_ a `disposition` alongside it.
   A stored half-life on a saturable drug is not an imprecision but a category
   error — the number changes with concentration. If you cannot find Vmax and Km,
   you cannot ship the compound; a half-life is not a substitute.
@@ -101,7 +101,7 @@ Three consequences for curation:
 Still `linear: false` and **not shipped**, because no one has curated Vmax/Km for
 them: **high-dose aspirin/salicylate**, **omeprazole**, **MDMA**, **naproxen**,
 **ondansetron** (see the notes below). These are no longer exclusions on
-principle — they are *un-curated nonlinear compounds*, and each is now a
+principle — they are _un-curated nonlinear compounds_, and each is now a
 candidate for the MM engine if a source gives Vmax and Km. Note that omeprazole
 (auto-INHIBITION) and naproxen (concentration-dependent protein binding) are
 **not** Michaelis–Menten in shape, so they would need a further model, not just
@@ -129,11 +129,11 @@ generalise:
   web-search blurb and reached shipped `notes` in three places before anyone had
   identified the study, let alone opened it. It was not decoration: the whole
   "Wagner is bracketed, not an outlier" argument rested on that second fit
-  existing. All three gates were green over it, because *every automated check is
-  blind to whether a citation is real*. **The discriminator is simply: does the
+  existing. All three gates were green over it, because _every automated check is
+  blind to whether a citation is real_. **The discriminator is simply: does the
   source open?** Fetch it and cite it properly, or delete the number and let the
   argument stand on what you did open — never leave it in as atmosphere. Here it
-  opened (Dahlqvist 1984, PMID 6506136) and the argument got *stronger*: the two
+  opened (Dahlqvist 1984, PMID 6506136) and the argument got _stronger_: the two
   fits bracket both direct clearance measurements. The lesson generalises past
   "verify citations": **the detail you are least sure of is disproportionately
   likely to be the one holding up your confidence.**
@@ -154,7 +154,7 @@ collapsed into ordinary numbers. Adding a preset needs **no engine change**.
 
 - **The default preset must override NOTHING.** `presets[0]` IS the compound's
   base values (schema-enforced), so the default render is the pre-preset compound
-  *by construction* rather than by reconstruction, and `applyPhenotype` returns the
+  _by construction_ rather than by reconstruction, and `applyPhenotype` returns the
   same object. Put the contrasting phenotype in a later preset. This is what makes
   "presets didn't change the shipped curve" provable instead of hopeful.
 - **Every preset is a separately-cited population, not a multiplier.** Each
@@ -172,7 +172,7 @@ collapsed into ordinary numbers. Adding a preset needs **no engine change**.
 - **`clearance` must not be stored on a compound with a half-life preset.**
   `resolveKe` prefers a stored CL over half-life, so the override would be
   silently discarded and the curve would not move. The schema rejects this — but
-  note the general shape of the trap: an override that is *ignored* looks exactly
+  note the general shape of the trap: an override that is _ignored_ looks exactly
   like a feature that works, since nothing errors.
 - **Cross-check the pair for internal coherence.** Procainamide's two presets come
   out consistent: Lima's CL ratio 22.6/34.8 = 0.65 vs the t½-implied 2.4/3.6 = 0.67,
@@ -186,7 +186,7 @@ collapsed into ordinary numbers. Adding a preset needs **no engine change**.
 **The teaching payoff, and why it justifies the machinery.** Procainamide's two
 presets move parent and metabolite in OPPOSITE directions: slow acetylators show
 ~1.5× the parent exposure (AUC = F·D/CL) but ~0.5× the NAPA (AUC_m = fm·F·D/(k_m·Vd_m),
-which is *independent* of the parent's disposition, so the fm ratio alone sets it).
+which is _independent_ of the parent's disposition, so the fm ratio alone sets it).
 The NAPA/parent AUC ratio flips across the toggle — 1.95 (NAPA dominates) to 0.65
 (parent dominates). Both ratios are exact closed forms, so they are oracles rather
 than magnitude eyeballs (`tests/data/phenotype.test.ts`). "A slow metaboliser has
@@ -199,7 +199,7 @@ compound that shows it.
   missing ka by inverting `Tmax = ln(ka/ke)/(ka − ke)`. That inversion does not
   exist under saturation: there is no `ke`, and **Tmax is itself dose-dependent**
   (a bigger dose saturates elimination and pushes the peak later), so a reported
-  Tmax is a property of the compound *at one dose*. `deriveParamsMM` throws rather
+  Tmax is a property of the compound _at one dose_. `deriveParamsMM` throws rather
   than fabricate the dose. No citable ka ⇒ omit the oral route (phenytoin) — do
   not substitute a Tmax.
 - **Vmax comes in two unit families; store what the source printed.** A mass rate
@@ -249,7 +249,7 @@ zolpidem, glipizide — are in the seed-expansion section below.
   systemic CL 31 L/h, Vss 1100 L, F ~80%, terminal t½ 27–33 h), and it would have been a
   strong long-t½ accumulation teacher. But it **fails the `F·D/V` ceiling test** exactly
   like sildenafil: the observed single-dose 10 mg Cmax is ~9.85 ng/mL, while `F·D/Vss =
-  0.80·10000 µg / 1100 L ≈ 7.3 ng/mL` — the one-compartment ceiling sits _below_ the
+0.80·10000 µg / 1100 L ≈ 7.3 ng/mL` — the one-compartment ceiling sits _below_ the
   observed peak. Reproducing the peak in one compartment needs V ~840 L (the central
   volume), which then forces an implied CL of ~19 L/h vs the measured 31 → a hidden ~60%
   AUC over-prediction that would distort the multi-dose view. It is genuinely
@@ -326,7 +326,7 @@ model was at hand. Documented so they aren't re-litigated:
 - **Sildenafil — deferred (one-compartment ceiling fails; not cleanly 2-comp).** A
   clean PDE5-inhibitor label (Viagra): F 41% (25–63%), Vss 105 L, terminal t½ ~4 h,
   Tmax ~1 h, dose-proportional, mean Cmax ~440 ng/mL for 100 mg. But `F·D/Vss =
-  0.41·100000 µg / 105 L ≈ 390 ng/mL < 440` — the **ceiling itself is below the
+0.41·100000 µg / 105 L ≈ 390 ng/mL < 440` — the **ceiling itself is below the
   labeled Cmax**, so no within-source volume works and the drug is mildly
   two-compartment (Vss is tissue volume). The two honest escapes are both worse than
   deferring: (a) overriding to a Cmax-fit V ~80 L trades a visible ~25% peak error
@@ -409,7 +409,7 @@ representable. Rationale preserved so it isn't re-litigated:
   **linearity** clears with a documented edge — dose-proportional over 100–300 mg, oxypurinol
   steady-state linear 50–600 mg/day with only a "weak indication of saturation" at 900 mg/day
   (its tubular reabsorption is urate-like; propofol-style clinical-range approximation). (2)
-  **allopurinol's own Vd** — the review's apparent Vd/F 1.31 L/kg *under*-predicts the labeled
+  **allopurinol's own Vd** — the review's apparent Vd/F 1.31 L/kg _under_-predicts the labeled
   Cmax, so a Cmax-consistent ~0.65 L/kg true volume (with F = 0.90 explicit) is used (the
   diphenhydramine posture). (3) **fm** is citable — the review's "90 mg oxypurinol per 100 mg
   allopurinol" (~90%), a single number, not a urinary-recovery floor. **The honesty-critical
@@ -432,9 +432,9 @@ representable. Rationale preserved so it isn't re-litigated:
   barely circulates (<5%) and ≥75% of the metabolite arises pre-systemically — so a systemic-
   formation model would show a tiny parent line and could not legitimately produce a metabolite
   that is 75% of the dose. (Separately, "75% of dose" is a fraction-of-dose ≈ fm·F, not the engine's
-  fm = fraction of parent *elimination*.) This is the mirror image of allopurinol: same prodrug
+  fm = fraction of parent _elimination_.) This is the mirror image of allopurinol: same prodrug
   shape, opposite systemic/first-pass split. **UPDATE (2026-07-10):** the `firstPassFraction` engine
-  now *can* represent a purely-pre-systemic metabolite, so the mechanism is no longer the blocker —
+  now _can_ represent a purely-pre-systemic metabolite, so the mechanism is no longer the blocker —
   but oseltamivir was then rejected on the **first-pass timing screen** (its carboxylate is
   formation-rate-limited, Tmax ~6 h ≫ parent 0.5 h; the single-`ka` model would invert its shape).
   See "Oral first-pass metabolism" below for the full timing-screen rejection; morphine shipped in
@@ -460,31 +460,31 @@ covariate value.** A set that silently mixes two ages is not one population, and
 Diazepam's set was constructed from Klotz 1975 (structure, β), Greenblatt 1980 (CL) and CHEMM/FDA
 (α). Klotz's Table II publishes each parameter against age, so the inversion is arithmetic:
 
-| parameter | file's value | Klotz regression | implied age |
-| --- | --- | --- | --- |
-| t½(β) | 33 h | `t½(β) = 1.094·age + 2.26` | **~28 y** |
-| CL | 27.3 mL/min | `CL = 32.52 − 0.186·age` | **~28 y** |
-| Vc (V1) | 0.30 L/kg | `V1/kg = 0.0061·age + 0.08` | **~36 y** ✗ |
+| parameter | file's value | Klotz regression            | implied age |
+| --------- | ------------ | --------------------------- | ----------- |
+| t½(β)     | 33 h         | `t½(β) = 1.094·age + 2.26`  | **~28 y**   |
+| CL        | 27.3 mL/min  | `CL = 32.52 − 0.186·age`    | **~28 y**   |
+| Vc (V1)   | 0.30 L/kg    | `V1/kg = 0.0061·age + 0.08` | **~36 y** ✗ |
 
 Two parameters agreed on 28 y; `Vc` sat at 36 y. It was the one input carrying **no source** — a
-"customary young-end value" — and it was *documented as illustrative*, which is exactly why it
+"customary young-end value" — and it was _documented as illustrative_, which is exactly why it
 survived: **an honest caveat is not a substitute for a source, and it stops protecting you the
 moment the parameter becomes load-bearing.** While only IV shipped, Vc merely scaled an early peak
-nobody checked. Adding oral made Vc set the *oral peak* — a landmark with citable values — and the
+nobody checked. Adding oral made Vc set the _oral peak_ — a landmark with citable values — and the
 inconsistency became visible immediately. Fix: `Vc = 0.0061·28 + 0.08 = 0.25 L/kg`, `derived: true`
 (computed from a published regression, not read off), with Q and Vp re-derived from it.
 
 **Carry-forwards, each of which cost a wrong turn to learn:**
 
 - **Re-derive the dependent parameters when you move a parameter.** A first sweep varied `Vc` while
-  holding `Q`/`Vp` fixed — but the file *derives* `Q`/`Vp` **from** `Vc`. That sweep showed Cmax
+  holding `Q`/`Vp` fixed — but the file _derives_ `Q`/`Vp` **from** `Vc`. That sweep showed Cmax
   peaking ~370 ng/mL and concluded the target was unreachable at any `Vc` — a **false deferral**.
   Re-deriving `Q`/`Vp` per candidate made Cmax monotonic in `Vc` and reachable. An
   internally-inconsistent sweep will happily "prove" a compound is impossible.
 - **Don't fit the parameter to the landmark you're checking against.** `Vc = 0.20 L/kg` reproduces
   Locniskar's 394 ng/mL Cmax to within 1% — tempting, and wrong: 0.20 is Klotz's V1 at **age 20**,
   which drags t½(β) to ~24 h and contradicts the file's 33 h. Fitting also makes the magnitude check
-  **circular**. Source the parameter independently, then *report* the resulting Cmax.
+  **circular**. Source the parameter independently, then _report_ the resulting Cmax.
 - **Check a reported Cmax against the SPREAD, not a single study.** Klotz's own oral arm reports
   peaks of **221–440 ng/mL** — a 2× inter-individual range. Locniskar's 394 is one study near the
   top of it, so a model at 255 ng/mL is not "35% wrong", it is mid-spread. A same-paper,
@@ -494,7 +494,7 @@ inconsistency became visible immediately. Fix: `Vc = 0.0061·28 + 0.08 = 0.25 L/
   reconcile at ~15–20% first-pass loss. The engine's `F` is bioavailability.
 - **Moving a disposition parameter edits every shipped route.** `Vc` sets IV-bolus `C(0) = D/Vc`
   (333 → 400 ng/mL here) and feeds the metabolite formation modes — verify all routes, not the new
-  one. Here it is self-validating: `V1` is *defined* as `Dose/C(0)`, so Klotz's V1 sets `C(0)`.
+  one. Here it is self-validating: `V1` is _defined_ as `Dose/C(0)`, so Klotz's V1 sets `C(0)`.
 - **Record the residual.** Taking α from CHEMM/FDA (~1 h) rather than Klotz leaves `k12/k21 = 2.99`
   vs Klotz's reported 2.75 (~9%), and Vss 1.00 vs Klotz's own 0.90 at age 28. Klotz-internal
   consistency would imply α t½ ≈ 1.5 h. Accepted and written down; α is now the set's softest input.
@@ -519,9 +519,9 @@ metabolite (oral morphine, oral nicotine, oral ketamine, psilocin). It is an **e
 compound curated this pass** — the flagship candidates (oseltamivir, oral morphine) are a separate
 advisor-reviewed curation pass against the honesty gate below.
 
-**The mechanism.** `F` was always the *systemic* bioavailable fraction; the `(1 − F)` lost to
-first-pass simply vanished (became nothing) and metabolites formed only from the *systemic* parent
-(`fm·CL·C_p`). So first-pass is only ever *visible* through a metabolite line. The new optional
+**The mechanism.** `F` was always the _systemic_ bioavailable fraction; the `(1 − F)` lost to
+first-pass simply vanished (became nothing) and metabolites formed only from the _systemic_ parent
+(`fm·CL·C_p`). So first-pass is only ever _visible_ through a metabolite line. The new optional
 per-metabolite **`firstPassFraction` (`ffp`)** routes the pre-systemic mass to the metabolite: a
 fraction `ffp` of the oral dose appears as an oral-absorption input directly into the metabolite
 compartment, at the **parent's absorption rate `ka`** (hepatic conversion is fast relative to
@@ -529,36 +529,37 @@ absorption — the standard simplification, stated in the engine header). It is 
 Bateman term `batemanMode(ka·ffp·D, ka, k_m, t)/Vd_m`, **oral-route only** (IV bypasses first-pass,
 so the bolus/infusion metabolite paths ignore `ffp`). Total oral metabolite exposure is therefore
 `AUC_m = (fm·F + ffp)·D/(k_m·Vd_m)` — the systemic term plus the pre-systemic term, the latter
-independent of `ka`. **Collapse anchor:** `ffp` absent/0 reproduces every current curve *byte-for-
-byte*, which is what protects all 39 shipped compounds (an oracle test asserts `.toBe`, not
+independent of `ka`. **Collapse anchor:** `ffp` absent/0 reproduces every current curve _byte-for-
+byte_, which is what protects all 39 shipped compounds (an oracle test asserts `.toBe`, not
 `.toBeCloseTo`). A **purely pre-systemic** metabolite (`fm = 0, ffp > 0`) — the oseltamivir shape,
 parent barely circulates — computes cleanly; the derive guard now allows `fm = 0` when `ffp`
 carries the formation.
 
-**The honesty gate (the load-bearing curation rule).** The question is **"is `ffp` for *this
-specific* metabolite citable?"** — the same cite-or-defer posture as `fm`. Partial attribution is
-fine *if sourced*: if nicotine's first-pass mass splits across cotinine + other products, cotinine
-gets only its *sourced* share, not all of the extracted mass (attributing the whole extraction to
+**The honesty gate (the load-bearing curation rule).** The question is **"is `ffp` for _this
+specific_ metabolite citable?"** — the same cite-or-defer posture as `fm`. Partial attribution is
+fine _if sourced_: if nicotine's first-pass mass splits across cotinine + other products, cotinine
+gets only its _sourced_ share, not all of the extracted mass (attributing the whole extraction to
 one modelled product over-predicts — the `F·D/V`-ceiling-test discipline). Two mass-balance rules
 for the curator:
+
 - **Do NOT also shave `F`.** `F` is already the systemic fraction; `ffp` is purely additive to the
-  metabolite. "Accounting for" first-pass by *also* reducing `F` double-counts the same extracted
+  metabolite. "Accounting for" first-pass by _also_ reducing `F` double-counts the same extracted
   mass. Leave `F` at the sourced systemic bioavailability and add `ffp` on top.
 - **Mass balance bounds it:** `ffp ≤ 1 − F − f_unabsorbed`. The extracted-and-converted fraction
   cannot exceed what was absorbed but did not reach systemic circulation. The engine does **not**
   enforce this (it is a curation-pass check) — verify it by hand when curating a first-pass pair.
 - **MW-adjust a molar fraction to mass**, exactly like `fm` (the caffeine/morphine convention): the
-  engine's `ffp` multiplies parent *mass*, so a molar first-pass fraction is `× MW_m/MW_parent`.
+  engine's `ffp` multiplies parent _mass_, so a molar first-pass fraction is `× MW_m/MW_parent`.
 
 **The first-pass TIMING screen (the `ffp` analogue of the `F·D/V` ceiling test — check it FIRST,
-before sourcing anything else).** The `ffp` term routes the pre-systemic mass at the *parent's*
+before sourcing anything else).** The `ffp` term routes the pre-systemic mass at the _parent's_
 absorption rate `ka`, i.e. it assumes **hepatic conversion is fast relative to absorption**, so the
-modelled metabolite peaks near the *parent's* Tmax. Before committing to an `ffp` pair, confirm the
+modelled metabolite peaks near the _parent's_ Tmax. Before committing to an `ffp` pair, confirm the
 real data agree: **metabolite Tmax ≈ parent Tmax** (within, say, ≲1.5×). If the metabolite's
-appearance is *formation-rate-limited* (it peaks much later than the parent), the single-`ka`
+appearance is _formation-rate-limited_ (it peaks much later than the parent), the single-`ka`
 instant-conversion model **inverts its shape** — drawing an early spike where reality is a slow rise
 — and no prose caveat rescues a chart that teaches the wrong temporal story. This is a
-*refuse-don't-mislead* screen, not a document-with-caveat one. It killed the flagship candidate
+_refuse-don't-mislead_ screen, not a document-with-caveat one. It killed the flagship candidate
 (oseltamivir, below); it passed morphine (glucuronidation is fast: subcutaneous glucuronide Tmax
 ~0.25–0.6 h ≈ parent). One datum decides it.
 
@@ -571,31 +572,31 @@ never rendered would silently undercut the gate above.)
 subject), not a patient covariate — the bright line holds. Frame it that way in the compound prose.
 
 **First shipped `ffp` compound: oral morphine → M3G + M6G (2026-07-10).** Oral morphine was added to
-the already-shipped IV morphine as the first `ffp` curation — and the *general* case (`fm > 0` AND
-`ffp > 0`: systemic glucuronidation *plus* first-pass), stronger than oseltamivir's degenerate
+the already-shipped IV morphine as the first `ffp` curation — and the _general_ case (`fm > 0` AND
+`ffp > 0`: systemic glucuronidation _plus_ first-pass), stronger than oseltamivir's degenerate
 `fm ≈ 0` would have been. Each glucuronide's `ffp` is derived from the **same single population** as
 its `fm` (Hasselström 1993): `ffp_i(molar) = fm_i(molar) × (1 − F)` — the first-pass loss `1 − F`
 (F = 29.2%) apportioned by that glucuronide's molar formation-clearance share — then MW-adjusted
 `×1.617`: **M3G 65.6%, M6G 11.9%**. `fm·F + ffp = fm` is a **construction identity** (because
-`ffp := fm·(1−F)`), so the built-curve match (oral M3G AUC 2.159 ≈ IV 2.158) is an engine-*wiring*
+`ffp := fm·(1−F)`), so the built-curve match (oral M3G AUC 2.159 ≈ IV 2.158) is an engine-_wiring_
 check — the oral systemic + pre-systemic paths sum correctly — **not** a validation of the `ffp`
 value. That rests on the assumption that first-pass UGT2B7 selectivity matches systemic; it doesn't
 exactly (first pass is purely hepatic, no renal-unchanged escape), so real first-pass glucuronidation
 is a slightly larger share and `ffp` here is a **mild under-estimate** — real oral glucuronide sits
-modestly *above* IV, not equal. Independent magnitude check (Osborne 1990): modelled oral
+modestly _above_ IV, not equal. Independent magnitude check (Osborne 1990): modelled oral
 M3G:morphine AUC ratio ~29 (mass) sits at/below the reported ~30 molar (~50 mass), so the glucuronide
 total exposure is **conservative, not over-drawn** — the tall ~500 ng/mL M3G Cmax is only the
 intrinsic-t½ compressing that AUC into a sharp peak (the documented no-enterohepatic caveat, same as
 IV). Mass balance closes (`ffp` molar 0.480 ≤ 1 − F = 0.708). See `compounds/morphine.json` notes.
 
 **Oseltamivir → carboxylate — still DEFERRED, now for a sharper reason (the timing screen, not the
-engine).** The `ffp` engine *can* represent a purely-pre-systemic metabolite (`fm ≈ 0`,
+engine).** The `ffp` engine _can_ represent a purely-pre-systemic metabolite (`fm ≈ 0`,
 `ffp` ≈ ≥75%-of-dose carboxylate), so the engine limit is gone — but oseltamivir **fails the
 first-pass timing screen above**: its carboxylate is formation-rate-limited (single-dose oral
 data: carboxylate Tmax ~6 h, t½ 6.2 h, vs **parent Tmax 0.5 h**), an ~8–12× violation on the
-*dominant* line. The single-`ka` model would peak the carboxylate at ~0.8 h — inverting its
+_dominant_ line. The single-`ka` model would peak the carboxylate at ~0.8 h — inverting its
 signature slow-rising, persistent shape into an early spike. (AUC stays faithful, Cmax lands only
-~24% high, but the *shape* is wrong.) Deferred pending a future `ffp` extension that **decouples the
+~24% high, but the _shape_ is wrong.) Deferred pending a future `ffp` extension that **decouples the
 metabolite input rate from the parent `ka`** (a separate formation rate). This was evaluated as the
 intended flagship `ffp` compound and rejected on the timing datum — the reason morphine was shipped
 in its place.
@@ -629,15 +630,15 @@ fast the curve falls, not how high it starts." Under acamprosate oral that is **
 measurably so — dragging the slider across its whole reported 2.5–3.5 h range leaves the terminal
 rate pinned at ka = 0.0806/h (unchanged to four significant figures) while the peak moves 25%:
 
-| t½ | ke | peak (mg/L) | tail rate |
-| --- | --- | --- | --- |
-| 2.5 h | 0.2773 | 0.1411 | 0.08060 |
-| 3.0 h | 0.2310 | 0.1597 | 0.08060 |
-| 3.5 h | 0.1980 | 0.1768 | 0.08059 |
+| t½    | ke     | peak (mg/L) | tail rate |
+| ----- | ------ | ----------- | --------- |
+| 2.5 h | 0.2773 | 0.1411      | 0.08060   |
+| 3.0 h | 0.2310 | 0.1597      | 0.08060   |
+| 3.5 h | 0.1980 | 0.1768      | 0.08059   |
 
 Generalise this into the **rate-limiting-step screen**, and run it whenever a compound makes a
-parameter stop being the rate-limiting one: *does any on-screen sentence name a parameter as the
-cause of a visible feature of the curve?* If so, that sentence is conditional on that parameter
+parameter stop being the rate-limiting one: _does any on-screen sentence name a parameter as the
+cause of a visible feature of the curve?_ If so, that sentence is conditional on that parameter
 still being rate-limiting, and the new compound may have taken that away. It is the transdermal
 `PeakNote` defect (oral peak prose under a curve that never peaks) with a different parameter, and
 it has now landed three times — the third being the F-axis copy that nearly cloned the Vd
@@ -678,11 +679,11 @@ Recorded so the "a patch is just an infusion" intuition isn't re-litigated from 
 drug have a depot tail" or "what is its half-life" — it is **what absorption input TYPE did the
 source actually fit?** That one fact picks the driver, and it decides ship-vs-defer:
 
-| Input type the source fit | Driver | Verdict |
-| --- | --- | --- |
-| zero-order (+ lag) with `F` | `infusionConcentrationFromModes`, `r0·F` | ships |
-| first-order from a depot (`ka_td`) | `oralConcentrationFromModes`, IV-like `F`, no first pass | ships |
-| transit chain / Weibull / multi-phase / parallel paths | neither | **defer** |
+| Input type the source fit                              | Driver                                                   | Verdict   |
+| ------------------------------------------------------ | -------------------------------------------------------- | --------- |
+| zero-order (+ lag) with `F`                            | `infusionConcentrationFromModes`, `r0·F`                 | ships     |
+| first-order from a depot (`ka_td`)                     | `oralConcentrationFromModes`, IV-like `F`, no first pass | ships     |
+| transit chain / Weibull / multi-phase / parallel paths | neither                                                  | **defer** |
 
 - **Nicotine transdermal — DEFERRED (parallel dual release + a transit chain + time-varying CL).**
   The tempting case: `Gisleskog 2021` is ALREADY the file's IV disposition source and its title
@@ -719,8 +720,8 @@ constant delivery rate is necessary but NOT sufficient (fentanyl had one).
 
 `compounds/clonidine.json` — compound #47 and a new class (central α2-agonist antihypertensive).
 **Transdermal-only.** It passes the input-type screen where nicotine and fentanyl failed: the
-Catapres-TTS label states the input outright — *"programmed to release clonidine at an approximately
-constant rate for 7 days"* — and, worn continuously, its curve never has to draw the part that is
+Catapres-TTS label states the input outright — _"programmed to release clonidine at an approximately
+constant rate for 7 days"_ — and, worn continuously, its curve never has to draw the part that is
 not zero-order. Everything below is from one opened source (DailyMed SPL, setid
 `d4a55825-7041-42f4-b3b2-dd7a25dbe793`).
 
@@ -736,18 +737,18 @@ clinical vocabulary; the type split is what stopped a clinical route leaking int
 against its three stated rates gives 0.392 / 0.785 / 1.18 ng/mL; the label independently reports the
 measured steady states as ~0.4 / 0.8 / 1.1. Three for three, from numbers in different paragraphs.
 Then check the **approach**, which is where Vd re-enters: `ke = CL/Vz = 0.054/h` → ~90% of plateau by
-~2 days, steady state ~3 — against the label's *"steady-state levels are obtained within 3 days"*.
+~2 days, steady state ~3 — against the label's _"steady-state levels are obtained within 3 days"_.
 Plateau AND rise both reproduce ⇒ the one-compartment model is earned.
 
 **Why 1-comp is faithful for a patch and would NOT be for a tablet** (the reusable screen). The
 label calls clonidine biphasic (distribution t½ ~20 min, terminal 12–16 h) and gives only Vz and CL —
 not enough for 2-comp. It doesn't matter here: a zero-order input this slow **never probes the
 central compartment** (the 20-min phase equilibrates ~40× over before the concentration moves), so
-Vz IS the operative volume. A fast oral absorption does probe it. Generalises: *the slower the input,
-the fewer compartments you need.*
+Vz IS the operative volume. A fast oral absorption does probe it. Generalises: _the slower the input,
+the fewer compartments you need._
 
-- **THE 60% TRAP — made unwriteable, not warned about.** The label states BOTH *"deliver 0.1, 0.2 and
-  0.3 mg of clonidine per day"* AND *"absolute bioavailability … approximately 60%"*. Reading those as
+- **THE 60% TRAP — made unwriteable, not warned about.** The label states BOTH _"deliver 0.1, 0.2 and
+  0.3 mg of clonidine per day"_ AND _"absolute bioavailability … approximately 60%"_. Reading those as
   a dose and its bioavailability gives Css 0.235 vs a reported 0.4 — a **~40% low curve that looks
   entirely plausible** and that no test can see. The delivered rate is ALREADY systemic (the Css
   arithmetic proves it), so `TransdermalRouteSchema` **has no `F` field at all** — the same posture as
@@ -802,7 +803,7 @@ magnitude-checked against reported concentrations.
 A second expansion pass added **atenolol, lamotrigine, propofol** (17 → 20 compounds; 377
 tests green). Each cleared the four killer-parameter gates (linear at therapeutic doses?
 citable Vd or CL+t½? single citable fm if a metabolite pair? single-population
-micro-constants if compartmental?) from a real source *before* any JSON was written, and each
+micro-constants if compartmental?) from a real source _before_ any JSON was written, and each
 was magnitude-checked by building the engine curve and comparing the peak to reported
 concentrations.
 
@@ -873,7 +874,7 @@ magnitude-checked against the built engine curve.
   renal); Vd ~0.7 L/kg Vss from the de Miranda & Blum clinical-pharmacology review (label
   prints none). Vd 0.55 L/kg is the Cmax-consistent value below the tissue Vss (engine
   steady-state peak 8.9 vs labeled 9.8 mcg/mL, ~9% under; acyclovir is mildly two-compartment).
-  Two deliberate route choices: **oral is OMITTED** because oral acyclovir has *saturable*
+  Two deliberate route choices: **oral is OMITTED** because oral acyclovir has _saturable_
   absorption (F falls with dose — the valacyclovir rationale; a plainly-linear oral line would
   be quietly wrong on the absorption side, though disposition stays linear); and **iv_bolus is
   `available: false` (inferred)** because acyclovir must be infused slowly — a rapid bolus can
@@ -883,7 +884,7 @@ magnitude-checked against the built engine curve.
 ### Phase-7 seed expansion (new classes + teaching axes) — 3 compounds added 2026-07-10
 
 A fourth pass added **ethosuximide, famotidine, warfarin** (24 → 27 compounds; 390 tests
-green), all clean linear one-compartment drugs, each earning a *distinct* teaching slot. Every
+green), all clean linear one-compartment drugs, each earning a _distinct_ teaching slot. Every
 value was pulled from a source opened this session (labels/SmPC/reviews — the sourcing gate);
 each was ceiling-tested pre-write and magnitude-checked against the built engine curve.
 **Theophylline was evaluated and excluded** in the same pass — it has capacity-limited
@@ -902,7 +903,7 @@ reasoning above is kept as the record of what was true before that engine existe
   StatPearls chapter** (F >90%, Vd ~0.7 L/kg attributed to Patsalos 2008, ~80% hepatic CYP3A4 /
   ~10–20% renal unchanged, linear). Models the **adult** case (one population, the diazepam/
   lamotrigine discipline). The lesson is accumulation: a 500 mg single-dose peak is ~9 mcg/mL,
-  far below the 40–100 mcg/mL therapeutic range because that range is a *steady-state* level —
+  far below the 40–100 mcg/mL therapeutic range because that range is a _steady-state_ level —
   and the model reproduces the label's own anchor (20 mg/kg/day ≈ 1400 mg/day lands Css in
   40–100; engine once-daily SS peak ~90 mcg/mL). Oral only (no marketed IV; F≈1 means an inferred
   IV would add little — the lamotrigine posture). Complements phenobarbital/lamotrigine as the
@@ -930,13 +931,13 @@ reasoning above is kept as the record of what was true before that engine existe
   completely absorbed", PB 99%, peak <4 h, dual half-life) plus a **single-dose enantiomer study**
   (PMC3555060) for the concentration magnitude (25 mg racemic → ~2.7 mcg/mL total, R 1.34 + S 1.37;
   engine 2.42 mg/L, ~10% under) and enantiomer half-lives. **Three documented caveats** make it the
-  showcase: (1) *dual half-life* — the label gives a ~1 week terminal AND a 20–60 h (mean ~40 h)
-  *effective* half-life; the file models the **effective ~40 h** because that governs accumulation
+  showcase: (1) _dual half-life_ — the label gives a ~1 week terminal AND a 20–60 h (mean ~40 h)
+  _effective_ half-life; the file models the **effective ~40 h** because that governs accumulation
   (the lisinopril "use the accumulation-relevant half-life" reasoning; the ~1 week terminal is a
-  low-amplitude tail a single-compartment effective model doesn't render). (2) *racemate collapse* —
+  low-amplitude tail a single-compartment effective model doesn't render). (2) _racemate collapse_ —
   one racemic ~40 h collapses R ~51 h / S ~33 h (the atenolol enantiomer note). (3) **the honesty-
   critical one — concentration is NOT effect**: warfarin acts by depleting already-synthesised
-  clotting factors, so the label notes peak anticoagulant effect is *delayed 72–96 h*, long after
+  clotting factors, so the label notes peak anticoagulant effect is _delayed 72–96 h_, long after
   the ~3 h concentration peak. The plotted curve is faithful to plasma warfarin and says nothing
   about INR — the clearest case in the set that concentration and effect must not be conflated.
   Oral (F=1, the standard route) + an INFERRED iv_bolus (`available: false` — IV warfarin is no
@@ -961,7 +962,7 @@ conversion — see the same section).
   absorption.** About as clean a one-compartment drug as exists: no plasma protein binding at all,
   ~90% renal excretion as unchanged drug (negligible metabolism), rigorously linear kinetics. The
   teaching axis is the gabapentin contrast — gabapentin is absorbed by a saturable intestinal
-  transporter so its oral F *falls* with dose (dose-DEPENDENT, nonlinear, keeps it out of a linear
+  transporter so its oral F _falls_ with dose (dose-DEPENDENT, nonlinear, keeps it out of a linear
   model), whereas pregabalin's F is ">=90% and independent of dose" (FDA Lyrica label) and Cmax/AUC
   "increase linearly" across 25–900 mg. Same indication and molecular target (α2δ calcium-channel
   subunit), dose-stable superposable curve. All from the FDA label except a bioequivalence-study
@@ -1154,7 +1155,7 @@ Documented so they aren't re-litigated (defers/exclusions are first-class output
 
 A seventh 2026-07-10 pass addressed caffeine's metabolism and shipped **theobromine** (35 → 36
 compounds). Caffeine was already in the set as a plain one-compartment drug with no metabolite; it
-now draws all three of its parallel demethylation metabolites, and theobromine — both a caffeine metabolite *and* the principal
+now draws all three of its parallel demethylation metabolites, and theobromine — both a caffeine metabolite _and_ the principal
 methylxanthine of chocolate — ships as its own standalone. Both are anchored to **Lelo et al. 1986**
 (Br J Clin Pharmacol 22:177-182, PMID 3756065, the comparative-PK paper), which measured caffeine
 AND all three demethylated metabolites (paraxanthine, theobromine, theophylline) in the **same six
@@ -1182,12 +1183,12 @@ theobromine's oral Tmax.
   as a ~3.4% metabolite it peaks ~0.1-0.2 mg/L, ~100-300× below its Km (24.1 mg/L), and at `c ≪ Km`
   the saturable rate `Vmax·c/(Km+c)` collapses to `(Vmax/Km)·c`, so this line **is** the standalone's own
   low-concentration limit — the same tie the engine's `Km ≫ C` collapse test pins. It must still not be
-  read as endorsing a linear plot of a *therapeutic* theophylline dose. Byte-identical Vd (0.5 L/kg) holds
+  read as endorsing a linear plot of a _therapeutic_ theophylline dose. Byte-identical Vd (0.5 L/kg) holds
   the two files together; the standalone's dilute-limit t½ (7.2 h) sits inside the 5-9 h range stored here.
   Theobromine ALSO ships as its own standalone (below), byte-identical disposition.
 - **THE fm MW CONVENTION (reusable precedent — this pass's key lesson).** Lelo's "79.6% of total
   clearance" is a **MOLAR** fraction (partial clearance ÷ total clearance is dimensionless — the
-  fraction of caffeine *molecules* on that path). But the engine's `fm` multiplies parent **MASS**
+  fraction of caffeine _molecules_ on that path). But the engine's `fm` multiplies parent **MASS**
   eliminated (`dA_m/dt = fm·CL·C_p`, all in mg, **no MW factor** — the schema has no MW field). Each
   mg of caffeine (MW 194.19) cleared to paraxanthine yields only 180.16/194.19 = 0.928 mg paraxanthine
   (MW 180.16), so the **mass-basis fm = 0.796 × 0.928 = 0.74** (stored 74%, `derived: true`). This is
@@ -1235,7 +1236,7 @@ infusion.** Remifentanil is the clean 3-comp case and worth studying as a templa
   α t½ ~0.67 min, β t½ ~6.5 min, γ t½ ~51 min, but for an IV bolus the initial
   concentration splits **88.9% / 11.0% / 0.09%** across them (γ ≈ the deep back-rate
   k31, so its residue nearly vanishes). So the terminal γ (~51 min) is a real eigenvalue
-  but a sub-0.1% deep-compartment tail — *not* the observable terminal decline; the β
+  but a sub-0.1% deep-compartment tail — _not_ the observable terminal decline; the β
   phase (~6.5 min) carries that and is what the commonly-quoted "~10–20 min terminal
   half-life" tracks; and neither governs clinical offset, which is the ~3 min
   **context-sensitive half-time**. `disposition.halfLife` carries the terminal γ
@@ -1252,14 +1253,14 @@ remifentanil.** Same directly-parameterized template (V1/V2/V3 + Cl1/Cl2/Cl3 rea
 from the model, nothing derived offline; absolute L / L·min⁻¹ units), taken at the Schnider
 covariate reference point (age 53, weight 77 kg, height 177 cm, LBM 59 kg — where the
 covariate equations reduce to intercepts): V1 4.27, V2 18.9, V3 238 L; Cl1 1.89, Cl2 1.29,
-Cl3 0.836 L/min. Params keyed to the Sahinovic 2018 *Clin Pharmacokinet* review (PMC6267518),
+Cl3 0.836 L/min. Params keyed to the Sahinovic 2018 _Clin Pharmacokinet_ review (PMC6267518),
 which tabulates the Schnider model and discusses linearity + context-sensitive half-time.
 Why it earns a slot next to remifentanil, not redundant with it:
 
 - **The amplitude lesson, where it is CLINICALLY famous.** The engine finds α t½ ~0.72 min,
   β t½ ~15.2 min, γ t½ ~287 min (~4.8 h); an IV-bolus C(0) splits **~97.4% / ~2.4% / ~0.17%**
-  across α/β/γ — even more α-dominated than remifentanil. This is *why a patient wakes within
-  ~5–10 min of a single induction bolus despite the hours-long terminal half-life*: the
+  across α/β/γ — even more α-dominated than remifentanil. This is _why a patient wakes within
+  ~5–10 min of a single induction bolus despite the hours-long terminal half-life_: the
   post-bolus fall is α REDISTRIBUTION into muscle/viscera, not elimination. The magnitude
   check makes it vivid — a 150 mg bolus into V1=4.27 L peaks at ~35 µg/mL, redistributes to
   ~2.6 µg/mL (anaesthetic range) by 3 min, and to ~0.6 µg/mL (sub-anaesthetic) by 10 min.
@@ -1279,19 +1280,19 @@ Why it earns a slot next to remifentanil, not redundant with it:
 compound whose metabolite forms from a 3-compartment parent.** A toxin + drug + metabolite-pair
 in one file (`compounds/nicotine.json`): the addictive tobacco alkaloid, a historical
 insecticide, an NRT drug, and a potent acute poison. Same directly-parameterized template as
-remifentanil/propofol — the Gisleskog 2021 *Clin Pharmacokinet* 930-subject population model fit
+remifentanil/propofol — the Gisleskog 2021 _Clin Pharmacokinet_ 930-subject population model fit
 IV nicotine to a three-compartment model and reports the typical 70 kg values outright (CL 67.4
 L/h; V1 117, V2 130, V3 53.4 L; Q2 38.6, Q3 216 L/h), so nothing is derived offline. Why it earns
 a slot:
 
 - **The terminal-half-life lesson, INVERTED from remifentanil.** Engine eigenvalues: α t½ ~6.7
   min, β t½ ~57 min, γ t½ ~4.5 h, with an IV-bolus amplitude split **~39% / ~45% / ~16%**. Two
-  points: (1) the textbook "nicotine half-life ~2 h" is an *apparent* terminal — limited-duration
+  points: (1) the textbook "nicotine half-life ~2 h" is an _apparent_ terminal — limited-duration
   classic studies (Feyerabend 1985) blend the true β (57 min) and γ (4.5 h) into one ~2 h slope;
-  the rich Gisleskog sampling resolves the slower γ. So a single quoted half-life here *under*-reports
-  the true terminal (remifentanil was the opposite — its quoted terminal *over*-stated a
-  0.09%-amplitude tail). (2) "Fast" is set by Q/V, not the label: Q3 (216 L/h) is the *largest*
-  inter-compartmental clearance, but because V3 is small that compartment equilibrates *fastest*
+  the rich Gisleskog sampling resolves the slower γ. So a single quoted half-life here _under_-reports
+  the true terminal (remifentanil was the opposite — its quoted terminal _over_-stated a
+  0.09%-amplitude tail). (2) "Fast" is set by Q/V, not the label: Q3 (216 L/h) is the _largest_
+  inter-compartmental clearance, but because V3 is small that compartment equilibrates _fastest_
   and drives the α phase — the deep-sounding "compartment 3" is the quick one.
 - **First 3-comp-parent metabolite (cotinine).** Exercises `metabolite3cConcentrationCurve` with
   real data (previously engine-capability-only). fm MW-adjusted from the 70–80% MOLAR conversion:
@@ -1303,7 +1304,7 @@ a slot:
   blood/saliva cotinine, not nicotine, is the exposure biomarker.
 - **IV-BOLUS ONLY — oral deferred on the oseltamivir criterion.** `iv_bolus available:true` (the
   disposition IS the IV arm of the population study — measured, not inferred; there is simply no IV
-  nicotine *medicine*). **Oral is deliberately NOT offered:** nicotine's ~40% oral bioavailability
+  nicotine _medicine_). **Oral is deliberately NOT offered:** nicotine's ~40% oral bioavailability
   is largely first-pass conversion to cotinine that happens PRE-systemically, which a
   systemic-formation engine cannot represent (it would draw the oral cotinine line ~2–3× too low on
   the default view). That is exactly the oseltamivir deferral criterion — so oral is dropped rather
@@ -1318,7 +1319,7 @@ each glucuronide's OWN disposition from a direct-IV-metabolite study (M6G Hanna 
 M3G Penson 2001 PMID 11745739). Key curation calls:
 
 - **One-compartment EFFECTIVE parent, not 2-comp.** Morphine's measured CL (1.27 L/h/kg) and Vss
-  (2.9 L/kg) give an *effective* half-life ln2·Vd/CL = 1.58 h (≈ the FDA label's "effective ~2 h"),
+  (2.9 L/kg) give an _effective_ half-life ln2·Vd/CL = 1.58 h (≈ the FDA label's "effective ~2 h"),
   which carries essentially all its AUC. The sensitive-assay ~15.1 h terminal is a low-amplitude
   deep phase and CANNOT be used as a 1-comp half-life (pairing 15 h with Vss 2.9 implies CL ~10×
   too low → AUC ~10× too high). The macro-parameters are mutually consistent only for the effective
@@ -1351,11 +1352,11 @@ M3G Penson 2001 PMID 11745739). Key curation calls:
   cotinine (×1.086), inverse of caffeine's lighter xanthines (×0.928).
 - **ORAL + IV BOLUS (oral ADDED 2026-07-10 via the `ffp` engine — the deferral is reversed).**
   Morphine's ~29% oral F is largely first-pass glucuronidation, so much of M3G/M6G forms
-  PRE-systemically — previously the oseltamivir/nicotine deferral criterion, now *represented* by the
+  PRE-systemically — previously the oseltamivir/nicotine deferral criterion, now _represented_ by the
   per-metabolite `firstPassFraction` term (M3G 65.6%, M6G 11.9%; see the Oral first-pass section
   above for the derivation, the fm·F + ffp = IV-fm anchor, and the timing screen morphine passes but
   oseltamivir failed). Oral is morphine's centrepiece contribution twice over: the parallel-glucuronide
-  pair *and* the first shipped general-case (`fm > 0` + `ffp > 0`) first-pass compound.
+  pair _and_ the first shipped general-case (`fm > 0` + `ffp > 0`) first-pass compound.
 - **Magnitude (built engine):** IV 10 mg → C(0) 49 ng/mL; M3G peaks 151 ng/mL @2.3 h, M6G 24 ng/mL
   @2.6 h (AUC ratio 5.7, ≈ the mass-fm ratio) — M3G ≫ M6G, both peaking just after the fast parent.
   ORAL ~22.5 mg base (≈30 mg sulfate) → parent Cmax ~22.8 ng/mL @0.8 h (reported ~28.5), and the
@@ -1374,7 +1375,7 @@ screen — the recipe for a metabolite the kidneys clear FASTER than the liver f
   volume). You still ship it honestly: **(1) cite `fm`** (urinary recovery); **(2) cite `CL_m`** — the
   metabolite's elimination clearance; for a renally-cleared conjugate that IS its renal clearance;
   **(3) ASSUME `Vd_m`** (extracellular-water order ~0.2 L/kg for a polar conjugate), `derived: true`
-  with conditions stating plainly it is *assumed because unidentifiable* — NOT dressed as measured (the
+  with conditions stating plainly it is _assumed because unidentifiable_ — NOT dressed as measured (the
   lithium lesson); **(4) DERIVE `t½_m = ln2·Vd_m/CL_m`.** Because t½ is derived to PRESERVE CL_m, the
   Vd assumption **cancels** in `AUC_m = fm·D/CL_m` — the EXPOSURE is exact; the assumed Vd shifts only
   the peak HEIGHT. This is the diazepam→nordiazepam posture (metabolite Vd derived, not measured),
@@ -1440,7 +1441,7 @@ genetically-polymorphic rate (NAT2 fast vs slow acetylators) — the textbook ph
   what changed is that a compound may now ship SEVERAL anchored phenotypes and let the reader switch.
 - **The band-must-stay-within-the-phenotype catch (advisor completion-review — automated checks
   can't see it).** For a 1-comp compound, `disposition.halfLife.range` drives the variability
-  slider. An early draft set the range `[2.2, 3.6]` — but 3.6 h is the *slow*-acetylator mean, so the
+  slider. An early draft set the range `[2.2, 3.6]` — but 3.6 h is the _slow_-acetylator mean, so the
   slider would have dragged the parent to a slow t½ while fm stayed pinned at the fast 0.40 (an
   inconsistent phenotype state; the 1-comp metabolite reshapes with the plotted ke), silently
   contradicting the "slider varies half-life, not acetylator status" framing. Fixed by narrowing the
@@ -1461,7 +1462,7 @@ genetically-polymorphic rate (NAT2 fast vs slow acetylators) — the textbook ph
     procainamide catch, generalised.
   - **F ranges are ORAL-only and must not double-count.** An IV `F` is 1 by definition and gets no
     slider; the transdermal schema stores no `F` at all (its delivered rate is already systemic).
-    Also check the compound does not store an *apparent* `clearance` (CL/F) or a Vd derived from
+    Also check the compound does not store an _apparent_ `clearance` (CL/F) or a Vd derived from
     one — those already embed an F, so varying F on top would move the curve twice. No shipped
     F-ranged compound does, and the check is a two-minute scan of `disposition`.
 - **1-comp ORAL collapse (reverses the old 2-comp rejection).** IV procainamide is genuinely
@@ -1522,12 +1523,12 @@ never inline. Abbreviated shape (full example: handoff §8):
 Three plain-language fields are surfaced **on screen** for the viewer (distinct
 from the curator-only `notes`, which stays technical):
 
-- **`description` (REQUIRED, ~2 sentences, `.max(400)`):** what the compound *is*
-  and what it is *typically used for*. Rendered in a **fixed-height "About" box
+- **`description` (REQUIRED, ~2 sentences, `.max(400)`):** what the compound _is_
+  and what it is _typically used for_. Rendered in a **fixed-height "About" box
   above the chart**. The height is fixed on purpose — this is the **curation rule
   that stops the interface jumping** when the user switches compound: the box must
   hold the blurb without changing size, so keep it to about two sentences (the
-  schema enforces the length cap). For a **toxin/poison**, describe *what it is* (a
+  schema enforces the length cap). For a **toxin/poison**, describe _what it is_ (a
   pesticide, a plant alkaloid, an illicit drug) — **not** a therapeutic use it
   doesn't have — to stay on the educational-not-clinical side of the bright line.
 - **`metabolism` (optional, uncapped):** a longer narrative about how the compound
@@ -1539,7 +1540,6 @@ from the curator-only `notes`, which stays technical):
 
 Every shipped compound must carry a `description` (a loader-level test enforces
 it). Populate it whenever you add a compound.
-
 
 ```json
 {
@@ -1637,7 +1637,7 @@ and returns a list of what it derived (so the UI can show it):
 
 The two compounds this project tagged "exclude" on day one, shipped against the new
 Michaelis–Menten engine (43 → 45). Both were advisor-reviewed before any JSON was
-written, and both are magnitude-checked *in CI* by `src/ui/curve.mm.test.ts` rather than
+written, and both are magnitude-checked _in CI_ by `src/ui/curve.mm.test.ts` rather than
 by hand — the MM parameters only mean anything together, so a plausible-looking edit to
 any one of them silently moves the teaching point. That test is the standing-trap guard
 for these two.
@@ -1649,34 +1649,33 @@ for these two.
   Km, or Vd. Magnitude: `Css = R0·Km/(Vmax−R0)` gives 300 mg/day → ~8.4 mg/L, 400 → ~17.5,
   500 → ~49, and no steady state at all above 580 mg/day. A 33% dose rise crosses the whole
   10–20 mg/L window — the label's own "10% or more" warning.
-  **The best find:** the model reproduces the label's half-life *range* from saturation
+  **The best find:** the model reproduces the label's half-life _range_ from saturation
   alone — t½(c) runs ~15 h at trace to ~43 h at 20 mg/L, bracketing the label's "22 hours,
   range 7 to 42". So the label's single range silently mixes concentration-dependence with
   between-patient variability; only the unreachable 7 h floor is genuinely the latter.
   Two documented caveats: Vd is conditional on albumin 3 g/dL (and, usefully, **cannot**
   affect Css); and Frame & Beal's Vmax is **pre-autoinduction** (Vmax rises after ~59.5 h),
-  so the engine — which has no induction term — overstates *chronic* Css. Read the curve for
+  so the engine — which has no induction term — overstates _chronic_ Css. Read the curve for
   the shape of the cliff, not as a chronic prediction (the lamotrigine posture).
   **IV-only:** infusion available, bolus inferred (the rate limit is why), **oral omitted** —
   no citable ka, and a Tmax cannot be inverted under saturation.
 - **Ethanol (`compounds/ethanol.json`) — the STRAIGHT-LINE decline.** Vd 35.8 L (Vss),
   Vmax 95 mg/min, Km 27 mg/L, all from **Norberg 2000** (Br J Clin Pharmacol; 16 fasted
-  volunteers, 0.4 g/kg IV). Vmax and Vd are taken from one study *deliberately*: their
+  volunteers, 0.4 g/kg IV). Vmax and Vd are taken from one study _deliberately_: their
   ratio is the zero-order slope, 15.9 mg/dL/h — exactly the canonical ~15. That ratio is
   the number that must be right, and `curve.mm.test.ts` pins it.
   **A magnitude check that looked like a failure and wasn't:** Norberg's Vss is ~0.51 L/kg
   at the 70 kg subject, well under Widmark's r ≈ 0.68, so peak BAC looked ~30% "high".
-  Widmark's r is a *forensic back-extrapolation factor*, not a measured volume — the two
+  Widmark's r is a _forensic back-extrapolation factor_, not a measured volume — the two
   independently measured PK volumes here (Norberg ~0.51, Rangno 1981 0.47) agree with each
   other, not with r. Check ethanol against the study's own dose (0.4 g/kg → ~78 mg/dL), not
   against Widmark. Km cross-checks too: Norberg 0.027 g/L vs Rangno 0.03 g/L.
   **Oral ships** with ka 1.29/h (Rangno) and **F assumed 1**, flagged by the derivation's
-  own "overestimates exposure" warning — honest here because ethanol's absorption *is*
+  own "overestimates exposure" warning — honest here because ethanol's absorption _is_
   essentially complete; the shortfall is first-pass metabolism, which **Oneta 1998** shows
   is governed by gastric emptying rather than being a constant. A single stored F could not
   express that. `illustrativeDoseMg` 28000 (= 0.4 g/kg, ~2 drinks): at the generic 500 mg
   opening, ethanol never approaches Km and draws a plain first-order exponential.
-
 
 ### The intramuscular route — morphine DEFERRED, ketamine SHIPPED (2026-07-20, 578 tests)
 
@@ -1690,8 +1689,8 @@ actually fit?", and IM lands on row 2 (first-order from a depot, IV-like `F`, no
 another CLINICAL route.** `transdermal` mapped onto `iv_infusion`, which nothing else used
 clinically, so the mapping was invisible. `im` maps onto **oral** — and the two share the shape of
 the input while differing in the one fact the shape does not carry. Generalise this before adding
-IM, SC, rectal or inhaled: *sharing an input type is a claim about the shape of the input, never
-about everything that happens on the way in.*
+IM, SC, rectal or inhaled: _sharing an input type is a claim about the shape of the input, never
+about everything that happens on the way in._
 
 - **`F` means different things on the two routes.** An oral `F` is net of pre-systemic gut/hepatic
   extraction; an IM `F` is absorption completeness ONLY. Never copy one into the other's slot.
@@ -1725,7 +1724,7 @@ at ANY absorption rate, and morphine.json's Vd (2.9 L/kg → 203 L) puts that ce
 the documented one and it is the mirror of the clonidine 1-comp screen: an IM input with a 7.7-min
 absorption half-life is the FASTEST extravascular input there is, so it **probes the central
 compartment** (Stuart-Harris reports Vc 168 L against Vss 380 L). Generalises the clonidine rule in
-the other direction: *the faster the input, the more compartments you need.* A patch got away with
+the other direction: _the faster the input, the more compartments you need._ A patch got away with
 1-comp; a needle does not.
 
 The only rescue is converting morphine to two-compartment, which rewrites the shipped oral and IV
@@ -1742,7 +1741,7 @@ agree on the input TYPE**, which is the fact the screen turns on — Clements 19
 open model", IM absorption "rapid"), **Hornik 2018** ("a 2-compartment model with first-order
 absorption following intramuscular administration … described the data best") and **Abuhelwa 2022**
 ("two-compartment models with first-order absorption after s.c. and i.m."). Note that they disagree
-sharply on the *magnitude* of `F` while agreeing completely on the *shape* — which is precisely why
+sharply on the _magnitude_ of `F` while agreeing completely on the _shape_ — which is precisely why
 the screen asks about shape.
 
 - **`ka` = 0.109 /min** (Ananyev & Myers 2026 review, adults), stated rather than inverted from a
@@ -1779,14 +1778,18 @@ to explain — so it can neither validate `F` nor convict Vc. The reusable rules
 **The Ketalar SPL states no volume of distribution and no clearance anywhere** — only the α (10–15 min)
 and β (2.5 h) half-lives. Both numbers are **Mion 2013**, verbatim ("Central compartment volume is
 about 70 l"; "1000–1600 ml/min or 12–20 ml/min/kg"). Values right, citation wrong; re-attributed. The
-lesson is narrower than "check citations": *a value nothing ever tested is a value nobody ever had to
-open the source for.* Every route ketamine offered before IM peaked somewhere unobservable — an IV
+lesson is narrower than "check citations": _a value nothing ever tested is a value nobody ever had to
+open the source for._ Every route ketamine offered before IM peaked somewhere unobservable — an IV
 bolus at C(0), an infusion at a user-chosen rate.
 
-**SC deliberately NOT added.** Abuhelwa reports IM and SC together with "indistinguishable
-first-order absorption rate constants" and one pooled 64% `F`. That is evidence the two share an
-input SHAPE — it is not a licence to write a route whose own numbers were never separated out. SC
-ships when a source reports SC alone.
+**SC deliberately NOT added — for ketamine.** Abuhelwa reports IM and SC together with
+"indistinguishable first-order absorption rate constants" and one pooled 64% `F`. That is evidence
+the two share an input SHAPE — it is not a licence to write a route whose own numbers were never
+separated out. SC ships when a source reports SC alone. **That gate was met by a different
+compound on 2026-07-20 — see "The subcutaneous route" below, where sumatriptan ships it against an
+SC-only label.** Ketamine still offers no SC route, and this paragraph is why: the gate is per
+COMPOUND, not per route. A route existing in the schema is not evidence that any given compound's
+numbers for it were ever measured separately.
 
 ### The rectal route — diazepam SHIPPED (2026-07-20, 599 tests)
 
@@ -1802,14 +1805,14 @@ an injection does not. Rectal shows that framing was still too coarse. Rectal ve
 systemically. So part of a rectal dose meets the liver first and part escapes it. Three clinical
 routes now ride the engine's one first-order input, and each means something different by `F`:
 
-| Route | What `F` is |
-| --- | --- |
-| `im` | absorption completeness — **no** first-pass term |
-| `oral` | absorption × survival of the **full** first pass |
+| Route    | What `F` is                                       |
+| -------- | ------------------------------------------------- |
+| `im`     | absorption completeness — **no** first-pass term  |
+| `oral`   | absorption × survival of the **full** first pass  |
 | `rectal` | absorption × survival of a **partial** first pass |
 
 **The screen for any future route on this seam:** don't ask "does this route bypass first pass?" —
-ask *how much of the dose does, and does any source quantify it?* If the answer is "some, and no",
+ask _how much of the dose does, and does any source quantify it?_ If the answer is "some, and no",
 the route is still shippable, but only in the form below.
 
 - **Store `F` empirical and LUMPED; never decompose it.** No source quantifies the portal/systemic
@@ -1856,7 +1859,7 @@ picking one of a pair asserts a shape the model cannot draw.
 the reported 447 ± 91.1 — ~17% under the mean, inside one SD. The direction is expected and was not
 tuned away: the stored Tmax (1.5 h) is slower than Cloyd's (~1.17 h), and a slower first-order input
 peaks later and lower. **Tmax was chosen from the source before the curve was built.** Recorded in
-the compound notes as a coincidence rather than agreement: 369.3 sits very near Cloyd's *first*
+the compound notes as a coincidence rather than agreement: 369.3 sits very near Cloyd's _first_
 maximum of 373, which is arithmetic luck at a different time by a different mechanism.
 
 **The result worth teaching, and it inverts the naive reading.** At the SAME 15 mg dose the modelled
@@ -1872,8 +1875,8 @@ the data (`AUC = F·D/CL`), so it proves `F` is applied cleanly on the new route
 does not touch clearance — plumbing, not pharmacology. The one genuinely independent number is the
 peak, because Vc and CL come from Klotz/Greenblatt while `F` and Tmax come from Cloyd and the label.
 
-**Two defects this route's audit surfaced, both PREDATING it** — the generalisation being that *a
-new route audits old code by making an old assumption observable* (the same lesson IM recorded
+**Two defects this route's audit surfaced, both PREDATING it** — the generalisation being that _a
+new route audits old code by making an old assumption observable_ (the same lesson IM recorded
 about parameters):
 
 - **`fRangeOral` read `compound.routes.oral` directly while its caller gated on the ENGINE route.**
@@ -1901,7 +1904,95 @@ every curve in the file was a picture of a dose nobody is given. 10 mg is Klotz'
 sits inside Diastat's 5–20 mg range, and is a standard IV increment, so one number is honest across
 all four routes. It is a scale, never a recommended dose.
 
-**SC and inhaled still NOT added.** SC remains blocked on a source reporting SC alone (see the IM
-entry). Inhaled is a different screen entirely — pulmonary deposition fraction is not a
-bioavailability, and most sources fit multi-phase deposition/absorption, which the input-type screen
-defers.
+**Inhaled still NOT added.** Inhaled is a different screen entirely — pulmonary deposition fraction
+is not a bioavailability, and most sources fit multi-phase deposition/absorption, which the
+input-type screen defers. (**SC was still blocked when this entry was written and shipped later the
+same day** — see "The subcutaneous route" below.)
+
+### The subcutaneous route — sumatriptan SHIPPED (2026-07-20, 602 tests)
+
+The fourth entry through the §12 "more routes" seam, and the first whose result is **negative**.
+Like transdermal, IM and rectal it added **no engine math**: a subcutaneous depot is a FIRST-ORDER
+input, so `engineRouteOf` maps `sc` onto the engine's `oral` path and the mode spine covers
+1-/2-/3-comp alike. Row 2 of the input-type screen, as usual.
+
+**THE FINDING IS THAT THERE IS NO NEW FINDING, AND THAT IS WHY IT IS WRITTEN DOWN.** The three
+earlier routes each widened what `F` could mean, and the sequence was starting to look like a law:
+
+| Route         | What `F` is                                                          |
+| ------------- | -------------------------------------------------------------------- |
+| `transdermal` | _no `F` at all_ — a stated delivery rate is already systemic         |
+| `im`          | absorption completeness — **no** first-pass term                     |
+| `oral`        | absorption × survival of the **full** first pass                     |
+| `rectal`      | absorption × survival of a **partial** first pass                    |
+| `sc`          | **absorption completeness — no first-pass term. Identical to `im`.** |
+
+Subcutaneous tissue drains to the systemic circulation exactly as muscle does. So `sc` is the first
+clinical route to share **both** an engine input type **and** an `F` category with a route already
+shipped, and the taxonomy closes at three meanings rather than growing to four.
+
+**The design consequence: `im` and `sc` share ONE schema** (`InjectedDepotRouteSchema`, renamed from
+`ImRouteSchema`), where `rectal` has its own. That is the rule made legible — _a separate schema
+means a different quantity; a shared schema means the same quantity_. Writing `ScRouteSchema` as a
+copy with the nouns swapped would have required a doc comment implying a distinction the physiology
+does not contain, which is the **manufactured-distinction** failure this project refuses everywhere
+else (unmerged variability bands, un-decomposed rectal `F`). What genuinely differs between IM and
+SC is the absorption **RATE** and its variability — subcutaneous fat is less well perfused than
+muscle — and that is `ka`, a field both blocks already carry. **A difference in the value of a field
+is not a difference in what the field means.** Generalise: the lesson of the first three routes
+("a shared input type does not carry every clinical fact") must not harden into "a new route always
+means a new fact."
+
+**The gate that let it ship** was pre-registered when ketamine's IM route deferred SC: _"SC ships
+when a source reports SC alone."_ The Imitrex injection SPL clears it exactly — the product is
+subcutaneous-only and its 97% `F` is measured against IV in a dedicated 18-subject study, not pooled
+with IM the way Abuhelwa's ketamine numbers are. Note the gate is per COMPOUND: ketamine still has
+no SC route.
+
+**Sumatriptan is the first 2-comp compound whose Q and Vp are DERIVED, not cited** — hence the new
+`derived_from_half_lives` sentinel. Every earlier one (ketamine, diazepam) took them from a published
+popPK fit. The label reports four quantities from ONE 9-subject study — Vc 50 L, CL 1,194 mL/min,
+distribution t½ 15 min, terminal t½ 115 min — which is exactly enough to pin the model with nothing
+invented: `k10 = CL/Vc`, `k21 = αβ/k10`, `k12 = (α+β) − k10 − k21`, `Q = k12·Vc`, `Vp = Q/k21`.
+Cosson 1999's independent NONMEM fit corroborates (CL 71.2 L/h vs 71.64 derived — 0.6%; Vss 94.5–109 L
+vs 121.6 — ~12%) and is **not averaged in**; averaging manufactures a number neither source reports.
+
+**A 1-comp reading of this compound fails its own ceiling test, which is what forced 2-comp.** The
+label's numbers are mutually inconsistent under one compartment: `CL/Vc` implies a 29 min half-life
+against a reported 115. Reconciling CL with the terminal half-life gives an apparent ~198 L, and then
+`F·D/V` at 6 mg is 29 ng/mL — **below** the reported Cmax of 74. Worth keeping as a worked example of
+the ceiling test _diagnosing the model_ rather than rejecting the compound.
+
+**ORAL WAS DRAFTED AND THEN CUT, on the magnitude check — the most transferable part of this pass.**
+Oral was wanted precisely because the 97%-vs-15% contrast is what makes SC's `F` category legible.
+It failed: **no single first-order `ka` reproduces both reported oral numbers.** Inverting the
+reported Tmax (2.0 h) gives ka = 0.1816/h and a 25 mg peak of 5.4 ng/mL against a reported 18 —
+**3.3× low**. Matching the Cmax needs ka ≈ 1.0/h, which puts Tmax at 0.68 h. A sweep of ka from 0.18
+to 9.2/h confirmed **Tmax falls monotonically throughout**, so this is not a solver picking the wrong
+root of a two-root problem — `kaFromTmax2c` is correct, and the flip-flop warning fired correctly on
+the way. The two reported oral observations are simply not simultaneously satisfiable by a single
+exponential input, which is exactly what Cosson found independently (first-order **followed by**
+zero-order, ~5 h absorption phase; plus a multiple-peaks literature).
+
+**Why omission and not a caveated curve**, given documented residuals are acceptable elsewhere (see
+ketamine's ~1.1×): a 3.3×-low oral curve drawn beside an accurate SC one would put the on-screen
+peak-to-peak ratio near **56×** at equal dose where the label's own Cmax values put it near **17×**.
+The curve would **inflate the very contrast it was added to teach**, and no caption can correct what
+the line shows. The rule this generalises to: _a residual is tolerable when it is a residual; it is
+not tolerable when the wrong quantity is the teaching point._ The contrast survives in prose, cited,
+exactly as ketamine's ~64%/~17% does with no oral curve drawn.
+
+**THE ROUTE-TERNARY FALLTHROUGH RECURRED FOR THE THIRD TIME, and was found by launching the app.**
+`PeakNote`'s route chain ended in the ORAL branch, so a subcutaneous curve printed _"An **oral** dose
+rises as it is absorbed…"_ directly under the chart — 602 green tests, typechecker happy. This is the
+same defect as the patch-explained-as-a-tablet bug, on a component whose own doc comment describes
+that bug. **Adding a fifth ternary arm would have fixed this route and left the trap armed for the
+next**, so it is now an exhaustive `Record<DataRoute, string>`, joining `BIOAVAILABILITY_LABELS`,
+`DATA_ROUTES` and `FIRST_ORDER_ABSORPTION_COPY`. `ModelAssumptionsNote` had the identical shape
+(final branch = rectal) and got the identical fix. **Standing instruction: when adding a route, grep
+for every route ternary and convert it, rather than extending it — and launch the app, because this
+class of defect is invisible to the entire test suite.**
+
+A second, self-inflicted instance: the compound's `metabolism` prose ended "…how much of an **oral**
+dose the first pass destroys", written while oral was still going to ship, and survived the cut.
+Shipping a compound falsifies prose in files the diff never touches — the theophylline lesson, again.

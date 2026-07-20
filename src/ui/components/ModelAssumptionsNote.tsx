@@ -42,7 +42,33 @@ import { REFERENCE_WEIGHT_KG } from '../curve.ts';
  *
  * Same lesson as `PeakNote`, one panel over: prose keyed on nothing at all is prose
  * keyed on whatever route happened to be in view when it was written.
+ *
+ * The first-order copy below is a RECORD, not the ternary chain it was until `sc`
+ * shipped, and the reason is that the chain had already re-armed the exact trap this
+ * comment describes. Its final `else` was the rectal sentence, so adding a fourth
+ * first-order route would have explained a SUBCUTANEOUS INJECTION as "input from the
+ * rectal mucosa … insertion depth decides how much of the dose drains portally" — a
+ * confident paragraph about an anatomy the route does not involve, under a curve that
+ * is otherwise correct, with every test green. That is the `PeakNote` patch bug
+ * verbatim, one route later. An exhaustive `Record<DataRoute, …>` cannot fall
+ * through: a new route fails to compile until someone writes its sentence, which is
+ * the same fix `BIOAVAILABILITY_LABELS` and `DATA_ROUTES` already carry.
  */
+const FIRST_ORDER_ABSORPTION_COPY: Record<DataRoute, string> = {
+  oral: 'Oral input is a single exponential; food, formulation, and gut effects are not modelled.',
+  im: 'Input from the muscle depot is a single exponential; injection site, volume, and formulation are not modelled.',
+  sc: 'Input from the subcutaneous depot is a single exponential; injection site, depth, and formulation are not modelled — and subcutaneous fat is less well perfused than muscle, so this is the route where a single fixed absorption rate is the biggest simplification.',
+  rectal:
+    'Input from the rectal mucosa is a single exponential; insertion depth, formulation, and retention are not modelled — and it is insertion depth that decides how much of the dose drains portally, so the split behind this route’s F is exactly what a single exponential cannot show.',
+  // Unreachable: the caller returns earlier for every route whose engine input is not
+  // first-order. Written out anyway because the Record's exhaustiveness is the point,
+  // and a plausible-looking absorption sentence sitting in an IV slot is a false string
+  // waiting for the day a caller moves.
+  iv_bolus: 'An IV bolus has no absorption step.',
+  iv_infusion: 'An infusion has no absorption step.',
+  transdermal: 'A patch is a zero-order input, not a first-order one.',
+};
+
 function absorptionAssumption(route: DataRoute) {
   const engineRoute = engineRouteOf(route);
   if (engineRoute === 'iv_bolus') return null;
@@ -58,12 +84,7 @@ function absorptionAssumption(route: DataRoute) {
   }
   return (
     <li>
-      <strong>First-order absorption.</strong>{' '}
-      {route === 'oral'
-        ? 'Oral input is a single exponential; food, formulation, and gut effects are not modelled.'
-        : route === 'im'
-          ? 'Input from the muscle depot is a single exponential; injection site, volume, and formulation are not modelled.'
-          : 'Input from the rectal mucosa is a single exponential; insertion depth, formulation, and retention are not modelled — and it is insertion depth that decides how much of the dose drains portally, so the split behind this route’s F is exactly what a single exponential cannot show.'}
+      <strong>First-order absorption.</strong> {FIRST_ORDER_ABSORPTION_COPY[route]}
     </li>
   );
 }
@@ -82,53 +103,47 @@ export function ModelAssumptionsNote({
       <ul className="assumptions__list">
         {michaelisMenten ? (
           <li>
-            <strong>One compartment, saturable elimination.</strong> The body is
-            treated as a single well-mixed volume, but the enzymes clearing the
-            drug have a ceiling: elimination follows Vmax·C/(Km + C) rather than a
-            fixed rate constant. A real drug with a distribution phase will still
-            show a steeper early drop than this curve does.
+            <strong>One compartment, saturable elimination.</strong> The body is treated as a single
+            well-mixed volume, but the enzymes clearing the drug have a ceiling: elimination follows
+            Vmax·C/(Km + C) rather than a fixed rate constant. A real drug with a distribution phase
+            will still show a steeper early drop than this curve does.
           </li>
         ) : model === 'three_compartment_first_order' ? (
           <li>
-            <strong>Three compartments.</strong> The body is split into a central
-            volume (blood plus fast-perfusing tissue, where concentration is
-            measured) and two peripheral volumes — a rapidly-equilibrating one and
-            a slow, deep one. The curve shows a steep early (α) distribution drop,
-            a middle (β) phase, then a slow terminal (γ) decline as drug returns
+            <strong>Three compartments.</strong> The body is split into a central volume (blood plus
+            fast-perfusing tissue, where concentration is measured) and two peripheral volumes — a
+            rapidly-equilibrating one and a slow, deep one. The curve shows a steep early (α)
+            distribution drop, a middle (β) phase, then a slow terminal (γ) decline as drug returns
             from the deep compartment.
           </li>
         ) : model === 'two_compartment_first_order' ? (
           <li>
-            <strong>Two compartments.</strong> The body is split into a central
-            volume (blood plus fast-perfusing tissue, where concentration is
-            measured) and a peripheral volume it exchanges with. The curve shows
-            a distribution phase — a steep early (α) drop as drug spreads into
-            the periphery — before the slower terminal (β) decline.
+            <strong>Two compartments.</strong> The body is split into a central volume (blood plus
+            fast-perfusing tissue, where concentration is measured) and a peripheral volume it
+            exchanges with. The curve shows a distribution phase — a steep early (α) drop as drug
+            spreads into the periphery — before the slower terminal (β) decline.
           </li>
         ) : (
           <li>
-            <strong>One compartment.</strong> The body is treated as a single
-            well-mixed volume. A real drug with a distribution phase will show a
-            steeper early drop than this curve does.
+            <strong>One compartment.</strong> The body is treated as a single well-mixed volume. A
+            real drug with a distribution phase will show a steeper early drop than this curve does.
           </li>
         )}
         {michaelisMenten ? (
           <li>
-            <strong>NOT linear — no superposition, and no half-life.</strong>{' '}
-            Clearance falls as concentration rises, so doses do <em>not</em> add
-            up: this curve is integrated as a whole course rather than summed from
-            single doses, and two doses together reach higher than the same two
-            doses drawn separately. There is also no single half-life to quote —
-            the apparent half-life rises with concentration, so the figure in the
-            caption is this dose&apos;s, not the drug&apos;s. Change the dose and it
-            moves; that is the compound, not a limitation of the model.
+            <strong>NOT linear — no superposition, and no half-life.</strong> Clearance falls as
+            concentration rises, so doses do <em>not</em> add up: this curve is integrated as a
+            whole course rather than summed from single doses, and two doses together reach higher
+            than the same two doses drawn separately. There is also no single half-life to quote —
+            the apparent half-life rises with concentration, so the figure in the caption is this
+            dose&apos;s, not the drug&apos;s. Change the dose and it moves; that is the compound,
+            not a limitation of the model.
           </li>
         ) : (
           <li>
-            <strong>Linear kinetics &amp; superposition.</strong> Clearance is
-            assumed dose-independent, so doses add up. This breaks down for
-            saturable drugs — see phenytoin or ethanol, which are modelled
-            differently for exactly this reason.
+            <strong>Linear kinetics &amp; superposition.</strong> Clearance is assumed
+            dose-independent, so doses add up. This breaks down for saturable drugs — see phenytoin
+            or ethanol, which are modelled differently for exactly this reason.
           </li>
         )}
         {absorptionAssumption(route)}

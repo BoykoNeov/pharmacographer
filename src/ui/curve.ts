@@ -76,6 +76,7 @@ import type { Compound, DataRoute } from '../data/schema.ts';
 export const ENGINE_ROUTES: readonly DataRoute[] = [
   'oral',
   'im',
+  'sc',
   'rectal',
   'iv_bolus',
   'iv_infusion',
@@ -86,6 +87,7 @@ export const ENGINE_ROUTES: readonly DataRoute[] = [
 export const ROUTE_LABELS: Record<DataRoute, string> = {
   oral: 'Oral',
   im: 'Intramuscular',
+  sc: 'Subcutaneous',
   rectal: 'Rectal',
   iv_bolus: 'IV bolus',
   iv_infusion: 'IV infusion',
@@ -172,11 +174,19 @@ function hasAbsorptionData(compound: Compound, route: DataRoute): boolean {
 export function routeOptions(compound: Compound): RouteOption[] {
   return ENGINE_ROUTES.map((route) => {
     const label = ROUTE_LABELS[route];
-    if (route === 'oral' || route === 'im' || route === 'rectal') {
-      // All three first-order routes need their OWN absorption data. None may fall
-      // back to the oral block: they have different ka (a depot is not a gut, a rectal
-      // mucosa is neither) and different F (oral's is net of a full first pass, IM's of
-      // none, rectal's of a partial one).
+    if (engineRouteOf(route) === 'oral') {
+      // Every first-order route needs its OWN absorption data. None may fall back to
+      // the oral block: they have different ka (a depot is not a gut, a rectal mucosa
+      // is neither) and different F (oral's is net of a full first pass, an injected
+      // depot's of none, rectal's of a partial one).
+      //
+      // ASKED STRUCTURALLY, not as a route literal. This was `route === 'oral' ||
+      // route === 'im' || route === 'rectal'` until `sc` shipped, and a literal list
+      // is the same silent-coverage-hole shape that `DATA_ROUTES` and
+      // `BIOAVAILABILITY_LABELS` were both rewritten to close: `sc` would have fallen
+      // past this arm to the disposition-only default and been offered as derivable on
+      // every compound in the set, with no absorption data and no test objecting.
+      // `engineRouteOf` already knows which routes are first-order; ask it.
       const derivable = hasAbsorptionData(compound, route);
       return {
         route,

@@ -22,13 +22,28 @@ import { z } from 'zod';
  *   - `derived_from_tmax`      — an absorption constant (ka) estimated from a reported Tmax.
  *   - `derived_from_clearance` — an (apparent) Vd computed from CL/F and the
  *                                half-life when the source reports no volume.
+ *   - `derived_from_half_lives` — a two-compartment micro-constant (Q, Vp) computed
+ *                                from a source's reported DISTRIBUTION and TERMINAL
+ *                                half-lives plus its Vc and CL, via the standard
+ *                                α/β algebra. See below.
  * Any other `sourceRef` must be a key in `sources`; the cross-check lives in the
  * compound-level {@link CompoundSchema} refinement.
+ *
+ * `derived_from_half_lives` exists because sumatriptan is the first 2-comp compound
+ * whose peripheral parameters are COMPUTED rather than cited. Every earlier one took
+ * Q and Vp straight from a popPK fit (ketamine ← Abuhelwa). The Imitrex SPL instead
+ * reports four quantities from one 9-subject study — Vc, CL, a 15 min distribution
+ * half-life and a 115 min terminal one — which is exactly enough to pin the model:
+ * k10 = CL/Vc, k21 = αβ/k10, k12 = (α+β) − k10 − k21, then Q = k12·Vc and Vp = Q/k21.
+ * The inputs are cited; the outputs are algebra on them. Marking that with the same
+ * `derived: true` a Tmax-inverted `ka` carries keeps the honesty panel truthful about
+ * which numbers a human measured — the distinction this whole field exists to draw.
  */
 export const SOURCE_REF_SENTINELS = [
   'definition',
   'derived_from_tmax',
   'derived_from_clearance',
+  'derived_from_half_lives',
 ] as const;
 
 // ── Unit vocabularies ──────────────────────────────────────────────────────
@@ -214,30 +229,50 @@ const OralRouteSchema = z.strictObject({
 });
 
 /**
- * Intramuscular route (handoff §12; the "more routes" seam). A depot injection is
- * a FIRST-ORDER input — the same input type as a swallowed tablet — so, like
- * {@link TransdermalRouteSchema}, it adds no engine math: `derive.ts` resolves it to
+ * INJECTED DEPOT routes — intramuscular (`im`) and subcutaneous (`sc`). One schema
+ * for two clinical routes, and that sharing is a finding rather than a convenience.
+ *
+ * Both are FIRST-ORDER inputs — the same input type as a swallowed tablet — so, like
+ * {@link TransdermalRouteSchema}, they add no engine math: `derive.ts` resolves them to
  * the engine's `oral` route and the mode spine's `oralConcentrationFromModes`
- * computes it for a 1-, 2- or 3-compartment disposition alike. The fields are
+ * computes them for a 1-, 2- or 3-compartment disposition alike. The fields are
  * therefore oral's fields, and that shape-sharing is the point.
  *
- * WHAT IS NOT SHARED IS THE MEANING OF `F`, and it is the inverse of the patch's
- * absent one. `TransdermalRouteSchema` has no `F` because a stated delivery rate is
- * ALREADY systemic. `im` keeps `F` — but it is absorption completeness ONLY, with no
- * first-pass term in it, because an injection drains to the systemic circulation
- * without crossing gut wall or portal liver first. Two consequences, both load-bearing:
+ * WHAT IS NOT SHARED WITH ORAL IS THE MEANING OF `F`, and it is the inverse of the
+ * patch's absent one. `TransdermalRouteSchema` has no `F` because a stated delivery
+ * rate is ALREADY systemic. An injection keeps `F` — but it is absorption completeness
+ * ONLY, with no first-pass term in it, because an injected depot drains to the systemic
+ * circulation without crossing gut wall or portal liver first. Two consequences, both
+ * load-bearing:
  *
- *  - A metabolite's `firstPassFraction` (`ffp`) MUST NOT ride this route. `ffp` is
+ *  - A metabolite's `firstPassFraction` (`ffp`) MUST NOT ride these routes. `ffp` is
  *    pre-systemic gut/hepatic extraction; on an injection that mass does not exist.
- *    Because `im` resolves to the engine's `oral`, the engine would otherwise apply
+ *    Because they resolve to the engine's `oral`, the engine would otherwise apply
  *    it — the engine keys on input type and cannot tell a needle from a tablet, which
  *    is exactly the ignorance the layering buys. `appliesFirstPass` (`derive.ts`)
  *    strips it at the data boundary, where clinical route vocabulary belongs.
- *  - An IM `F` and an oral `F` for the same drug are not the same quantity and their
- *    gap is the teaching content (ketamine: ~64% IM vs ~17% oral — the difference is
- *    first pass). Never copy one into the other's slot.
+ *  - An injected `F` and an oral `F` for the same drug are not the same quantity and
+ *    their gap is the teaching content (ketamine ~64% IM vs ~17% oral; sumatriptan
+ *    ~97% SC vs ~15% oral — the difference is first pass). Never copy one into the
+ *    other's slot.
+ *
+ * WHY `sc` SHARES THIS SCHEMA INSTEAD OF EARNING ITS OWN. `RectalRouteSchema` is
+ * separate because rectal `F` is a genuinely third quantity (partial first pass).
+ * Subcutaneous is not a fourth: SC drains to the systemic circulation exactly as IM
+ * does, so its `F` is absorption completeness with no first-pass term — the SAME
+ * category as `im`, to the letter. Giving `sc` a parallel schema would have meant
+ * writing a doc comment that implied a distinction the physiology does not contain,
+ * and this project's failure mode is manufactured distinctions, not missing ones.
+ *
+ * So the route sequence transdermal → im → rectal → sc, which had been widening the
+ * meanings of `F` at every step (absent / none / partial), CLOSES here instead: `sc`
+ * is the first clinical route to share both an engine input type AND an `F` category
+ * with a route already shipped. What separates IM from SC is real but lives elsewhere
+ * — absorption RATE and its variability (subcutaneous fat is more poorly perfused
+ * than muscle) — and that is `ka`, a number each route's own block already carries.
+ * A difference in the value of a field is not a difference in what the field means.
  */
-const ImRouteSchema = z.strictObject({
+const InjectedDepotRouteSchema = z.strictObject({
   available: z.boolean(),
   /** Absorption completeness from the depot — NOT a first-pass-inclusive F. */
   F: optionalParam(FractionUnit).optional(),
@@ -332,7 +367,8 @@ const TransdermalRouteSchema = z.strictObject({
 
 const RoutesSchema = z.strictObject({
   oral: OralRouteSchema.optional(),
-  im: ImRouteSchema.optional(),
+  im: InjectedDepotRouteSchema.optional(),
+  sc: InjectedDepotRouteSchema.optional(),
   rectal: RectalRouteSchema.optional(),
   iv_bolus: IvRouteSchema.optional(),
   iv_infusion: IvRouteSchema.optional(),
@@ -941,8 +977,24 @@ export type Metabolite = z.infer<typeof MetaboliteSchema>;
  * (`im`), all (`oral`), and some-unquantified-part (`rectal`). A boolean was enough to
  * separate the first two; the third is representable only because its `F` is measured
  * whole rather than decomposed. See {@link RectalRouteSchema}.
+ *
+ * `sc` is where that widening STOPS, and a negative result is worth as much shelf space
+ * as the three positive ones. Four clinical routes now ride the engine's one first-order
+ * input, but there are still only three `F` categories: subcutaneous drains systemically
+ * exactly as intramuscular does, so it shares `im`'s category to the letter and shares
+ * its schema ({@link InjectedDepotRouteSchema}) to say so. The lesson the first three
+ * routes taught — "a shared input type does not carry every clinical fact" — must not
+ * harden into "a new route always means a new fact." Sometimes the honest addition is
+ * the one that adds a row to the picker and nothing to the taxonomy.
  */
-export type DataRoute = 'oral' | 'im' | 'rectal' | 'iv_bolus' | 'iv_infusion' | 'transdermal';
+export type DataRoute =
+  | 'oral'
+  | 'im'
+  | 'sc'
+  | 'rectal'
+  | 'iv_bolus'
+  | 'iv_infusion'
+  | 'transdermal';
 
 /**
  * Every {@link DataRoute} as a RUNTIME value — the list a test can iterate.
@@ -961,6 +1013,7 @@ export type DataRoute = 'oral' | 'im' | 'rectal' | 'iv_bolus' | 'iv_infusion' | 
 export const DATA_ROUTES = [
   'oral',
   'im',
+  'sc',
   'rectal',
   'iv_bolus',
   'iv_infusion',
@@ -970,9 +1023,8 @@ export const DATA_ROUTES = [
 // Compile-time proof the tuple above is EXHAUSTIVE, not merely well-typed: a
 // `satisfies readonly DataRoute[]` alone would happily accept a list missing `im`.
 // This assignment fails if any DataRoute member is absent from DATA_ROUTES.
-type _DataRoutesAreExhaustive = Exclude<DataRoute, (typeof DATA_ROUTES)[number]> extends never
-  ? true
-  : never;
+type _DataRoutesAreExhaustive =
+  Exclude<DataRoute, (typeof DATA_ROUTES)[number]> extends never ? true : never;
 const _dataRoutesExhaustive: _DataRoutesAreExhaustive = true;
 void _dataRoutesExhaustive;
 

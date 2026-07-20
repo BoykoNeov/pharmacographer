@@ -67,7 +67,7 @@ import { NONLINEAR_MODELS, type Compound, type DataRoute, type Metabolite } from
  */
 export function engineRouteOf(route: DataRoute): Route {
   if (route === 'transdermal') return 'iv_infusion';
-  if (route === 'im' || route === 'rectal') return 'oral';
+  if (route === 'im' || route === 'sc' || route === 'rectal') return 'oral';
   return route;
 }
 
@@ -76,15 +76,17 @@ export function engineRouteOf(route: DataRoute): Route {
  * the systemic circulation — i.e. whether a metabolite's pre-systemic
  * `firstPassFraction` (`ffp`) term applies to it.
  *
- * ONLY `oral` does. This exists because {@link engineRouteOf} maps `im` onto the
- * engine's `oral`, and the engine — correctly — keys on input type and cannot tell a
- * needle from a tablet. Left unstripped, an IM curve for a compound carrying `ffp`
- * would draw a first-pass metabolite peak off a dose that never met a hepatocyte
- * before reaching the blood: silently wrong, and invisible to the typechecker, since
- * both routes have identical types. No shipped compound currently pairs `ffp` with an
- * IM route (morphine has `ffp` but defers IM on the `F·D/V` ceiling test), so this
- * guards a trap rather than fixing a live bug — the same posture as the unused `mixed`
- * branch of `HalfLifeAxisRegime`.
+ * ONLY `oral` does. This exists because {@link engineRouteOf} maps the injected depot
+ * routes (`im`, `sc`) onto the engine's `oral`, and the engine — correctly — keys on
+ * input type and cannot tell a needle from a tablet. Left unstripped, an injected curve
+ * for a compound carrying `ffp` would draw a first-pass metabolite peak off a dose that
+ * never met a hepatocyte before reaching the blood: silently wrong, and invisible to the
+ * typechecker, since the routes have identical types. No shipped compound currently pairs
+ * `ffp` with an injected route (morphine has `ffp` but defers IM on the `F·D/V` ceiling
+ * test; sumatriptan ships `sc` but no metabolite), so this guards a trap rather than
+ * fixing a live bug — the same posture as the unused `mixed` branch of
+ * `HalfLifeAxisRegime`. Note that `sc` needed no new branch here, only a wider `im` one:
+ * both are injections, so both bypass first pass for the same reason.
  *
  * `rectal` RETURNS FALSE, AND THAT IS AN APPROXIMATION RATHER THAN A FACT — the one
  * place this function stops being a clean partition (see {@link RectalRouteSchema}).
@@ -121,9 +123,14 @@ export function appliesFirstPass(route: DataRoute): boolean {
 export function absorptionRouteOf(
   compound: Compound,
   route: DataRoute,
-): Compound['routes']['oral'] | Compound['routes']['im'] | Compound['routes']['rectal'] {
+):
+  | Compound['routes']['oral']
+  | Compound['routes']['im']
+  | Compound['routes']['sc']
+  | Compound['routes']['rectal'] {
   if (route === 'oral') return compound.routes.oral;
   if (route === 'im') return compound.routes.im;
+  if (route === 'sc') return compound.routes.sc;
   if (route === 'rectal') return compound.routes.rectal;
   return undefined;
 }
@@ -140,6 +147,7 @@ export function absorptionRouteOf(
 const BIOAVAILABILITY_LABELS: Record<DataRoute, string> = {
   oral: 'oral bioavailability F',
   im: 'intramuscular bioavailability F',
+  sc: 'subcutaneous bioavailability F',
   rectal: 'rectal bioavailability F',
   // Unreachable: every call site sits inside an `engineRouteOf(route) === 'oral'`
   // guard, so only the three first-order routes above can arrive here. Named anyway
