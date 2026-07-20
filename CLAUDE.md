@@ -145,9 +145,11 @@ engine/schema/derive change needed.
   the default and must override **nothing** — the base values ARE the default
   phenotype, which makes the default render provably the pre-preset compound. Adding a
   preset to a compound is data + citations. See `docs/DATA_GUIDE.md` "Phenotype presets".
-- Routes: oral, IV bolus, IV infusion, **transdermal**. Multi-dose via superposition
-  (linear) or whole-schedule integration (MM); per-parameter variability bands; Cmax/Tmax
-  markers; lin/semi-log toggle; unit toggle.
+- Routes: oral, IV bolus, IV infusion, **transdermal**, **intramuscular**, **rectal**.
+  Multi-dose via superposition (linear) or whole-schedule integration (MM); per-parameter
+  variability bands; Cmax/Tmax markers; lin/semi-log toggle; unit toggle. `DATA_ROUTES`
+  (`schema.ts`) is the exhaustive runtime tuple — iterate it, never a literal list, or the
+  route silently generates no tests (which is what happened to `im`).
 - **Variability axes** (`VariabilityAxis` in `ui/curve.ts`) — **half-life, Vd, and oral F**,
   each a slider over that parameter's reported range with its own toggleable band. **The
   bands are never merged**, which is a deliberate deviation from §12's "combine them": a
@@ -196,6 +198,22 @@ engine/schema/derive change needed.
   **exactly** (no decay tail): a patch's post-removal decline runs on the ABSORPTION rate (a
   skin depot), so the window ends at patch-off rather than drawing it wrong. **A worn patch
   has no peak** — the marker reads "End of wear", not Cmax/Tmax.
+- **Intramuscular (`im`) and rectal (`rectal`)** — the same seam, also with **no engine math**:
+  both are FIRST-ORDER inputs, which the engine's `oral` already is, so `engineRouteOf` maps
+  them onto it. Ships **ketamine** (IM) and **diazepam** (rectal). What they cost is not math
+  but MEANING: three clinical routes now share one engine input, and **`F` denotes something
+  different on each** — absorption completeness with no first-pass term (`im`), absorption net
+  of the FULL first pass (`oral`), and absorption net of a PARTIAL one (`rectal`, because
+  rectal venous drainage is split between the portal and systemic circulations). IM proved
+  that sharing an input type is not sharing a clinical fact; rectal proved the fact is not even
+  BINARY. Consequences: `appliesFirstPass` (`derive.ts`) strips a metabolite's `ffp` off any
+  non-oral route, and for `rectal` it returns `false` as a documented **approximation, not a
+  fact**; a rectal `F` is stored **empirical and lumped** and its portal/systemic split is
+  deliberately NOT stored, because no source quantifies it (manufacturing it is the same
+  failure the phenotype presets and unmerged bands refuse). Any function taking a route must
+  read the block for THAT route via `absorptionRouteOf` — reaching for `routes.oral` directly
+  is what silently cost ketamine's IM curve its whole F band. See `docs/DATA_GUIDE.md` "The
+  intramuscular route" and "The rectal route".
 
 **A nonlinear compound is NOT pure data** — unlike a linear one. It needs
 `dispositionMM`, `linear: false`, and an **explicit cited `ka`** for oral: a Tmax

@@ -8,6 +8,81 @@ must-follow instruction file — `CLAUDE.md` holds the working conventions and
 
 Newest first; test counts and commit hashes are as-of that milestone.
 
+**THE RECTAL ROUTE — THE SHARED FACT WAS NEVER A BOOLEAN (2026-07-20, advisor-reviewed, 578 → 599
+tests, 47 compounds).** The §12 "more routes" seam a third time, and like transdermal and IM it
+added **no engine math**: a rectal gel is a first-order input from a mucosal depot, so
+`engineRouteOf` maps `rectal` onto the engine's `oral` path. Ships diazepam (Cloyd 1998 + the
+Diastat SPL).
+
+IM had recorded the lesson that *sharing an engine input type is not sharing a clinical route* —
+oral carries pre-systemic first pass, an injection does not. Rectal shows that framing was still too
+coarse, because **rectal venous drainage is split**: the superior rectal vein feeds the portal
+system, the middle and inferior veins drain systemically. Three clinical routes now ride one engine
+input, and each means something different by `F` — none (`im`), all (`oral`), some-unquantified
+(`rectal`). The design consequence is that the split is **deliberately not stored**: no source
+quantifies it, it varies with insertion depth, and writing `F = absorption × bypassFraction` would
+manufacture a number nobody measured — the failure the phenotype presets and the unmerged
+variability bands both already refuse. `F` is stored empirical and lumped, which is the only honest
+form it comes in.
+
+`appliesFirstPass('rectal')` returns `false`, and the entry records it as an **approximation rather
+than a fact** — the one place that function stops being a clean partition. `true` would apply oral's
+whole `ffp` to a route that only partly earns it; `false` understates by a bounded unknown and is
+harmless today only because no shipped compound pairs `rectal` with `ffp` (a test asserts the
+condition). A compound that ever needs both wants a quantified split, not a flipped boolean.
+
+**The advisor corrected its own framing mid-pass, and the correction is the teaching point.** Its
+first read was that diazepam would show *no* first-pass contrast — rectal ≈ oral ≈ 90%, so the hook
+would be empty. The file's own numbers killed that: oral `F` is 0.75 (Klotz) against rectal 0.904
+(Cloyd), a real ~15-point gap, and almost exactly the "~15-20% lost to hepatic first pass" the oral
+route had already reconciled against the label's ">90% absorbed". So rectal DOES recover the first
+pass — the gain is just **small, because diazepam is low-extraction and there was little to
+recover**. The textbook "rectal bypasses first pass" is wrong twice over: the bypass is partial, and
+its size is a property of the drug's extraction ratio, not of the route. On-screen copy therefore
+ties the size to extraction instead of quoting diazepam's number, because route-keyed prose binds
+every future compound on that route (the "plateau" lesson from clonidine).
+
+**The double peak did not trip the defer gate.** Cloyd's profile has two maxima and a single
+first-order `ka` cannot draw two. The route ships anyway because the source cited FOR THE PARAMETER
+— the SPL — fit a single Tmax; the input-type screen defers when the source itself fit a transit
+chain or parallel release (nicotine), not when the raw data is untidier than the model. The label's
+1.5 h is stored rather than either raw maximum, since picking one of a pair asserts a shape the
+model cannot draw.
+
+**The finding worth keeping.** At the same 15 mg dose the rectal peak is LOWER than oral (369 vs
+383 ng/mL) while rectal AUC is 20% HIGHER: more of the dose gets in, more slowly. "Better
+bioavailability" and "reaches a higher concentration" come apart, and only AUC is governed by `F`
+alone. A naive reading of 90% against 75% predicts the opposite.
+
+**Two defects the audit surfaced, both predating the route** — generalising IM's lesson that a new
+route audits old work by making an old assumption observable, from parameters to CODE:
+
+- **`fRangeOral` read `compound.routes.oral` while its caller gated on the ENGINE route.** Ketamine
+  has an `im` block and no `oral` one, so its IM curve had been showing **no F variability band at
+  all** despite `im.F` carrying a range — a silent feature loss, which is why nothing caught it. A
+  compound with both blocks would have been worse: oral's spread painted onto the IM number.
+- **`ModelAssumptionsNote` printed "Oral input is a single exponential" under every curve.** Under a
+  transdermal patch that names the wrong KIND of absorption (a patch is zero-order), so a panel
+  headed "what this model assumes" asserted the opposite of what the model assumed; under IV it
+  asserted a step that does not exist. This is the `PeakNote` route-ternary bug in its purest form —
+  prose keyed on *nothing* is prose keyed on whichever route was in view when it was written — and,
+  as before, only launching the app found it.
+
+**Two seams closed so the class cannot recur.** `DATA_ROUTES` is an exhaustive tuple with a
+compile-time exhaustiveness proof and `loader.test.ts` iterates it instead of a literal — that
+literal had silently omitted `im`, so **ketamine's IM route generated zero derivation tests since it
+shipped**. `bioavailabilityLabel` became a `Record<DataRoute, string>` instead of a ternary chain,
+so a new route fails to compile rather than inheriting the last branch.
+
+**The citation discipline paid again.** Every load-bearing Cloyd number first arrived as a WebFetch
+*"Study Summary"* — a summarization, not a quotation — which is precisely the theophylline trap
+(a search-summary number reaching shipped prose). The advisor blocked the push on it. Re-fetching
+with an explicit verbatim-only instruction confirmed all four figures verbatim in the abstract, so
+nothing changed; the point is that the check ran BEFORE the push, not that it found an error.
+
+`illustrativeDoseMg` 10 mg was added to diazepam in the same pass, found only by launching: the
+generic 500 mg opening was ~50× a therapeutic dose, rendering Cmax 12.3 mg/L against a real ~0.4.
+
 **THE INTRAMUSCULAR ROUTE — SHARING AN INPUT TYPE IS NOT SHARING A ROUTE (2026-07-20,
 advisor-reviewed, 564 → 578 tests, 47 compounds).** The §12 "more routes" seam a second time, and
 like transdermal it added **no engine math**: an IM depot is a first-order input, which the engine's

@@ -1787,3 +1787,121 @@ bolus at C(0), an infusion at a user-chosen rate.
 first-order absorption rate constants" and one pooled 64% `F`. That is evidence the two share an
 input SHAPE — it is not a licence to write a route whose own numbers were never separated out. SC
 ships when a source reports SC alone.
+
+### The rectal route — diazepam SHIPPED (2026-07-20, 599 tests)
+
+The third entry through the §12 "more routes" seam, and like transdermal and IM it added **no
+engine math**: a gel or suppository is a FIRST-ORDER input from a mucosal depot, so `engineRouteOf`
+maps `rectal` onto the engine's `oral` path and the mode spine covers 1-/2-/3-comp alike. Run the
+**input-type screen** first, as always — rectal lands on row 2 (first-order from a depot).
+
+**WHAT IS NEW: the fact a shared input type does not carry is not a BOOLEAN.** IM established that
+sharing an engine input type is not sharing a clinical route — oral carries pre-systemic first pass,
+an injection does not. Rectal shows that framing was still too coarse. Rectal venous drainage is
+**split**: the superior rectal vein feeds the portal system, the middle and inferior veins drain
+systemically. So part of a rectal dose meets the liver first and part escapes it. Three clinical
+routes now ride the engine's one first-order input, and each means something different by `F`:
+
+| Route | What `F` is |
+| --- | --- |
+| `im` | absorption completeness — **no** first-pass term |
+| `oral` | absorption × survival of the **full** first pass |
+| `rectal` | absorption × survival of a **partial** first pass |
+
+**The screen for any future route on this seam:** don't ask "does this route bypass first pass?" —
+ask *how much of the dose does, and does any source quantify it?* If the answer is "some, and no",
+the route is still shippable, but only in the form below.
+
+- **Store `F` empirical and LUMPED; never decompose it.** No source quantifies the portal/systemic
+  split, and it varies with insertion depth. Writing `F = absorption × bypassFraction` would invent
+  a number nobody measured — the same manufactured-population failure the phenotype presets refuse
+  and the unmerged variability bands refuse. A measured, lumped `F` already contains whatever loss
+  occurred, and that is the only honest form it comes in. `RectalRouteSchema` therefore looks like
+  `ImRouteSchema` but documents a different quantity.
+- **`appliesFirstPass('rectal')` returns `false`, and that is an APPROXIMATION, not a fact.** It is
+  the one place that function stops being a clean partition. `true` would apply oral's whole `ffp`
+  to a route that only partly earns it; `false` understates by a bounded unknown. `false` wins
+  because `ffp` needs a FRACTION and none exists — and because a lumped `F` makes the PARENT curve
+  right either way, so only a metabolite's pre-systemic formation is at stake. No shipped compound
+  pairs `rectal` with `ffp` (a test asserts it). **A compound that ever needs both wants a
+  quantified split, not a flipped boolean.**
+- **The bypass claim must be sized, not asserted.** "Rectal bypasses first pass" is the textbook
+  shorthand and it is wrong twice: the bypass is partial, and its VALUE depends on hepatic
+  extraction. Diazepam recovers 0.75 → 0.904, ~15 points — small precisely because diazepam is
+  **low-extraction** and there was little first pass to escape. A high-extraction drug would show a
+  large gain. Route-keyed copy binds every future compound on the route, so the on-screen prose ties
+  the size to extraction rather than quoting diazepam's number.
+
+**Why diazepam hosts it.** It is the one compound whose file already accounts for its own first-pass
+loss: the oral `F` of 0.75 is reconciled against the label's ">90% absorbed" with "~15-20% lost to
+hepatic first pass". The rectal `F` recovers very nearly that arithmetic gap, so the route is a
+check on an account the file had already written. Note the limit: the two F values are from
+different studies and populations (Klotz 1975 vs Cloyd 1998), so this is illustrative of the route
+difference, not a paired within-subject measurement of it. **A bioavailability is the one quantity
+that transports across studies** — it is a within-study ratio of AUCs against that study's own IV
+arm — which is why Cloyd's `F` is used while Cloyd's disposition is NOT (the label's 46 h terminal
+half-life against this file's age-28-anchored 33 h would build the two-age composite the compound's
+own POPULATION rule forbids).
+
+**The double peak did NOT trip the defer gate, and the reason generalises.** Cloyd's profile has two
+maxima (>200 ng/mL by 15 min, 373 ng/mL at 45 min, 447 ± 91.1 at ~70 min) and a single first-order
+`ka` cannot produce two. The route still ships because **the source being cited for the parameter
+fit a single Tmax** — the Diastat SPL's "peak plasma concentrations in 1.5 hours". The input-type
+screen defers when the SOURCE ITSELF fit a transit chain, parallel release, or Weibull (nicotine);
+it does not defer because the raw data is untidier than the model. Same posture as the oral route's
+documented biphasic "absorption nose". Store the label's summary Tmax, not either raw maximum —
+picking one of a pair asserts a shape the model cannot draw.
+
+**Magnitude check.** 15 mg rectal (Cloyd's own dose) → modelled Cmax 369.3 ng/mL at 1.50 h against
+the reported 447 ± 91.1 — ~17% under the mean, inside one SD. The direction is expected and was not
+tuned away: the stored Tmax (1.5 h) is slower than Cloyd's (~1.17 h), and a slower first-order input
+peaks later and lower. **Tmax was chosen from the source before the curve was built.** Recorded in
+the compound notes as a coincidence rather than agreement: 369.3 sits very near Cloyd's *first*
+maximum of 373, which is arithmetic luck at a different time by a different mechanism.
+
+**The result worth teaching, and it inverts the naive reading.** At the SAME 15 mg dose the modelled
+rectal peak (369 ng/mL) is LOWER than the oral one (383), while rectal AUC is 20% HIGHER. More of
+the dose gets in (F 0.904 vs 0.75) but it gets in more slowly (ka 0.915 vs 1.756 /h), and a
+first-order input spreads a larger delivered fraction over more time. **"Better bioavailability" and
+"reaches a higher concentration" come apart** — only AUC is governed by `F` alone. Reading `F = 90%`
+against `75%` and predicting a higher peak is exactly the error the curve exists to correct.
+
+**The exposure check is self-consistency, not an oracle — say so.** AUC(rectal)/AUC(oral) = 1.204
+against the F ratio 1.205, and AUC(rectal)/AUC(IV) = 0.904. That is an identity of the engine given
+the data (`AUC = F·D/CL`), so it proves `F` is applied cleanly on the new route and that the route
+does not touch clearance — plumbing, not pharmacology. The one genuinely independent number is the
+peak, because Vc and CL come from Klotz/Greenblatt while `F` and Tmax come from Cloyd and the label.
+
+**Two defects this route's audit surfaced, both PREDATING it** — the generalisation being that *a
+new route audits old code by making an old assumption observable* (the same lesson IM recorded
+about parameters):
+
+- **`fRangeOral` read `compound.routes.oral` directly while its caller gated on the ENGINE route.**
+  So every first-order route arrived there, and ketamine — which has an `im` block and no `oral` one
+  — silently showed **no F variability band at all**, though `im.F` carried a range of [0.411,
+  0.93]. A silent feature loss, not a wrong number, which is why nothing caught it. Worse would have
+  been a compound with BOTH blocks: oral's relative spread painted onto the IM number. Now reads
+  through `absorptionRouteOf`. **Any function taking a route must read the block for THAT route.**
+- **`ModelAssumptionsNote` printed one fixed line, "Oral input is a single exponential", under every
+  curve.** Under a transdermal patch that names the wrong KIND of absorption — a patch is
+  zero-order, so the panel headed "what this model assumes" asserted the opposite of what the model
+  assumed. Under the IV routes it asserted an absorption step that does not exist. Now route-keyed,
+  with tests. **Prose keyed on nothing is prose keyed on whichever route was in view when it was
+  written** — the `PeakNote` lesson, one panel over.
+
+**Two seams closed so the class cannot recur.** `DATA_ROUTES` in `schema.ts` is an exhaustive tuple
+with a compile-time exhaustiveness proof, and `loader.test.ts` iterates it instead of a literal —
+that literal had silently omitted `im`, so **ketamine's IM route generated ZERO derivation tests**
+since it shipped. `bioavailabilityLabel` is a `Record<DataRoute, string>` rather than a ternary
+chain, so a new route fails to compile instead of inheriting the last branch.
+
+**`illustrativeDoseMg` added to diazepam (10 mg), found only by launching the app.** The generic
+500 mg opening was ~50× a therapeutic dose and rendered Cmax 12.3 mg/L against a real-world ~0.4 —
+every curve in the file was a picture of a dose nobody is given. 10 mg is Klotz's oral-arm dose,
+sits inside Diastat's 5–20 mg range, and is a standard IV increment, so one number is honest across
+all four routes. It is a scale, never a recommended dose.
+
+**SC and inhaled still NOT added.** SC remains blocked on a source reporting SC alone (see the IM
+entry). Inhaled is a different screen entirely — pulmonary deposition fraction is not a
+bioavailability, and most sources fit multi-phase deposition/absorption, which the input-type screen
+defers.
