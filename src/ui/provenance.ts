@@ -28,6 +28,7 @@
  * (`derive` types). No engine, no React here.
  */
 
+import { absorptionRouteOf, engineRouteOf } from '../data/derive.ts';
 import type { DerivedNote } from '../data/derive.ts';
 import type { Compound, CompoundParameter, CompoundSource, DataRoute } from '../data/schema.ts';
 import { SOURCE_REF_SENTINELS } from '../data/schema.ts';
@@ -206,15 +207,18 @@ export function provenanceEntries(
     }
   }
 
-  // ── Absorption (oral only) ───────────────────────────────────────────────
-  if (route === 'oral') {
-    const oral = compound.routes.oral;
-    if (oral?.F) rows.push(makeRow('F', oral.F, compound));
+  // ── Absorption (the first-order routes: oral and IM) ─────────────────────
+  // Keyed on the ENGINE route so a first-order route added later cites its own
+  // absorption parameters instead of silently showing none — but read through
+  // `absorptionRouteOf`, so IM cites the IM block and never oral's numbers.
+  if (engineRouteOf(route) === 'oral') {
+    const absorption = absorptionRouteOf(compound, route);
+    if (absorption?.F) rows.push(makeRow('F', absorption.F, compound));
     // derive.ts prefers a measured ka; otherwise it inverts a reported Tmax.
-    if (oral?.ka && oral.ka.value !== null) {
-      rows.push(makeRow('ka', oral.ka, compound));
-    } else if (oral?.tmax && oral.tmax.value !== null) {
-      rows.push(makeRow('tmax', oral.tmax, compound));
+    if (absorption?.ka && absorption.ka.value !== null) {
+      rows.push(makeRow('ka', absorption.ka, compound));
+    } else if (absorption?.tmax && absorption.tmax.value !== null) {
+      rows.push(makeRow('tmax', absorption.tmax, compound));
     }
   }
 

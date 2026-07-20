@@ -213,6 +213,38 @@ const OralRouteSchema = z.strictObject({
   tmax: optionalParam(TimeUnit).optional(),
 });
 
+/**
+ * Intramuscular route (handoff §12; the "more routes" seam). A depot injection is
+ * a FIRST-ORDER input — the same input type as a swallowed tablet — so, like
+ * {@link TransdermalRouteSchema}, it adds no engine math: `derive.ts` resolves it to
+ * the engine's `oral` route and the mode spine's `oralConcentrationFromModes`
+ * computes it for a 1-, 2- or 3-compartment disposition alike. The fields are
+ * therefore oral's fields, and that shape-sharing is the point.
+ *
+ * WHAT IS NOT SHARED IS THE MEANING OF `F`, and it is the inverse of the patch's
+ * absent one. `TransdermalRouteSchema` has no `F` because a stated delivery rate is
+ * ALREADY systemic. `im` keeps `F` — but it is absorption completeness ONLY, with no
+ * first-pass term in it, because an injection drains to the systemic circulation
+ * without crossing gut wall or portal liver first. Two consequences, both load-bearing:
+ *
+ *  - A metabolite's `firstPassFraction` (`ffp`) MUST NOT ride this route. `ffp` is
+ *    pre-systemic gut/hepatic extraction; on an injection that mass does not exist.
+ *    Because `im` resolves to the engine's `oral`, the engine would otherwise apply
+ *    it — the engine keys on input type and cannot tell a needle from a tablet, which
+ *    is exactly the ignorance the layering buys. `appliesFirstPass` (`derive.ts`)
+ *    strips it at the data boundary, where clinical route vocabulary belongs.
+ *  - An IM `F` and an oral `F` for the same drug are not the same quantity and their
+ *    gap is the teaching content (ketamine: ~64% IM vs ~17% oral — the difference is
+ *    first pass). Never copy one into the other's slot.
+ */
+const ImRouteSchema = z.strictObject({
+  available: z.boolean(),
+  /** Absorption completeness from the depot — NOT a first-pass-inclusive F. */
+  F: optionalParam(FractionUnit).optional(),
+  ka: optionalParam(RateConstantUnit).optional(),
+  tmax: optionalParam(TimeUnit).optional(),
+});
+
 /** Intravenous routes: F = 1 by definition; no absorption parameters. */
 const IvRouteSchema = z.strictObject({
   available: z.boolean(),
@@ -259,6 +291,7 @@ const TransdermalRouteSchema = z.strictObject({
 
 const RoutesSchema = z.strictObject({
   oral: OralRouteSchema.optional(),
+  im: ImRouteSchema.optional(),
   iv_bolus: IvRouteSchema.optional(),
   iv_infusion: IvRouteSchema.optional(),
   transdermal: TransdermalRouteSchema.optional(),
@@ -847,15 +880,21 @@ export type Metabolite = z.infer<typeof MetaboliteSchema>;
 /**
  * A route as the DATA layer names it — a clinical route of administration. This
  * is deliberately WIDER than the engine's `Route` (handoff §4, §12): the engine's
- * vocabulary is INPUT TYPES (bolus / first-order / zero-order), and `transdermal`
- * introduces no new one — a patch is zero-order in, exactly like an IV infusion,
- * so it resolves onto the engine's `iv_infusion` and the engine stays untouched
- * (`engineRouteOf` in `derive.ts`). Adding `transdermal` to the engine's own union
- * would buy a dispatch branch that duplicates `iv_infusion`'s math — code without
- * meaning. "Which needle/patch/tablet" is a fact about drugs, which the engine is
- * required not to know.
+ * vocabulary is INPUT TYPES (bolus / first-order / zero-order), and neither
+ * `transdermal` nor `im` introduces a new one — a patch is zero-order in, exactly
+ * like an IV infusion, and an intramuscular depot is first-order in, exactly like
+ * a swallowed tablet — so they resolve onto `iv_infusion` and `oral` respectively
+ * and the engine stays untouched (`engineRouteOf` in `derive.ts`). Adding either to
+ * the engine's own union would buy a dispatch branch that duplicates existing math —
+ * code without meaning. "Which needle/patch/tablet" is a fact about drugs, which the
+ * engine is required not to know.
+ *
+ * Note what the widening costs, which `im` is the first route to expose: a clinical
+ * route that SHARES an engine input type does not thereby share every clinical fact
+ * about that type. Oral carries pre-systemic first-pass extraction; an injection does
+ * not. See {@link ImRouteSchema} and `appliesFirstPass` in `derive.ts`.
  */
-export type DataRoute = 'oral' | 'iv_bolus' | 'iv_infusion' | 'transdermal';
+export type DataRoute = 'oral' | 'im' | 'iv_bolus' | 'iv_infusion' | 'transdermal';
 
 /** A single provenance-carrying parameter (generic over unit). */
 export interface CompoundParameter {

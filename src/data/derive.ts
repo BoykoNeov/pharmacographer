@@ -49,18 +49,77 @@ import { NONLINEAR_MODELS, type Compound, type DataRoute, type Metabolite } from
 
 /**
  * Map a clinical {@link DataRoute} onto the engine INPUT TYPE that computes it
- * (handoff §12). Only `transdermal` moves: a patch is a zero-order input, which
- * is precisely what the engine's `iv_infusion` already is, so it needs no engine
- * change — see {@link DataRoute} for why the engine's union deliberately stays
- * narrower than the data's.
+ * (handoff §12). Two routes move, in opposite directions: `transdermal` is a
+ * zero-order input, which is precisely what the engine's `iv_infusion` already is;
+ * `im` is a first-order input from a depot, which is precisely what the engine's
+ * `oral` already is. Neither needs an engine change — see {@link DataRoute} for why
+ * the engine's union deliberately stays narrower than the data's.
  *
- * The two are NOT interchangeable for the user, only for the math: the honesty
- * UI must still say "absorbed through skin", never "intravenous", and the caller
- * keeps the DataRoute for labelling. This function is the one place the two
- * vocabularies meet.
+ * The two vocabularies are NOT interchangeable for the user, only for the math: the
+ * honesty UI must still say "absorbed through skin" or "injected into muscle", never
+ * "intravenous" or "swallowed", and the caller keeps the DataRoute for labelling.
+ * This function is the one place they meet.
+ *
+ * READ {@link appliesFirstPass} BEFORE TREATING A MAPPED ROUTE AS ITS TARGET. Sharing
+ * an input type is a claim about the SHAPE of the input, not about everything that
+ * happens on the way in. `im` and `oral` are both first-order, and only one of them
+ * passes through gut wall and portal liver first.
  */
 export function engineRouteOf(route: DataRoute): Route {
-  return route === 'transdermal' ? 'iv_infusion' : route;
+  if (route === 'transdermal') return 'iv_infusion';
+  if (route === 'im') return 'oral';
+  return route;
+}
+
+/**
+ * Whether a clinical route's dose crosses gut wall and portal liver before reaching
+ * the systemic circulation — i.e. whether a metabolite's pre-systemic
+ * `firstPassFraction` (`ffp`) term applies to it.
+ *
+ * ONLY `oral` does. This exists because {@link engineRouteOf} maps `im` onto the
+ * engine's `oral`, and the engine — correctly — keys on input type and cannot tell a
+ * needle from a tablet. Left unstripped, an IM curve for a compound carrying `ffp`
+ * would draw a first-pass metabolite peak off a dose that never met a hepatocyte
+ * before reaching the blood: silently wrong, and invisible to the typechecker, since
+ * both routes have identical types. No shipped compound currently pairs `ffp` with an
+ * IM route (morphine has `ffp` but defers IM on the `F·D/V` ceiling test), so this
+ * guards a trap rather than fixing a live bug — the same posture as the unused `mixed`
+ * branch of `HalfLifeAxisRegime`.
+ *
+ * The stripping happens HERE, in the data layer, and not in the engine, because
+ * "an injection bypasses first pass" is a clinical fact about routes of
+ * administration, which the engine is required not to know (handoff §4).
+ */
+export function appliesFirstPass(route: DataRoute): boolean {
+  return route === 'oral';
+}
+
+/**
+ * The absorption parameters (`F`, `ka`, `tmax`) for whichever first-order route is
+ * being derived. `oral` and `im` share this shape deliberately (see `ImRouteSchema`),
+ * so every absorption derivation reads them through here rather than reaching for
+ * `compound.routes.oral` — which is what silently gave an IM curve no absorption at
+ * all in the first cut of this route.
+ *
+ * Returns `undefined` for any route that is not a first-order input.
+ */
+export function absorptionRouteOf(
+  compound: Compound,
+  route: DataRoute,
+): Compound['routes']['oral'] | Compound['routes']['im'] {
+  if (route === 'oral') return compound.routes.oral;
+  if (route === 'im') return compound.routes.im;
+  return undefined;
+}
+
+/**
+ * How to name this route's bioavailability in a warning or provenance row. An IM
+ * `F` is absorption completeness; an oral `F` additionally carries first-pass loss.
+ * Calling both "oral bioavailability" under an injection is the route-ternary
+ * fallthrough that shipped a patch explained as a tablet (see `docs/HISTORY.md`).
+ */
+export function bioavailabilityLabel(route: DataRoute): string {
+  return route === 'im' ? 'intramuscular bioavailability F' : 'oral bioavailability F';
 }
 
 /** A patch's zero-order input, resolved to canonical units. */
@@ -518,9 +577,9 @@ export function deriveParams(
     });
   }
 
-  // ── Absorption (oral only) ───────────────────────────────────────────────
-  if (route === 'oral') {
-    const oral = compound.routes.oral;
+  // ── Absorption (first-order routes: oral and IM) ─────────────────────────
+  if (engineRouteOf(route) === 'oral') {
+    const oral = absorptionRouteOf(compound, route);
 
     // Bioavailable fraction F.
     if (oral?.F && oral.F.value !== null) {
@@ -529,8 +588,7 @@ export function deriveParams(
       params.F = 1;
       warnings.push({
         parameter: 'F',
-        message:
-          'oral bioavailability F not provided; assuming F = 1, which overestimates exposure for an incompletely absorbed drug',
+        message: `${bioavailabilityLabel(route)} not provided; assuming F = 1, which overestimates exposure for an incompletely absorbed drug`,
       });
       derived.push({ parameter: 'F', note: 'F assumed 1 (no value provided)' });
     }
@@ -554,7 +612,7 @@ export function deriveParams(
       }
     } else {
       throw new Error(
-        `deriveParams: oral route for "${compound.id}" needs either ka or tmax to determine absorption`,
+        `deriveParams: ${route} route for "${compound.id}" needs either ka or tmax to determine absorption`,
       );
     }
   }
@@ -664,9 +722,9 @@ export function deriveParams2c(
 
   const params: TwoCompParams = { vc, cl, q, vp };
 
-  // ── Absorption (oral only) — a tri-exponential parent (α, β, ka) ───────────
-  if (route === 'oral') {
-    const oral = compound.routes.oral;
+  // ── Absorption (oral or IM) — a tri-exponential parent (α, β, ka) ─────────
+  if (engineRouteOf(route) === 'oral') {
+    const oral = absorptionRouteOf(compound, route);
 
     // Bioavailable fraction F.
     if (oral?.F && oral.F.value !== null) {
@@ -675,8 +733,7 @@ export function deriveParams2c(
       params.F = 1;
       warnings.push({
         parameter: 'F',
-        message:
-          'oral bioavailability F not provided; assuming F = 1, which overestimates exposure for an incompletely absorbed drug',
+        message: `${bioavailabilityLabel(route)} not provided; assuming F = 1, which overestimates exposure for an incompletely absorbed drug`,
       });
       derived.push({ parameter: 'F', note: 'F assumed 1 (no value provided)' });
     }
@@ -703,7 +760,7 @@ export function deriveParams2c(
       }
     } else {
       throw new Error(
-        `deriveParams2c: oral route for "${compound.id}" needs either ka or tmax to determine absorption`,
+        `deriveParams2c: ${route} route for "${compound.id}" needs either ka or tmax to determine absorption`,
       );
     }
   }
@@ -785,9 +842,9 @@ export function deriveParams3c(
 
   const params: ThreeCompParams = { vc, cl, q2, vp2, q3, vp3 };
 
-  // ── Absorption (oral only) — a four-exponential parent (α, β, γ, ka) ────────
-  if (route === 'oral') {
-    const oral = compound.routes.oral;
+  // ── Absorption (oral or IM) — a four-exponential parent (α, β, γ, ka) ──────
+  if (engineRouteOf(route) === 'oral') {
+    const oral = absorptionRouteOf(compound, route);
 
     // Bioavailable fraction F.
     if (oral?.F && oral.F.value !== null) {
@@ -796,8 +853,7 @@ export function deriveParams3c(
       params.F = 1;
       warnings.push({
         parameter: 'F',
-        message:
-          'oral bioavailability F not provided; assuming F = 1, which overestimates exposure for an incompletely absorbed drug',
+        message: `${bioavailabilityLabel(route)} not provided; assuming F = 1, which overestimates exposure for an incompletely absorbed drug`,
       });
       derived.push({ parameter: 'F', note: 'F assumed 1 (no value provided)' });
     }
@@ -827,7 +883,7 @@ export function deriveParams3c(
       }
     } else {
       throw new Error(
-        `deriveParams3c: oral route for "${compound.id}" needs either ka or tmax to determine absorption`,
+        `deriveParams3c: ${route} route for "${compound.id}" needs either ka or tmax to determine absorption`,
       );
     }
   }
@@ -956,9 +1012,9 @@ export function deriveParamsMM(
     });
   }
 
-  // ── Absorption (oral only) ───────────────────────────────────────────────
-  if (route === 'oral') {
-    const oral = compound.routes.oral;
+  // ── Absorption (first-order routes: oral and IM) ─────────────────────────
+  if (engineRouteOf(route) === 'oral') {
+    const oral = absorptionRouteOf(compound, route);
 
     if (oral?.F && oral.F.value !== null) {
       params.F = oral.F.unit === 'percent' ? oral.F.value / 100 : oral.F.value;
@@ -966,8 +1022,7 @@ export function deriveParamsMM(
       params.F = 1;
       warnings.push({
         parameter: 'F',
-        message:
-          'oral bioavailability F not provided; assuming F = 1, which overestimates exposure for an incompletely absorbed drug',
+        message: `${bioavailabilityLabel(route)} not provided; assuming F = 1, which overestimates exposure for an incompletely absorbed drug`,
       });
       derived.push({ parameter: 'F', note: 'F assumed 1 (no value provided)' });
     }
@@ -976,7 +1031,7 @@ export function deriveParamsMM(
       params.ka = rateConstant.toCanonical(oral.ka.value, oral.ka.unit);
     } else {
       throw new Error(
-        `deriveParamsMM: oral route for "${compound.id}" needs an explicit ka. A reported Tmax cannot be inverted for a saturable drug — there is no ke to invert against, and Tmax shifts with dose, so it is not a property of the compound alone.`,
+        `deriveParamsMM: ${route} route for "${compound.id}" needs an explicit ka. A reported Tmax cannot be inverted for a saturable drug — there is no ke to invert against, and Tmax shifts with dose, so it is not a property of the compound alone.`,
       );
     }
   }

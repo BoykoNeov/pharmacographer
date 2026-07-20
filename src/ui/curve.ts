@@ -44,6 +44,7 @@ import {
 } from '../engine/models3c.ts';
 import type {
   DoseEvent,
+  MetaboliteDisposition,
   PkParams,
   Route,
   ThreeCompParams,
@@ -51,6 +52,8 @@ import type {
 } from '../engine/types.ts';
 import { REFERENCE_WEIGHT_KG, concentration, time } from '../engine/units.ts';
 import {
+  absorptionRouteOf,
+  appliesFirstPass,
   deriveMetaboliteDisposition,
   deriveParams,
   deriveParams2c,
@@ -66,11 +69,13 @@ import type { Compound, DataRoute } from '../data/schema.ts';
 /**
  * Routes the picker offers, in presentation order. These are CLINICAL routes
  * ({@link DataRoute}), which is a wider vocabulary than the engine's input types:
- * `transdermal` resolves onto the engine's zero-order `iv_infusion` via
- * `engineRouteOf`, so the engine never learns what a patch is (handoff §4, §12).
+ * `transdermal` resolves onto the engine's zero-order `iv_infusion` and `im` onto
+ * the engine's first-order `oral`, both via `engineRouteOf`, so the engine never
+ * learns what a patch or a needle is (handoff §4, §12).
  */
 export const ENGINE_ROUTES: readonly DataRoute[] = [
   'oral',
+  'im',
   'iv_bolus',
   'iv_infusion',
   'transdermal',
@@ -79,6 +84,7 @@ export const ENGINE_ROUTES: readonly DataRoute[] = [
 /** Human-facing route names. */
 export const ROUTE_LABELS: Record<DataRoute, string> = {
   oral: 'Oral',
+  im: 'Intramuscular',
   iv_bolus: 'IV bolus',
   iv_infusion: 'IV infusion',
   transdermal: 'Transdermal patch',
@@ -123,25 +129,60 @@ export interface RouteOption {
   reason?: string;
 }
 
-/** Whether `compound`'s oral route carries enough to derive absorption. */
-function hasOralAbsorption(compound: Compound): boolean {
-  const oral = compound.routes.oral;
-  if (!oral) return false;
-  return (oral.ka?.value ?? null) !== null || (oral.tmax?.value ?? null) !== null;
+/**
+ * Drop a metabolite's pre-systemic `firstPassFraction` on any route that does not
+ * actually pass through gut wall and portal liver — which, of the two routes the
+ * engine computes as `oral`, means IM.
+ *
+ * This is the guard the layering makes necessary. The engine is handed an ENGINE
+ * route and applies `ffp` on its `oral` path; it cannot distinguish a needle from a
+ * tablet, and must not be taught to (handoff §4). So the DataRoute-aware layer strips
+ * the term before the engine sees it, using `appliesFirstPass` — the clinical fact —
+ * from the data layer rather than a route literal spelled out here.
+ *
+ * Nothing ships that exercises this today (no compound pairs `ffp` with an IM route),
+ * which is exactly why it is written down: an IM curve drawing a gut-derived
+ * metabolite would look entirely plausible and no test would see it.
+ */
+function stripFirstPassUnlessOral<T extends { params: MetaboliteDisposition }>(
+  route: DataRoute,
+  derivation: T,
+): T {
+  if (appliesFirstPass(route)) return derivation;
+  const params = { ...derivation.params };
+  delete params.firstPassFraction;
+  return { ...derivation, params };
+}
+
+/**
+ * Whether `compound`'s first-order route (`oral` or `im`) carries enough to derive
+ * absorption. Both are read through `absorptionRouteOf` rather than reaching for
+ * `routes.oral`, so adding a first-order route cannot silently inherit oral's data
+ * — or, worse, oral's absence of it.
+ */
+function hasAbsorptionData(compound: Compound, route: DataRoute): boolean {
+  const block = absorptionRouteOf(compound, route);
+  if (!block) return false;
+  return (block.ka?.value ?? null) !== null || (block.tmax?.value ?? null) !== null;
 }
 
 /** The route options for a compound, in {@link ENGINE_ROUTES} order. */
 export function routeOptions(compound: Compound): RouteOption[] {
   return ENGINE_ROUTES.map((route) => {
     const label = ROUTE_LABELS[route];
-    if (route === 'oral') {
-      const derivable = hasOralAbsorption(compound);
+    if (route === 'oral' || route === 'im') {
+      // Both first-order routes need their OWN absorption data. An IM route must not
+      // fall back to the oral block: the two have different ka (a depot is not a gut)
+      // and different F (only one of them is net of first pass).
+      const derivable = hasAbsorptionData(compound, route);
       return {
         route,
         label,
         derivable,
-        available: compound.routes.oral?.available ?? false,
-        reason: derivable ? undefined : 'No absorption data (ka or Tmax) in this compound file',
+        available: compound.routes[route]?.available ?? false,
+        reason: derivable
+          ? undefined
+          : `No ${ROUTE_LABELS[route].toLowerCase()} absorption data (ka or Tmax) in this compound file`,
       };
     }
     if (route === 'transdermal') {
@@ -1140,7 +1181,7 @@ export function buildCurve(input: CurveInput): CurveResult {
     compound.metabolites?.length
       ? compound.metabolites.map((m) => ({
           meta: m,
-          ...deriveMetaboliteDisposition(m, { weightKg }),
+          ...stripFirstPassUnlessOral(route, deriveMetaboliteDisposition(m, { weightKg })),
         }))
       : [];
 
@@ -1221,7 +1262,10 @@ export function buildCurve(input: CurveInput): CurveResult {
   const metabolites: MetaboliteCurve[] | undefined = metaboliteDerivations.length
     ? metaboliteDerivations.map(({ meta, params: mp, derived: mDerived, warnings: mWarnings }) => {
         const c =
-          route === 'oral'
+          // ENGINE route: an IM parent forms its metabolite through the same
+          // first-order-input convolution as an oral one. What differs is the
+          // pre-systemic term, already stripped by `stripFirstPassUnlessOral`.
+          engineRoute === 'oral'
             ? oralMetaboliteConcentrationCurve(
                 [{ coef: 1 / params.vd, rate: mainKe }],
                 mainKe * params.vd,
@@ -1407,7 +1451,7 @@ export function buildCurve2c(input: CurveInput): TwoCompartmentCurveResult {
     compound.metabolites?.length
       ? compound.metabolites.map((m) => ({
           meta: m,
-          ...deriveMetaboliteDisposition(m, { weightKg }),
+          ...stripFirstPassUnlessOral(route, deriveMetaboliteDisposition(m, { weightKg })),
         }))
       : [];
 
@@ -1428,7 +1472,10 @@ export function buildCurve2c(input: CurveInput): TwoCompartmentCurveResult {
   const metabolites: MetaboliteCurve[] | undefined = metaboliteDerivations.length
     ? metaboliteDerivations.map(({ meta, params: mp, derived: mDerived, warnings: mWarnings }) => {
         const c =
-          route === 'oral'
+          // ENGINE route: an IM parent forms its metabolite through the same
+          // first-order-input convolution as an oral one. What differs is the
+          // pre-systemic term, already stripped by `stripFirstPassUnlessOral`.
+          engineRoute === 'oral'
             ? oralMetaboliteConcentrationCurve(
                 twoCompModes(disposition, 1),
                 disposition.cl,
@@ -1611,7 +1658,7 @@ export function buildCurve3c(input: CurveInput): ThreeCompartmentCurveResult {
     compound.metabolites?.length
       ? compound.metabolites.map((m) => ({
           meta: m,
-          ...deriveMetaboliteDisposition(m, { weightKg }),
+          ...stripFirstPassUnlessOral(route, deriveMetaboliteDisposition(m, { weightKg })),
         }))
       : [];
 
@@ -1632,7 +1679,10 @@ export function buildCurve3c(input: CurveInput): ThreeCompartmentCurveResult {
   const metabolites: MetaboliteCurve[] | undefined = metaboliteDerivations.length
     ? metaboliteDerivations.map(({ meta, params: mp, derived: mDerived, warnings: mWarnings }) => {
         const c =
-          route === 'oral'
+          // ENGINE route: an IM parent forms its metabolite through the same
+          // first-order-input convolution as an oral one. What differs is the
+          // pre-systemic term, already stripped by `stripFirstPassUnlessOral`.
+          engineRoute === 'oral'
             ? oralMetaboliteConcentrationCurve(
                 threeCompModes(disposition, 1),
                 disposition.cl,

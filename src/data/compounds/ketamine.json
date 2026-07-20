@@ -1,14 +1,27 @@
 {
   "id": "ketamine",
   "schemaVersion": 1,
-  "names": { "inn": "Ketamine", "brand": ["Ketalar"], "synonyms": ["Ketamine", "Special K", "K"] },
+  "names": {
+    "inn": "Ketamine",
+    "brand": [
+      "Ketalar"
+    ],
+    "synonyms": [
+      "Ketamine",
+      "Special K",
+      "K"
+    ]
+  },
   "description": "A dissociative anaesthetic and analgesic, also used at lower doses for treatment-resistant depression and misused recreationally ('Special K'). It works mainly by blocking NMDA glutamate receptors.",
   "model": "two_compartment_first_order",
   "linear": true,
   "disposition": {
     "halfLife": {
       "value": 2.5,
-      "range": [2.3, 3.1],
+      "range": [
+        2.3,
+        3.1
+      ],
       "unit": "h",
       "derived": false,
       "sourceRef": "ketalar_label",
@@ -16,7 +29,10 @@
     },
     "vd": {
       "value": 2.86,
-      "range": [2.3, 3.6],
+      "range": [
+        2.3,
+        3.6
+      ],
       "unit": "L/kg",
       "derived": false,
       "sourceRef": "clements_1982",
@@ -29,14 +45,14 @@
       "unit": "L/h/kg",
       "derived": false,
       "sourceRef": "mion_2013",
-      "conditions": "Total plasma clearance ~79 L/h for a 70 kg adult (1.13 L/h/kg), the weighted-mean adult value; the FDA label range 12-20 mL/min/kg brackets it (1.13 L/h/kg = 18.8 mL/min/kg). Ketamine clearance is high and hepatic-blood-flow-limited (see notes). Sets AUC = Dose/CL."
+      "conditions": "Total plasma clearance ~79 L/h for a 70 kg adult (1.13 L/h/kg), the weighted-mean adult value; Mion 2013's stated range 'ketamine elimination clearance is high (1000-1600 ml/min or 12-20 ml/min/kg)' brackets it (1.13 L/h/kg = 18.8 mL/min/kg); this range was previously mis-attributed to the FDA label, which states no clearance at all. Ketamine clearance is high and hepatic-blood-flow-limited (see notes). Sets AUC = Dose/CL."
     },
     "centralVd": {
       "value": 1.0,
       "unit": "L/kg",
       "derived": false,
-      "sourceRef": "ketalar_label",
-      "conditions": "Central (initial distribution) volume Vc ~70 L (~1.0 L/kg) - the commonly reported ketamine central volume. Sets the immediate post-bolus concentration C(0) = Dose/Vc. Softer than the terminal disposition (as for any 2-comp compound the Vss cross-check constrains CL/beta, not Vc), so the distribution-phase peak amplitude is somewhat illustrative."
+      "sourceRef": "mion_2013",
+      "conditions": "Central (initial distribution) volume Vc ~70 L (~1.0 L/kg). Mion 2013 states it directly: 'Central compartment volume is about 70 l'. RE-ATTRIBUTED 2026-07-20: this value previously cited ketalar_label, which on re-reading states NO volume of distribution and no clearance anywhere - only the alpha (10-15 min) and beta (2.5 h) half-lives. The number was right and the citation was not; the corroborating adult estimate is Abuhelwa 2022's Vc 79.3 L/70kg. Sets the immediate post-bolus concentration C(0) = Dose/Vc. Softer than the terminal disposition (as for any 2-comp compound the Vss cross-check constrains CL/beta, not Vc), so the distribution-phase peak amplitude is somewhat illustrative - see the IM magnitude check in notes, which is the first observable test this volume has ever faced."
     },
     "interCompartmentalClearance": {
       "value": 1.305,
@@ -54,13 +70,44 @@
     }
   },
   "routes": {
+    "im": {
+      "available": true,
+      "F": {
+        "value": 0.644,
+        "range": [
+          0.411,
+          0.93
+        ],
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "abuhelwa_2022",
+        "conditions": "Bioavailability of an intramuscular dose: absorption completeness ONLY - an injection drains to the systemic circulation without crossing gut wall or portal liver, so unlike the oral F this carries no first-pass term. That distinction is the route's teaching content: ketamine's oral F is ~17% (Clements 1982) against ~64% IM, and the ~4x gap IS first pass. VALUE: Abuhelwa 2022 (population PK in 21 treatment-refractory depressed adults, 0.1-0.5 mg/kg, 'estimated ketamine bioavailability after i.m. and s.c. was ~ 64%'). RANGE spans the whole reported adult+paediatric spread, which Ananyev 2026 tabulates as 41.1-93.0% and explicitly declines to resolve ('the wide range of reported bioavailability values (41.1-93.0%) highlights the challenges in interpreting these results'): the low end is Hornik 2018 (critically ill children, some on ECMO), the high end Clements/Grant 1982 (healthy adults, IM alone). WHY THE MIDDLE VALUE AND NOT CLEMENTS' 93%, given Clements is this file's own structural source: chosen on source characteristics FIRST - Abuhelwa is the only adult source that fits IM data with a full popPK parameter set - and only then magnitude-checked. At F = 0.93 the built curve peaks at 524 ng/mL against a reported ~297 at 1.0 mg/kg (1.76x); at 0.644 the engine gives 182 / 363 / 2178 ng/mL at 0.5 / 1.0 / 6.0 mg/kg against reported 189 / 297 / 1970 - ratios 0.96x / 1.22x / 1.11x, and ~1.1x against the review's own linear trend of ~328 ng/mL per mg/kg (their 1.0 mg/kg point is the low outlier in their own series, not ours). The value was not tuned to the peak; the residual is left standing rather than dialled out. CAVEAT KEPT IN VIEW: Abuhelwa's 64% is estimated for IM and SC COMBINED ('with indistinguishable first-order absorption rate constants'), in patients at subanaesthetic doses - it is not an IM-alone healthy-volunteer number."
+      },
+      "ka": {
+        "value": 0.109,
+        "unit": "1/min",
+        "derived": false,
+        "sourceRef": "ananyev_2026",
+        "conditions": "Adult first-order absorption rate constant for the intramuscular depot, 0.109 1/min = 6.54 /h (absorption half-life ~6.4 min). Stated explicitly rather than inverted from a Tmax, because the review reports ka directly; that leaves Tmax free to serve as an independent check, and it passes - the engine's peak lands at ~15 min against the review's reported 10-30 min range and its ~15 min at 1.0 mg/kg. Well clear of flip-flop: ka 6.54/h sits 24x above the terminal beta (0.277/h) and 2.3x above the distribution alpha (2.86/h), so absorption is not rate-limiting and is not close enough to alpha to strain the near-equal-rates guard."
+      }
+    },
     "iv_bolus": {
       "available": true,
-      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+      "F": {
+        "value": 1.0,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "definition"
+      }
     },
     "iv_infusion": {
       "available": true,
-      "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
+      "F": {
+        "value": 1.0,
+        "unit": "fraction",
+        "derived": false,
+        "sourceRef": "definition"
+      }
     }
   },
   "metabolites": [
@@ -71,7 +118,10 @@
       "description": "The active metabolite of ketamine, roughly a third as potent. It is cleared more slowly than the parent, so it lingers and prolongs the effect.",
       "fractionFormed": {
         "value": 80,
-        "range": [70, 90],
+        "range": [
+          70,
+          90
+        ],
         "unit": "percent",
         "derived": false,
         "sourceRef": "ketalar_label",
@@ -79,7 +129,10 @@
       },
       "vd": {
         "value": 1.39,
-        "range": [1.0, 1.9],
+        "range": [
+          1.0,
+          1.9
+        ],
         "unit": "L/kg",
         "derived": true,
         "sourceRef": "kamp_2020",
@@ -87,7 +140,10 @@
       },
       "halfLife": {
         "value": 5,
-        "range": [4, 5],
+        "range": [
+          4,
+          5
+        ],
         "unit": "h",
         "derived": false,
         "sourceRef": "ketalar_label",
@@ -96,7 +152,10 @@
       "notes": "Norketamine (N-desmethylketamine) is the major circulating metabolite of ketamine and is pharmacologically ACTIVE - about 1/3 as potent as ketamine at the NMDA receptor (FDA label). It is COMPUTED end-to-end by the metabolite engine off the two-compartment parent's alpha/beta modes and DRAWN as a dashed line for both IV routes. Because its own half-life (~5 h) exceeds the parent ketamine's terminal (~2.5 h), it is ELIMINATION-rate-limited: it accumulates and outlives the parent (the classic active-long-lived-metabolite story, compare oxypurinol). TIMING CAVEAT: the FDA label observes norketamine peaking ~30 min after a bolus (rapid formation while ketamine is highest during the alpha-distribution phase), whereas the single-compartment systemic-formation model peaks LATER (~3.3 h) because, with a slow (~5 h) metabolite elimination, most norketamine forms from the sustained beta-phase parent (which carries ~2/3 of the formation AUC) and accumulates - a one-compartment metabolite off a fast-alpha 2-comp parent cannot localise the early peak. The magnitude (~0.4 mcg/mL for a 100 mg bolus) and the long active tail are faithful; only the peak timing runs late (the allopurinol->oxypurinol timing-caveat posture). fm ~80% is directly citable, and the metabolite Vd is derived from its clearance and half-life (nordiazepam posture)."
     }
   ],
-  "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
+  "flags": {
+    "nonlinear": false,
+    "narrowTherapeuticIndex": false
+  },
   "sources": {
     "ketalar_label": {
       "type": "FDA label",
@@ -121,8 +180,26 @@
       "title": "Kamp J, Olofsen E, Henthorn TK, van Velzen M, Niesters M, Dahan A, et al. Pharmacokinetics of Ketamine and its Major Metabolites Norketamine, Hydroxynorketamine, and Dehydronorketamine: A Model-Based Analysis. Br J Anaesth. 2020;125(5):750-761 (S0007091220305717): norketamine formation clearance ~12.4 and elimination clearance ~13.5 L/h/70 kg",
       "url": "https://www.sciencedirect.com/science/article/pii/S0007091220305717",
       "accessed": "2026-07-10"
+    },
+    "abuhelwa_2022": {
+      "type": "Journal article",
+      "title": "Abuhelwa AY, Somogyi AA, Loo CK, Glue P, Barratt DT, Foster DJR. Population Pharmacokinetics and Pharmacodynamics of the Therapeutic and Adverse Effects of Ketamine in Patients With Treatment-Refractory Depression. Clin Pharmacol Ther. 2022 Sep;112(3):720-729 (PMID 35560226): 21 treatment-refractory depressed adults, 0.1-0.5 mg/kg single doses by i.v., s.c. and i.m.; two-compartment models with FIRST-ORDER absorption after s.c. and i.m.; i.m./s.c. bioavailability ~64% with indistinguishable absorption rate constants; CL 69.6 L/h/70kg, Vc 79.3 L/70kg, Vp 87.4 L/70kg.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/35560226/",
+      "accessed": "2026-07-20"
+    },
+    "ananyev_2026": {
+      "type": "Journal article",
+      "title": "Ananyev J, Myers TM. Intramuscular Ketamine Pharmacokinetics in Humans: A Review. Eur J Drug Metab Pharmacokinet. 2026;51:347-358 (doi 10.1007/s13318-026-01012-2): ten studies of IM ketamine PK; Cmax rises linearly from 27 ng/mL at 0.1 mg/kg to 1970 ng/mL at 6.0 mg/kg (~297 ng/mL at 1.0 mg/kg, ~15 min); Tmax 10-30 min and largely uncorrelated with dose; adult absorption rate constant 0.109 1/min; reported bioavailability 41.1-93.0%.",
+      "url": "https://link.springer.com/article/10.1007/s13318-026-01012-2",
+      "accessed": "2026-07-20"
+    },
+    "hornik_2018": {
+      "type": "Journal article",
+      "title": "Hornik CP, Gonzalez D, van den Anker J, et al. Population Pharmacokinetics of Intramuscular and Intravenous Ketamine in Children. J Clin Pharmacol. 2018 (PMID 29677389): 113 children (50 i.m., 63 i.v.); 'a 2-compartment model with first-order absorption following intramuscular administration and first-order elimination described the data best'; ka 2.51 /h; IM bioavailability 41%. Cited for the ABSORPTION INPUT TYPE only - its paediatric/critically-ill parameters are not used here.",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6195858/",
+      "accessed": "2026-07-20"
     }
   },
-  "metabolism": "Ketamine is N-demethylated by the liver to norketamine, an active metabolite with about one-third of ketamine's potency. Because norketamine is cleared more slowly than the parent it accumulates and prolongs the effect. After oral dosing this first-pass conversion is so extensive that norketamine dominates — which is why this model offers only the IV/IM routes.",
-  "notes": "Ketamine - a dissociative anaesthetic (Ketalar, FDA-approved 1970) that is also a major recreational/club drug ('Special K', Schedule III) and, as esketamine, an antidepressant. Modelled as the diazepam template: a genuine TWO-COMPARTMENT parent (fast distribution then a slower terminal) plus a drawn ACTIVE metabolite (norketamine). This is the metabolite centerpiece of the illicit-drugs slate and one of the cleaner parent->metabolite pairs in the whole set.\n\nWHY KETAMINE (and why on IV/IM, not oral). Ketamine is LINEAR over the clinical range (the FDA label and popPK models use a two-compartment LINEAR disposition; clearance is high and hepatic-blood-flow-limited, so mildly flow-dependent at extremes but dose-proportional in range - the propofol documented-linearity posture). Crucially the metabolite is only representable on the INTRAVENOUS/INTRAMUSCULAR route: oral ketamine has huge hepatic first-pass (F ~17%, Clements 1982), so orally most norketamine forms PRE-SYSTEMICALLY (the oseltamivir disqualifier) - a systemic-formation engine could not represent it. On IV/IM (Ketalar's real clinical route, and a real recreational route) there is no first-pass and norketamine forms from systemic ketamine, so the pair is valid and is drawn. Oral is therefore intentionally omitted (the diazepam posture - no route offered where the model would be wrong).\n\nDISPOSITION2C - what is sourced vs derived. As with diazepam, Q and Vp are not reported directly, so only CL and Vc are read from sources and Q, Vp are derived offline from four macro-observables: CL ~1.13 L/h/kg (Mion 2013, ~79 L/h at 70 kg), Vc ~1.0 L/kg (~70 L, FDA/Mion), Vss ~2.86 L/kg (Clements/Mion, ~200 L) and terminal beta t1/2 2.5 h. Working per-kg: k10 = CL/Vc = 1.13/h; beta = ln2/2.5 = 0.2773/h; Vp = Vss - Vc = 1.86 L/kg fixes k12/k21 = Vp/Vc = 1.86; solving alpha.beta = k10.k21 and alpha+beta = k10+k12+k21 gives k21 = 0.702/h, k12 = 1.305/h; Q = k12.Vc = 1.305 L/h/kg. The engine round-trips these back to alpha t1/2 ~14.5 min (FDA label says 10-15 min) and beta t1/2 2.5 h, and Vc + Vp = 2.86 L/kg reproduces Vss. As for every 2-comp compound, Vc is the softest input and sets the distribution-peak amplitude C(0) = Dose/Vc, so the early spike height is somewhat illustrative while the terminal phase is well grounded.\n\nMETABOLITE (norketamine). fm ~80% is a single directly-citable number (~80% N-demethylated to norketamine, FDA label) - much cleaner than cocaine's or procainamide's soft/bimodal fm. Norketamine is active (~1/3 potency), and because its own half-life (~5 h) exceeds the parent's terminal (~2.5 h) it is elimination-rate-limited - it accumulates and outlives ketamine, the classic active-long-lived-metabolite story (compare oxypurinol). Its Vd is derived from CLM/t1/2_m (Kamp 2020), making exposure clearance-defined (AUC_m = fm.Dose/CL_m); it is not independently measured. The norketamine line is drawn on both IV bolus and IV infusion (the metabolite gate is iv_bolus || oral || iv_infusion).\n\nROUTES. IV bolus (induction/recreational) and IV infusion (analgesia, antidepressant, TCI) are both genuinely available clinical routes. No oral (pre-systemic metabolite formation - above). Racemic ketamine is modelled; esketamine (Spravato, the S-enantiomer nasal antidepressant) is a separate product not modelled here. NMDA-antagonist mechanism; emergence phenomena are a well-known effect but concentration is not effect. Magnitude check: a 100 mg IV bolus into Vc ~70 L gives C(0) = 1.43 mcg/mL, redistributing fast (alpha t1/2 ~15 min); the drawn norketamine line rises to ~0.44 mcg/mL and outlasts the parent (the modelled metabolite peak is ~3.3 h - later than the label's ~30 min; see the norketamine timing caveat above). EDUCATIONAL ILLUSTRATION ONLY - not for dosing."
+  "metabolism": "Ketamine is N-demethylated by the liver to norketamine, an active metabolite with about one-third of ketamine's potency. Because norketamine is cleared more slowly than the parent it accumulates and prolongs the effect. After oral dosing this first-pass conversion is so extensive that norketamine dominates \u2014 which is why this model offers only the IV/IM routes.",
+  "notes": "Ketamine - a dissociative anaesthetic (Ketalar, FDA-approved 1970) that is also a major recreational/club drug ('Special K', Schedule III) and, as esketamine, an antidepressant. Modelled as the diazepam template: a genuine TWO-COMPARTMENT parent (fast distribution then a slower terminal) plus a drawn ACTIVE metabolite (norketamine). This is the metabolite centerpiece of the illicit-drugs slate and one of the cleaner parent->metabolite pairs in the whole set.\n\nWHY KETAMINE (and why on IV/IM, not oral). Ketamine is LINEAR over the clinical range (the FDA label and popPK models use a two-compartment LINEAR disposition; clearance is high and hepatic-blood-flow-limited, so mildly flow-dependent at extremes but dose-proportional in range - the propofol documented-linearity posture). Crucially the metabolite is only representable on the INTRAVENOUS/INTRAMUSCULAR route: oral ketamine has huge hepatic first-pass (F ~17%, Clements 1982), so orally most norketamine forms PRE-SYSTEMICALLY (the oseltamivir disqualifier) - a systemic-formation engine could not represent it. On IV/IM (Ketalar's real clinical route, and a real recreational route) there is no first-pass and norketamine forms from systemic ketamine, so the pair is valid and is drawn. Oral is therefore intentionally omitted (the diazepam posture - no route offered where the model would be wrong).\n\nDISPOSITION2C - what is sourced vs derived. As with diazepam, Q and Vp are not reported directly, so only CL and Vc are read from sources and Q, Vp are derived offline from four macro-observables: CL ~1.13 L/h/kg (Mion 2013, ~79 L/h at 70 kg), Vc ~1.0 L/kg (~70 L, Mion 2013 - NOT the FDA label; see the centralVd conditions), Vss ~2.86 L/kg (Clements/Mion, ~200 L) and terminal beta t1/2 2.5 h. Working per-kg: k10 = CL/Vc = 1.13/h; beta = ln2/2.5 = 0.2773/h; Vp = Vss - Vc = 1.86 L/kg fixes k12/k21 = Vp/Vc = 1.86; solving alpha.beta = k10.k21 and alpha+beta = k10+k12+k21 gives k21 = 0.702/h, k12 = 1.305/h; Q = k12.Vc = 1.305 L/h/kg. The engine round-trips these back to alpha t1/2 ~14.5 min (the FDA label does say 10-15 min - half-lives are the one thing it does state) and beta t1/2 2.5 h, and Vc + Vp = 2.86 L/kg reproduces Vss. As for every 2-comp compound, Vc is the softest input and sets the distribution-peak amplitude C(0) = Dose/Vc, so the early spike height is somewhat illustrative while the terminal phase is well grounded.\n\nMETABOLITE (norketamine). fm ~80% is a single directly-citable number (~80% N-demethylated to norketamine, FDA label) - much cleaner than cocaine's or procainamide's soft/bimodal fm. Norketamine is active (~1/3 potency), and because its own half-life (~5 h) exceeds the parent's terminal (~2.5 h) it is elimination-rate-limited - it accumulates and outlives ketamine, the classic active-long-lived-metabolite story (compare oxypurinol). Its Vd is derived from CLM/t1/2_m (Kamp 2020), making exposure clearance-defined (AUC_m = fm.Dose/CL_m); it is not independently measured. The norketamine line is drawn on IV bolus, IV infusion and IM (the metabolite gate is the ENGINE route iv_bolus || oral || iv_infusion, and IM resolves onto oral). On IM, formation is systemic exactly as on IV - no pre-systemic term rides an injection, and derive.ts's appliesFirstPass enforces that for any future compound that does carry an ffp.\n\nROUTES. IV bolus (induction/recreational), IV infusion (analgesia, antidepressant, TCI) and INTRAMUSCULAR are all genuinely available clinical routes. No oral (pre-systemic metabolite formation - above).\n\nIM (added 2026-07-20, the handoff section 12 'more routes' seam). Until this pass the file's own prose promised IV/IM and shipped IV only; IM is now real. It passes the input-type screen on row 2 (first-order from a depot, IV-like F, no first pass) with three independently opened sources agreeing on the input TYPE, which is the fact the screen turns on: Clements 1982 ('two-compartment open model', absorption after IM 'rapid'), Hornik 2018 ('a 2-compartment model with first-order absorption following intramuscular administration ... described the data best') and Abuhelwa 2022 ('two-compartment models with first-order absorption after s.c. and i.m.'). No engine math was added - engineRouteOf maps im onto the engine's first-order 'oral' input exactly as transdermal maps onto 'iv_infusion'. What IM is FOR pedagogically is the F contrast: same drug, same disposition, ~64% by needle against ~17% by mouth, and the gap is first pass.\n\nWHY NOT SC, though Abuhelwa reports IM and SC together with 'indistinguishable first-order absorption rate constants' and a combined 64% F: that is evidence the two share an input SHAPE, not a licence to write a route whose own numbers were never separated out. A subcutaneous route gets added when a source reports it alone. Racemic ketamine is modelled; esketamine (Spravato, the S-enantiomer nasal antidepressant) is a separate product not modelled here. NMDA-antagonist mechanism; emergence phenomena are a well-known effect but concentration is not effect. Magnitude check (IM, and it is the first one this compound's Vc has ever faced - see below): a 100 mg IV bolus into Vc ~70 L gives C(0) = 1.43 mcg/mL, redistributing fast (alpha t1/2 ~15 min); the drawn norketamine line rises to ~0.44 mcg/mL and outlasts the parent (the modelled metabolite peak is ~3.3 h - later than the label's ~30 min; see the norketamine timing caveat above). EDUCATIONAL ILLUSTRATION ONLY - not for dosing.\n\nWHAT IM EXPOSED, AND WHAT IS LEFT STANDING. Every route this compound offered before IM peaked somewhere unobservable: an IV bolus peaks at C(0), which no assay catches, and an infusion peaks at a rate-and-duration the user picks. IM is the first route whose peak is a real, reported, independently measured number, so it is the first test Vc has ever had to pass - and Vc is, by this file's own long-standing admission, its softest input. It comes out ~1.1x high across 0.5-6.0 mg/kg (details in routes.im.F). That is left as-is rather than tuned: the fix would be to re-derive the whole 2-comp micro-parameter set against Abuhelwa's adult Vc of 79.3 L/70kg, which would move the SHIPPED IV curves and needs its own pass and its own magnitude checks. Recorded here so the next curator finds a known, bounded, deliberate residual rather than rediscovering it as a surprise."
 }

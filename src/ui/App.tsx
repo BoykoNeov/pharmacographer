@@ -14,7 +14,12 @@
 
 import { useMemo, useState } from 'react';
 import type { DoseEvent } from '../engine/types.ts';
-import { applyPhenotype, defaultPhenotypeId, type DeriveWarning } from '../data/derive.ts';
+import {
+  applyPhenotype,
+  defaultPhenotypeId,
+  engineRouteOf,
+  type DeriveWarning,
+} from '../data/derive.ts';
 import type { DataRoute } from '../data/schema.ts';
 import { loadAllCompounds } from '../data/loader.ts';
 import { CompoundAbout, CompoundMetabolism } from './components/CompoundInfo.tsx';
@@ -436,7 +441,7 @@ function ModelCaption({ route, schedule, infusionDuration, curve, concUnit }: Mo
     parts.push(
       `apparent t½ ${fmtNum(curve.limitHalfLifeH)}→${fmtNum(curve.apparentHalfLifeAtPeakH)} h (rises with concentration — no single half-life)`,
     );
-    if (route === 'oral' && curve.params.ka !== undefined) {
+    if (engineRouteOf(route) === 'oral' && curve.params.ka !== undefined) {
       parts.push(`ka = ${fmtNum(curve.params.ka)} /h`);
     }
     if (route === 'iv_infusion') parts.push(`infused over ${fmtNum(infusionDuration)} h`);
@@ -448,14 +453,14 @@ function ModelCaption({ route, schedule, infusionDuration, curve, concUnit }: Mo
     // caption would describe a curve the reader can no longer identify — two
     // different volumes give the same ke and t½ but a chart twice the height.
     parts.push(`Vd = ${fmtNum(curve.params.vd)} L`);
-    if (route === 'oral' && curve.params.ka !== undefined) {
+    if (engineRouteOf(route) === 'oral' && curve.params.ka !== undefined) {
       parts.push(`ka = ${fmtNum(curve.params.ka)} /h`);
     }
     // F is stated for the same reason Vd is — it became a slider. It matters more
     // here than Vd did, because F and Vd move the curve identically: with only one
     // of the pair on screen the caption would describe a curve whose height the
     // reader cannot account for.
-    if (route === 'oral' && curve.params.F !== undefined) {
+    if (engineRouteOf(route) === 'oral' && curve.params.F !== undefined) {
       parts.push(`F = ${fmtPercent(curve.params.F)}`);
     }
     if (route === 'iv_infusion') parts.push(`infused over ${fmtNum(infusionDuration)} h`);
@@ -506,6 +511,14 @@ export function PeakNote({
           ? // Deliberately NOT the Cmax/Tmax language: a worn patch has no peak to
             // name. Phrased for every patch, not just one that reached its plateau.
             'A patch worn continuously has no peak at all: it climbs steadily toward a plateau at Css = R0/CL — set by clearance alone, not by Vd — and never turns over, because nothing is ever taken off. The marker is simply the concentration reached when the wear period ends, so its time is a property of the product, not of the drug.'
+        : route === 'im'
+          ? // An IM depot is first-order in, exactly like a tablet, so the peak means
+            // the same THING — but the oral sentence names the gut and, more
+            // importantly, an oral F is net of first-pass extraction while an IM F is
+            // not. Letting `im` fall through to the oral branch would have been the
+            // patch-explained-as-a-tablet bug again, one route later, and neither the
+            // typechecker nor a test would have said a word.
+            'An intramuscular dose rises as it is absorbed from the muscle depot and falls as it is eliminated; the peak (Tmax) is where those balance. The shape is a tablet’s, but the fraction is not: an injection drains straight to the systemic circulation, so its F is absorption completeness only — it carries no first-pass loss through gut wall and liver, which is why the same drug can reach far higher concentrations by needle than by mouth at the same dose.'
           : // The peak is where the two rates balance whichever one is slower, so
             // that clause holds in both regimes; what does NOT hold in both is
             // naming elimination as the cause of the fall.
