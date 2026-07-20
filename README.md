@@ -38,8 +38,9 @@ plan in [`PHARMACOGRAPHER_HANDOFF.md`](./PHARMACOGRAPHER_HANDOFF.md) §13.
 
 - **TypeScript** — the PK engine is pure TS, fully unit-testable.
 - **React + Vite** — reactive UI for live dose/route/schedule/variability changes.
-- **Recharts** — concentration chart with linear / semi-log toggle and a shaded
-  variability band.
+- **Recharts** — concentration chart with linear / semi-log toggle and shaded
+  variability bands (half-life, volume of distribution, oral bioavailability —
+  one per parameter, individually toggleable and never merged into one envelope).
 - **Vitest** — engine correctness validated against closed-form analytic answers.
 - **Zod** — runtime validation of compound data files.
 - Static, no-backend deploy.

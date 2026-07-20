@@ -1404,6 +1404,20 @@ genetically-polymorphic rate (NAT2 fast vs slow acetylators) — the textbook ph
   value, or the slider exposes a state the fixed fm contradicts. **Still the rule under presets** —
   each preset carries its OWN within-phenotype range (fast [1.7, 3.1], slow [2.6, 4.6]), and crossing
   between phenotypes is the preset's job, not the slider's.
+  **EXTENDED (2026-07-20): the rule now covers `disposition.vd.range` and `routes.oral.F.range`
+  too.** Those two are no longer inert provenance — for a 1-comp compound each drives its own
+  slider and its own shaded band (`VariabilityAxis` in `ui/curve.ts`). So the same
+  stay-within-the-phenotype discipline applies to all three: a range you write because a review
+  quoted it across a mixed population becomes a state the reader can steer the curve into. Two
+  consequences when curating:
+  - **A `range` is a claim about ONE population.** If the low and high come from different
+    phenotypes, study designs, or dose levels, do not store them as a range — that is the
+    procainamide catch, generalised.
+  - **F ranges are ORAL-only and must not double-count.** An IV `F` is 1 by definition and gets no
+    slider; the transdermal schema stores no `F` at all (its delivered rate is already systemic).
+    Also check the compound does not store an *apparent* `clearance` (CL/F) or a Vd derived from
+    one — those already embed an F, so varying F on top would move the curve twice. No shipped
+    F-ranged compound does, and the check is a two-minute scan of `disposition`.
 - **1-comp ORAL collapse (reverses the old 2-comp rejection).** IV procainamide is genuinely
   2-compartment (~5 min distribution), but oral absorption masks it, so oral reads 1-comp
   (cefotaxime/ibuprofen posture). Shipped oral-only (F 83%, Tmax 90–120 min → ka); the biphasic IV

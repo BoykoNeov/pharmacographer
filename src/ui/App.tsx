@@ -31,6 +31,7 @@ import {
   buildCurve,
   defaultRoute,
   fmtNum,
+  fmtPercent,
   halfLifeRangeH,
   REFERENCE_WEIGHT_KG,
   ROUTE_LABELS,
@@ -70,6 +71,14 @@ export function App() {
   // Vd chosen within its reported range; undefined ⇒ the compound's derived
   // nominal. Same compound-specific reset rule as the half-life above.
   const [vdL, setVdL] = useState<number | undefined>(undefined);
+  // Oral bioavailability chosen within its reported range; undefined ⇒ the
+  // compound's derived nominal. Resets on a compound switch like the two above.
+  // Deliberately NOT reset when the route changes: unlike a compound switch, an
+  // oral → IV → oral round trip never changes the range this value lives in, so
+  // there is no stale-value hazard to guard against, and dropping the selection
+  // would be gratuitous (`halfLifeH` and `dose` survive a route change for the
+  // same reason). `buildCurve` ignores it on any non-oral route regardless.
+  const [oralF, setOralF] = useState<number | undefined>(undefined);
   // Which variability bands are shaded. Half-life alone by default, so the
   // opening view still shows exactly the one envelope it always did — the same
   // identity-at-default discipline the phenotype presets use (`presets[0]`
@@ -151,6 +160,8 @@ export function App() {
     setVdL(undefined); // …and its nominal Vd: an absolute litre value carried over
     // from another compound is meaningless, and would usually sit outside the new
     // compound's range entirely (lithium ~50 L vs digoxin ~500 L).
+    setOralF(undefined); // …and its nominal F, on the same reasoning: morphine's
+    // 22–36% and glipizide's 95–100% do not overlap at all.
     setPhenotypeId(next ? defaultPhenotypeId(next) : undefined);
     // Only a compound that declares its own scale overrides the dose in the box.
     // Otherwise the typed dose is left alone: resetting every switch would throw
@@ -176,6 +187,11 @@ export function App() {
     // that DID re-anchor Vd would otherwise strand the slider on the previous
     // population's litres: the mixed state presets exist to forbid.
     setVdL(undefined);
+    // F resets too. No shipped preset re-anchors a bioavailability, but the rule
+    // is about what a preset MAY do, not what today's data happens to do — a
+    // future first-pass-metaboliser preset (CYP3A4, say) would move F, and the
+    // mixed state would be this population's F against that one's half-life.
+    setOralF(undefined);
   };
 
   // The derive → engine pipeline. `deriveParams` throws for a nonlinear compound
@@ -186,12 +202,20 @@ export function App() {
     try {
       return {
         ok: true as const,
-        value: buildCurve({ compound, route, schedule, infusionDuration, halfLifeH, vdL }),
+        value: buildCurve({
+          compound,
+          route,
+          schedule,
+          infusionDuration,
+          halfLifeH,
+          vdL,
+          F: oralF,
+        }),
       };
     } catch (error) {
       return { ok: false as const, error: error instanceof Error ? error.message : String(error) };
     }
-  }, [compound, route, schedule, infusionDuration, halfLifeH, vdL]);
+  }, [compound, route, schedule, infusionDuration, halfLifeH, vdL, oralF]);
 
   // The Vd range comes off the built curve rather than the compound file, because
   // its nominal must be the DERIVED Vd (per-kg values scaled against the
@@ -201,6 +225,14 @@ export function App() {
   const vdRange =
     curve.ok && curve.value.model === 'one_compartment_first_order'
       ? (curve.value.vdRange ?? null)
+      : null;
+  // Likewise F: read off the built curve, which is also what makes the slider
+  // disappear on an IV or transdermal curve without App having to re-derive the
+  // route rule — `buildCurve` returns no `fRange` there because there is no F to
+  // vary, not because the source is silent.
+  const fRange =
+    curve.ok && curve.value.model === 'one_compartment_first_order'
+      ? (curve.value.fRange ?? null)
       : null;
 
   return (
@@ -259,6 +291,9 @@ export function App() {
               vdRange={vdRange}
               vdValueL={vdL ?? vdRange?.nominal}
               onVdChange={setVdL}
+              fRange={fRange}
+              fValue={oralF ?? fRange?.nominal}
+              onFChange={setOralF}
               visibleBands={visibleBands}
               onVisibleBandsChange={setBandVisible}
             />
@@ -406,6 +441,13 @@ function ModelCaption({ route, schedule, infusionDuration, curve, concUnit }: Mo
     parts.push(`Vd = ${fmtNum(curve.params.vd)} L`);
     if (route === 'oral' && curve.params.ka !== undefined) {
       parts.push(`ka = ${fmtNum(curve.params.ka)} /h`);
+    }
+    // F is stated for the same reason Vd is — it became a slider. It matters more
+    // here than Vd did, because F and Vd move the curve identically: with only one
+    // of the pair on screen the caption would describe a curve whose height the
+    // reader cannot account for.
+    if (route === 'oral' && curve.params.F !== undefined) {
+      parts.push(`F = ${fmtPercent(curve.params.F)}`);
     }
     if (route === 'iv_infusion') parts.push(`infused over ${fmtNum(infusionDuration)} h`);
   }

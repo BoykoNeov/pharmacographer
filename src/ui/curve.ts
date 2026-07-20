@@ -242,11 +242,35 @@ export interface BandPoint {
  * the second extreme is one the reader chose and can see selected on a slider —
  * where a merged envelope would present it, unbidden, as the compound's reported
  * spread.
+ *
+ * `f` (oral bioavailability) is the axis that breaks the pattern, and its
+ * difference is worth stating here rather than discovering on screen. The first
+ * two axes are visually ORTHOGONAL — the half-life tilts the tail at a fixed
+ * peak, Vd scales the peak at a fixed slope — which is what lets a reader
+ * attribute a movement to a parameter. F is not orthogonal to Vd at all: it is
+ * COLLINEAR with it, because the parent curve depends on the two only through
+ * `F·D/Vd`. Halving F and doubling Vd produce the identical plot, so the F band
+ * and the Vd band are the same shape scaled differently.
+ *
+ * That is not a defect to hide, it is the classical non-identifiability of oral
+ * PK — an oral concentration curve identifies only the ratio `V/F` (the
+ * "apparent" volume), never V and F separately — and the UI states it. The
+ * hazard it creates is the mirror image of the merged-envelope one: two vertical
+ * bands of different widths invite a reader to treat F-spread and Vd-spread as
+ * two independent uncertainties to STACK, when they are one uncertainty seen
+ * twice. The copy in `VariabilitySlider` says so in as many words.
+ *
+ * The one place the two genuinely diverge is the metabolite lines, and that
+ * divergence is the on-screen proof they are different parameters despite the
+ * identical parent gesture: metabolite formation is `fm·ke·C·Vd = fm·ke·F·D·e^(−ke·t)`,
+ * so the parent Vd CANCELS exactly (the Vd band leaves every metabolite line
+ * untouched) while F does not (the F band moves them). Both directions are
+ * pinned as oracles in `curve.test.ts`.
  */
-export type VariabilityAxis = 'half_life' | 'vd';
+export type VariabilityAxis = 'half_life' | 'vd' | 'f';
 
 /** Presentation order and short names for the axes the UI offers. */
-export const VARIABILITY_AXES: readonly VariabilityAxis[] = ['half_life', 'vd'];
+export const VARIABILITY_AXES: readonly VariabilityAxis[] = ['half_life', 'vd', 'f'];
 
 /** One axis's envelope: the curve at that parameter's reported extremes. */
 export interface VariabilityBand {
@@ -345,6 +369,48 @@ export function vdRangeL(compound: Compound, baseVdL: number): VdRange | null {
   };
 }
 
+/** A bioavailable-fraction range, as a fraction in [0, 1]. */
+export interface FRange {
+  /** Smallest reported F — the edge that LOWERS concentration. */
+  low: number;
+  /** Point (nominal) F — where the slider starts. */
+  nominal: number;
+  /** Largest reported F — the edge that RAISES concentration. */
+  high: number;
+}
+
+/**
+ * The compound's reported oral bioavailability range, or `null` when the source
+ * gives no range. Ten of the shipped compounds report one.
+ *
+ * ORAL ONLY, and not by convention: an IV dose is bioavailable by DEFINITION
+ * (F = 1, the `definition` sentinel in `schema.ts`), so a slider there would
+ * offer to vary a constant. The transdermal schema goes further and refuses to
+ * store an `F` at all, because a patch label's delivered rate is already the
+ * systemic input — so there is nothing on that route for this axis to read even
+ * if it wanted to. Callers gate on the ENGINE route, so `transdermal` (which
+ * rides the `iv_infusion` path) is excluded with the IV routes.
+ *
+ * Ratio-of-nominal for the same reasons as {@link vdRangeL}: the percent →
+ * fraction conversion is never re-implemented here, and selecting the nominal
+ * reproduces the derived F exactly, so "every slider at nominal" stays provably
+ * the pre-feature curve.
+ */
+export function fRangeOral(compound: Compound, baseF: number): FRange | null {
+  const f = compound.routes.oral?.F;
+  // `F` is an OPTIONAL param, so its `value` may be null even when the field is
+  // present — a compound can record a range with no point estimate. That is not a
+  // case this axis can serve: without a nominal there is nothing for the ratio
+  // form to anchor to, and no defensible place to start the slider.
+  const nominal = f?.value;
+  if (!f?.range || nominal === null || nominal === undefined || !(nominal > 0)) return null;
+  return {
+    low: baseF * (f.range[0] / nominal),
+    nominal: baseF,
+    high: baseF * (f.range[1] / nominal),
+  };
+}
+
 /**
  * Scale a derived `ke` to a target half-life, holding everything else fixed.
  * Expressed as a ratio around the nominal (`ke × nominal/target`) rather than
@@ -433,6 +499,11 @@ export interface OneCompartmentCurveResult extends CurveResultBase {
   halfLifeRange?: HalfLifeRange;
   /** The Vd range its band spans, for the slider's bounds. */
   vdRange?: VdRange;
+  /**
+   * The oral-F range its band spans, for the slider's bounds. Present only on an
+   * oral route whose compound reports a range — an IV curve has no F to vary.
+   */
+  fRange?: FRange;
   /** Elimination half-life, h (ln2 / ke) of the main curve — for the caption. */
   halfLifeH: number;
 }
@@ -573,6 +644,18 @@ export interface CurveInput {
    * make the curve ambiguous rather than merely under-explained.
    */
   vdL?: number;
+  /**
+   * Main-curve oral bioavailability override, a fraction in [0, 1] — the F
+   * variability slider. Unset, the compound's derived F is used. Ignored on any
+   * route the engine treats as non-oral, where F is 1 by definition.
+   *
+   * Unlike {@link vdL} there is no "what is held constant" choice to make: F
+   * scales only the mass that enters, so nothing else has to move. What it does
+   * do — and Vd does not — is move the METABOLITE lines, because formation
+   * follows the absorbed dose. See {@link VariabilityAxis} for why that
+   * asymmetry is the only observable difference between these two axes.
+   */
+  F?: number;
   /** Reference-subject weight, kg, for scaling per-kg Vd (defaults to 70 kg). */
   weightKg?: number;
   /** Grid resolution; defaults to {@link DEFAULT_SAMPLES}. */
@@ -930,7 +1013,24 @@ export function buildCurve(input: CurveInput): CurveResult {
   // peak instant below are all untouched by this axis.
   const vdRange = vdRangeL(compound, base.vd);
   const mainVd = input.vdL !== undefined && input.vdL > 0 ? input.vdL : base.vd;
-  const params: PkParams = { ...disposition, ke: mainKe, vd: mainVd };
+
+  // F is oral-only (IV is 1 by definition; a patch stores none at all), so the
+  // axis is gated on the ENGINE route — which puts `transdermal` on the excluded
+  // side along with the IV routes, exactly where it belongs.
+  const baseF = base.F ?? 1;
+  const fRange = engineRoute === 'oral' ? fRangeOral(compound, baseF) : null;
+  const mainF = fRange && input.F !== undefined && input.F > 0 ? input.F : baseF;
+
+  // `F` is written back only on the oral path. On an IV/transdermal curve
+  // `base.F` may legitimately be absent, and materialising a `F: 1` there would
+  // turn "this route has no bioavailability parameter" into "it has one, equal
+  // to 1" in every downstream consumer of `params`.
+  const params: PkParams = {
+    ...disposition,
+    ke: mainKe,
+    vd: mainVd,
+    ...(engineRoute === 'oral' ? { F: mainF } : {}),
+  };
 
   // Band extremes are FIXED at each parameter's reported low/high (not the
   // sliders): longer half-life ⇒ smaller ke ⇒ slower elimination ⇒ higher
@@ -1008,6 +1108,17 @@ export function buildCurve(input: CurveInput): CurveResult {
       points: bandPoints({ ...params, vd: vdRange.high }, { ...params, vd: vdRange.low }),
     });
   }
+  if (fRange) {
+    // F maps onto concentration the same way the half-life does (more in ⇒
+    // higher), and the OPPOSITE way to Vd — a third reason the edges are
+    // labelled by meaning rather than by low/high.
+    bands.push({
+      axis: 'f',
+      lowLabel: `Low F ${fmtPercent(fRange.low)} (less absorbed)`,
+      highLabel: `High F ${fmtPercent(fRange.high)} (more absorbed)`,
+      points: bandPoints({ ...params, F: fRange.low }, { ...params, F: fRange.high }),
+    });
+  }
 
   // Evaluate each metabolite over the same grid/schedule as the parent. An IV-bolus
   // parent contributes a plain Bateman metabolite (formation rate = the plotted mainKe);
@@ -1059,6 +1170,7 @@ export function buildCurve(input: CurveInput): CurveResult {
     bands: bands.length > 0 ? bands : undefined,
     halfLifeRange: range ?? undefined,
     vdRange: vdRange ?? undefined,
+    fRange: fRange ?? undefined,
     metabolites,
     params,
     derived,
@@ -1469,6 +1581,16 @@ export function buildCurve3c(input: CurveInput): ThreeCompartmentCurveResult {
 export function fmtNum(x: number, sig = 3): string {
   if (!Number.isFinite(x)) return '—';
   return Number(x.toPrecision(sig)).toString();
+}
+
+/**
+ * Format a fraction in [0, 1] as a percentage. Bioavailability is stored and
+ * computed as a fraction (canonical) but is universally READ as a percent — "F
+ * 29%" is the form every label and paper states, and "0.292" invites the reader
+ * to wonder what it is a fraction of.
+ */
+export function fmtPercent(fraction: number, sig = 3): string {
+  return `${fmtNum(fraction * 100, sig)}%`;
 }
 
 /**

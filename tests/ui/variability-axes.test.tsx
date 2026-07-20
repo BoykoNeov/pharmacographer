@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { App } from '../../src/ui/App.tsx';
 
 /**
- * The variability axes (half-life + Vd), driven through the REAL App (handoff §12).
+ * The variability axes (half-life + Vd + F), driven through the REAL App (handoff §12).
  *
  * The math is pinned in `curve.test.ts`; what only a mounted tree can catch is the
  * wiring and the COPY. This project's standing trap is a green suite over a wrong
@@ -43,6 +43,20 @@ describe('variability axes, wired through App', () => {
     });
   };
 
+  /**
+   * Pick a route by its option value. The route `<select>` shares the compound
+   * picker's `.control__input` class, so it is found by looking for the one whose
+   * options carry route values rather than by index.
+   */
+  const selectRoute = (routeValue: string) => {
+    const selects = [...container!.querySelectorAll<HTMLSelectElement>('.control__input')];
+    const select = selects.find((s) => [...s.options].some((o) => o.value === routeValue))!;
+    act(() => {
+      select.value = routeValue;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  };
+
   /** Every slider label in the controls panel, lower-cased. */
   const sliderLabels = () =>
     [...container!.querySelectorAll('.control__label')].map((el) =>
@@ -50,6 +64,8 @@ describe('variability axes, wired through App', () => {
     );
 
   const hasVdSlider = () => sliderLabels().some((t) => t.includes('volume of distribution'));
+
+  const hasFSlider = () => sliderLabels().some((t) => t.includes('bioavailability'));
 
   const panelText = () => container!.querySelector('.controls')!.textContent ?? '';
 
@@ -124,5 +140,54 @@ describe('variability axes, wired through App', () => {
     selectCompound('Digoxin'); // no Vd slider at all
     selectCompound('Acamprosate');
     expect(slider().value).toBe(nominal);
+  });
+
+  it('offers an F slider on the ORAL route of a compound reporting an F range', () => {
+    mount();
+    selectCompound('Morphine'); // oral F 22–36%
+    selectRoute('oral');
+    expect(hasFSlider()).toBe(true);
+  });
+
+  it('offers NO F slider on an IV route — bioavailability there is 1 by definition', () => {
+    // Not a "the source reports no range" case: there is no parameter to vary.
+    mount();
+    selectCompound('Morphine');
+    selectRoute('iv_bolus');
+    expect(hasFSlider()).toBe(false);
+  });
+
+  it('does not describe F with the "held constant" copy the other axes use', () => {
+    // The transdermal PeakNote defect, pre-empted: F has no ceteris-paribus
+    // choice to report, so cloning that sentence would put a true-sounding but
+    // meaningless claim on screen. What must appear instead is the
+    // non-identifiability — F and Vd are one observable, so the two bands must
+    // not be added together.
+    mount();
+    selectCompound('Morphine');
+    selectRoute('oral');
+    const text = panelText();
+    expect(text).toMatch(/V\/F/); // the apparent-volume ratio, named
+    expect(text).toMatch(/not two to add together/i);
+    expect(text).not.toMatch(/bioavailability is held/i);
+  });
+
+  it('writes F as a percent, not as the canonical fraction', () => {
+    // "F = 0.292" invites the reader to ask what it is a fraction of; every label
+    // and paper states a percent.
+    mount();
+    selectCompound('Morphine');
+    selectRoute('oral');
+    const label = sliderLabels().find((t) => t.includes('bioavailability'))!;
+    expect(label).toMatch(/%/);
+    expect(label).not.toMatch(/=\s*0\./);
+  });
+
+  it('the F band checkbox reads as the symbol F', () => {
+    mount();
+    selectCompound('Morphine');
+    selectRoute('oral');
+    const labels = [...container!.querySelectorAll('.band-toggle')].map((el) => el.textContent);
+    expect(labels).toContain('Show F band');
   });
 });

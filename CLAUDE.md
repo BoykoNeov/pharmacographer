@@ -146,8 +146,24 @@ engine/schema/derive change needed.
   phenotype, which makes the default render provably the pre-preset compound. Adding a
   preset to a compound is data + citations. See `docs/DATA_GUIDE.md` "Phenotype presets".
 - Routes: oral, IV bolus, IV infusion, **transdermal**. Multi-dose via superposition
-  (linear) or whole-schedule integration (MM); half-life variability band; Cmax/Tmax
+  (linear) or whole-schedule integration (MM); per-parameter variability bands; Cmax/Tmax
   markers; lin/semi-log toggle; unit toggle.
+- **Variability axes** (`VariabilityAxis` in `ui/curve.ts`) — **half-life, Vd, and oral F**,
+  each a slider over that parameter's reported range with its own toggleable band. **The
+  bands are never merged**, which is a deliberate deviation from §12's "combine them": a
+  merged outer edge is a person at the 5th-percentile volume AND the 95th-percentile
+  half-life — a pairing no source reports, and the same "don't manufacture populations
+  nobody observed" rule that phenotype presets enforce in the data layer. Every axis is a
+  RATIO of the derived nominal, so nominal reproduces the pre-feature curve exactly.
+  Gated to 1-comp (2-/3-comp have no single Vd or t½; MM has no `disposition` block); F is
+  gated to the ENGINE oral route, which correctly excludes transdermal. **F is not a
+  clone of Vd**: the two are COLLINEAR on the parent curve (it depends on them only via
+  `F·D/Vd` — the classical `V/F` non-identifiability), so the F slider must NOT reuse the
+  "X is held constant" copy, and the panel says the two bands are one uncertainty seen
+  twice rather than two to add. They diverge in exactly one place, which is the oracle
+  pair in `curve.test.ts`: parent Vd **cancels** in metabolite formation and F does not.
+  **`ka` is deliberately not an axis** — it moves Tmax, invalidating the exact Bateman
+  peak instant `criticalTimes` pins.
 - **Transdermal (`transdermal`)** — the §12 "more routes" seam, and it added **no engine
   math**: a patch is a ZERO-ORDER input, which `iv_infusion` already is, so `engineRouteOf`
   (`derive.ts`) maps it onto that path and the mode spine covers 1-/2-/3-comp alike. The

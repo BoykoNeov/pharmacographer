@@ -66,6 +66,14 @@ const BAND_STYLES: Record<VariabilityAxis, { color: string; angle: number; label
   // default band, and re-hueing it would make every existing screenshot wrong.
   half_life: { color: PARENT_COLOR, angle: 45, label: 'half-life t½' },
   vd: { color: '#c9a227', angle: -45, label: 'volume Vd' },
+  // A third distinct angle — the base stroke is vertical, so 90° lays it FLAT.
+  // (45 and −45 are the two diagonals; horizontal is the remaining direction that
+  // crosses both of them cleanly.) F is COLLINEAR with Vd on the parent
+  // curve (both are pure vertical rescales — see `VariabilityAxis`), so these two
+  // bands are concentric by construction and one will often sit inside the other.
+  // A shared or near-shared angle would make the inner one unreadable exactly
+  // where it matters most.
+  f: { color: '#7f9f5b', angle: 90, label: 'bioavailability F' },
 };
 
 /** Stable empty default for `visibleBands` (a fresh Set would re-render on every pass). */

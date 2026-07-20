@@ -28,8 +28,8 @@
  * dishonesty this panel exists to prevent.
  */
 
-import type { HalfLifeRange, VariabilityAxis, VdRange } from '../curve.ts';
-import { fmtNum } from '../curve.ts';
+import type { FRange, HalfLifeRange, VariabilityAxis, VdRange } from '../curve.ts';
+import { fmtNum, fmtPercent } from '../curve.ts';
 
 /** Why a compound has no half-life slider. */
 export type NoRangeReason =
@@ -50,17 +50,29 @@ const NO_RANGE_NOTES: Record<NoRangeReason, string> = {
 };
 
 /**
- * The ceteris-paribus each axis assumes, stated on screen rather than left to be
- * inferred. Varying Vd is ambiguous until you say what is held fixed: holding the
- * half-life makes clearance co-vary (`CL = ke·Vd`) and moves the curve straight up
- * and down, which is what makes this axis readable as something distinct from the
- * half-life slider. Holding clearance instead would drag `ke = CL/Vd` around and
- * merely restate the other slider.
+ * What each axis actually does, stated on screen rather than left to be inferred.
+ *
+ * For the first two axes that means naming the CETERIS PARIBUS, because varying
+ * Vd is ambiguous until you say what is held fixed: holding the half-life makes
+ * clearance co-vary (`CL = ke·Vd`) and moves the curve straight up and down,
+ * which is what makes this axis readable as something distinct from the half-life
+ * slider. Holding clearance instead would drag `ke = CL/Vd` around and merely
+ * restate the other slider.
+ *
+ * F is deliberately NOT written to that template, and the temptation to clone it
+ * is precisely the trap this project keeps falling into — the transdermal route
+ * shipped a peak explanation copied from the oral one, under a curve that never
+ * peaked, with every test green. There is no ceteris-paribus decision to report
+ * here: F scales the mass that gets in, and nothing has to be held anywhere for
+ * that to be well defined. What DOES need saying is the thing a reader would
+ * otherwise get wrong — that this band and the Vd band are the same observable,
+ * so their widths must not be added together. See {@link VariabilityAxis}.
  */
 const AXIS_NOTES: Record<VariabilityAxis, string> = {
   half_life:
     'Volume of distribution is held at its reported value, so this changes how fast the curve falls, not how high it starts.',
   vd: 'Half-life is held at the value above, so this scales the whole curve up or down without changing its slope — clearance moves with it (CL = ke · Vd).',
+  f: 'This scales the dose that actually gets in, so it moves the curve up and down in exactly the same way the volume slider does — an oral curve can only ever show the ratio V/F, never V and F separately. Treat the two bands as one uncertainty seen twice, not two to add together. The one real difference is off the parent line: changing F moves the metabolite curves, and changing the volume does not.',
 };
 
 /** One labelled slider over a reported [low, high] range, with its band toggle. */
@@ -74,6 +86,13 @@ interface AxisSliderProps {
    * inside a sentence ("Show volume of distribution vd band").
    */
   shortLabel: string;
+  /**
+   * How a value on this axis is written. Defaults to "<number> <unit>", which is
+   * right for hours and litres; F overrides it because a bioavailable fraction is
+   * universally read as a percent, and rendering the canonical 0.292 would make
+   * the reader work out what it is a fraction of.
+   */
+  format?: (value: number) => string;
   /** Unit shown after the value and the range, e.g. "h" or "L". */
   unit: string;
   low: number;
@@ -90,6 +109,7 @@ function AxisSlider({
   axis,
   label,
   shortLabel,
+  format,
   unit,
   low,
   nominal,
@@ -101,14 +121,20 @@ function AxisSlider({
 }: AxisSliderProps) {
   // A fine step (~100 stops across the band) so the line moves smoothly.
   const step = Math.max((high - low) / 100, 1e-6);
+  const show = format ?? ((v: number) => `${fmtNum(v)} ${unit}`);
+  // The range hint carries a shared unit ONCE ("1.3–2.2 h") rather than on each
+  // bound. Repeating it wrapped the half-life label onto a second line, which
+  // shifts every control below it as the compound changes — the same
+  // fixed-height discipline the About box exists for. A percent sign is not a
+  // trailing unit, so `format` (F) keeps it on both bounds.
+  const showRange = format
+    ? `${format(low)}–${format(high)}`
+    : `${fmtNum(low)}–${fmtNum(high)} ${unit}`;
   return (
     <div className="control">
       <span className="control__label">
-        {label} = {fmtNum(value)} {unit}
-        <span className="control__hint">
-          {' '}
-          (reported {fmtNum(low)}–{fmtNum(high)} {unit})
-        </span>
+        {label} = {show(value)}
+        <span className="control__hint"> (reported {showRange})</span>
       </span>
       <input
         className="slider"
@@ -121,11 +147,11 @@ function AxisSlider({
         aria-label={`${label} within the reported range`}
       />
       <div className="slider__scale" aria-hidden="true">
-        <span>{fmtNum(low)}</span>
+        <span>{show(low)}</span>
         <button type="button" className="slider__nominal" onClick={() => onChange(nominal)}>
-          nominal {fmtNum(nominal)}
+          nominal {show(nominal)}
         </button>
-        <span>{fmtNum(high)}</span>
+        <span>{show(high)}</span>
       </div>
       {/* The band toggle sits WITH its slider, not in the chart toolbar, so the
           causal link between the range and the shaded region is on screen rather
@@ -157,6 +183,15 @@ interface VariabilitySliderProps {
   /** Currently selected Vd, L. */
   vdValueL?: number;
   onVdChange?: (vdL: number) => void;
+  /**
+   * The reported oral bioavailability range (fraction), or null. Null on every
+   * non-oral route: IV is F = 1 by definition and a patch stores no F at all, so
+   * there is nothing to vary rather than something the source failed to report.
+   */
+  fRange?: FRange | null;
+  /** Currently selected F, as a fraction. */
+  fValue?: number;
+  onFChange?: (f: number) => void;
   /** Which axes' bands the chart is drawing. */
   visibleBands: ReadonlySet<VariabilityAxis>;
   onVisibleBandsChange: (axis: VariabilityAxis, visible: boolean) => void;
@@ -170,6 +205,9 @@ export function VariabilitySlider({
   vdRange = null,
   vdValueL,
   onVdChange,
+  fRange = null,
+  fValue,
+  onFChange,
   visibleBands,
   onVisibleBandsChange,
 }: VariabilitySliderProps) {
@@ -221,6 +259,25 @@ export function VariabilitySlider({
           onChange={onVdChange}
           bandVisible={visibleBands.has('vd')}
           onBandVisibleChange={(visible) => onVisibleBandsChange('vd', visible)}
+        />
+      )}
+      {fRange && fValue !== undefined && onFChange && (
+        <AxisSlider
+          axis="f"
+          // "Bioavailability F" would render "BIOAVAILABILITY F" — acceptable, but
+          // the symbol is carried by the value ("= 29.2%") and the short label, so
+          // the control name stays plain English like the other two.
+          label="Bioavailability"
+          shortLabel="F"
+          format={fmtPercent}
+          unit=""
+          low={fRange.low}
+          nominal={fRange.nominal}
+          high={fRange.high}
+          value={fValue}
+          onChange={onFChange}
+          bandVisible={visibleBands.has('f')}
+          onBandVisibleChange={(visible) => onVisibleBandsChange('f', visible)}
         />
       )}
     </>

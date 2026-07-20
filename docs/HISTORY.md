@@ -8,6 +8,63 @@ must-follow instruction file — `CLAUDE.md` holds the working conventions and
 
 Newest first; test counts and commit hashes are as-of that milestone.
 
+**VARIABILITY BEYOND HALF-LIFE — two new axes, and the §12 clause we declined to implement
+(2026-07-20, advisor-reviewed, 543 → 556 tests, 47 compounds).** The last unbuilt engine seam in
+§12. `VariabilitySlider` had varied one parameter since Phase 6; it now varies **half-life, Vd and
+oral F**, each as its own slider with its own toggleable, separately-hatched band.
+
+- **"Combine them" was rejected, and that is the entry's point.** §12 says to generalise "the
+  band/envelope rendering to combine them". We did not. The outer edge of a merged envelope is a
+  person at the 5th-percentile volume AND the 95th-percentile half-life — a pairing no source
+  reports, and (because Vd and t½ are correlated through clearance) possibly not physiologically
+  coherent. The phenotype-preset work had already settled this principle in the data layer, where
+  a preset swaps t½ and fm **atomically** to make the mixed state unreachable rather than merely
+  discouraged; a merged band would have quietly rebuilt that mixed state in the chart. §12 was
+  written before presets existed, so the two are in genuine conflict and the later principle won.
+  The handoff bullet now carries a note saying so, because a future session reading §12 alone
+  would build the thing.
+- **The overclaim the advisor caught, and the weaker statement that replaced it.** The first draft
+  of the `VariabilityAxis` doc asserted "no band edge ever combines two extremes". False: bands are
+  anchored to the **plotted line**, not to the compound's nominals, so dragging Vd to its maximum
+  and then reading the half-life band yields a doubly-extreme edge. The behaviour was kept — bands
+  pinned to nominals visibly detach from the curve the moment another slider moves, which reads as
+  a rendering bug — and the *claim* was weakened to what holds: **at the default, no edge combines
+  two extremes**, and a combined edge is reachable only by deliberate slider movement. The
+  difference from a merged envelope is real but is one of **agency, not arithmetic**: the app never
+  draws a doubly-extreme edge unbidden. Writing the strong version would have been the same
+  category of dishonesty the whole design exists to avoid.
+- **F is NOT a clone of Vd, and cloning its copy would have been the transdermal `PeakNote` defect
+  again.** The sentence that sold the Vd axis — "visually orthogonal: t½ tilts the tail, Vd scales
+  the peak" — is exactly what fails for F. The parent curve depends on F and Vd only through
+  `F·D/Vd`, so they are **collinear**: halving F and doubling Vd give the identical plot (pinned as
+  an equality test). That is the classical non-identifiability of oral PK — a concentration curve
+  identifies only `V/F` — so there is no ceteris-paribus to state, and the "X is held constant"
+  template does not apply. The hazard is the mirror of the merged-envelope one: two vertical bands
+  invite a reader to **stack** F-spread and Vd-spread when they are one uncertainty seen twice. The
+  panel says so in as many words, and a test asserts the F note does *not* say "bioavailability is
+  held".
+- **The metabolite pair is the whole proof, and the advisor's best catch.** F and Vd differ in
+  exactly one observable. Metabolite formation is `fm·ke·C·Vd = fm·ke·F·D·e^(−ke·t)`: the parent
+  **Vd cancels algebraically** (asserted with `toEqual`, not a tolerance — the glue passes Vd in
+  twice, as the mode coefficient `1/Vd` and as the clearance `ke·Vd`, and if either were dropped
+  the metabolite would ride the Vd slider) while **F does not** (the metabolite scales exactly with
+  it). Both directions are oracles. `ffp` was checked and is already correct: it is a fraction of
+  the **total** oral dose, so slider-F threads into the systemic term only.
+- **Two provenance screens run before shipping, both cheap and both capable of killing the axis.**
+  A Vd stored as `derived_from_clearance` (i.e. CL/F) already embeds an F, and a stored *apparent*
+  clearance would put F in `ke`; either would make the slider double-count. Neither occurs across
+  the ten F-ranged compounds — none stores a clearance at all, so every `ke` comes from a
+  half-life and is F-independent. **`ka` was refused outright**: it moves Tmax, invalidating the
+  exact Bateman peak instant `criticalTimes` pins, which is grid work rather than a slider.
+- **What only launching found, again.** `.control__label` is styled all-caps, which rendered
+  `VOLUME OF DISTRIBUTION VD`, and deriving the checkbox text from that label produced `Show volume
+  of distribution vd band` — hence the separate `shortLabel`. Repeating the unit on both range
+  bounds wrapped the half-life label onto a second line, shifting every control below it as the
+  compound changed. The `f` hatch is **horizontal**, not vertical: the base stroke is vertical, so
+  `rotate(90)` lays it flat — a comment claiming otherwise was a false statement about the screen.
+  Also corrected: a stale code citation calling Vd/F/ka variability "a documented non-goal (handoff
+  §11)" — §11 is the legal posture and says nothing of the kind.
+
 **THEOPHYLLINE — the third `linear: false` ship, and the first compound that had to CONTRADICT the
 repo to be right (2026-07-17, advisor-reviewed, 512 tests, 45 → 46 compounds).** Pure data against the
 existing MM engine: `docs/DATA_GUIDE.md` had named theophylline and salicylate "the plausible next MM

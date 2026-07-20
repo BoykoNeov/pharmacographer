@@ -6,6 +6,7 @@ import {
   buildCurve3c,
   buildSchedule,
   bandFor,
+  fRangeOral,
   halfLifeRangeH,
   vdRangeL,
   type DoseSchedule,
@@ -107,6 +108,33 @@ function rangedVdMetaboliteCompound() {
     unit: 'L/kg',
     derived: false,
     sourceRef: 'ref',
+  };
+  raw.metabolites = [
+    {
+      id: 'testmetabolite',
+      name: 'Testmetabolite',
+      active: true,
+      fractionFormed: { value: 0.6, unit: 'fraction', derived: false, sourceRef: 'ref' },
+      vd: { value: 1.0, unit: 'L/kg', derived: false, sourceRef: 'ref' },
+      halfLife: { value: 20, unit: 'h', derived: false, sourceRef: 'ref' },
+    },
+  ];
+  return parseCompound(raw);
+}
+
+/**
+ * An ORAL fixture whose F is ranged 60–100% (nominal 80%) and which forms a
+ * metabolite. Carries no half-life or Vd range, so the only band it produces is
+ * the F one — and the metabolite is what makes it the fixture that can tell F
+ * apart from Vd at all, since the two are otherwise indistinguishable on the
+ * parent curve.
+ */
+function rangedFCompound() {
+  const raw = baseRawCompound();
+  (raw.routes as Record<string, unknown>).oral = {
+    available: true,
+    F: { value: 80, range: [60, 100], unit: 'percent', derived: false, sourceRef: 'ref' },
+    tmax: { value: 1.5, unit: 'h', derived: false, sourceRef: 'ref' },
   };
   raw.metabolites = [
     {
@@ -460,6 +488,95 @@ describe('buildCurve — Vd variability axis', () => {
       expect(b.cLow).toBeLessThanOrEqual(c + 1e-9);
       expect(c).toBeLessThanOrEqual(b.cHigh + 1e-9);
     });
+  });
+});
+
+describe('fRangeOral — the bioavailability axis bounds', () => {
+  it('converts percent to a fraction via the derived nominal', () => {
+    // 60/80/100% against a derived nominal of 0.8.
+    const range = fRangeOral(rangedFCompound(), 0.8)!;
+    expect(range.low).toBeCloseTo(0.6, 12);
+    expect(range.nominal).toBe(0.8);
+    expect(range.high).toBeCloseTo(1.0, 12);
+  });
+
+  it('is null when the source reports a point F', () => {
+    // `rangedOralCompound`'s F is 80% with no range.
+    expect(fRangeOral(rangedOralCompound(), 0.8)).toBeNull();
+  });
+});
+
+describe('buildCurve — F variability axis', () => {
+  const ranged = rangedFCompound();
+  const oral = (F?: number) => build1c({ compound: ranged, route: 'oral', schedule: single(350), F });
+
+  it('the nominal F reproduces the compound default EXACTLY (identity anchor)', () => {
+    expect(oral(0.8).points).toEqual(oral().points);
+  });
+
+  it('is a pure VERTICAL rescale of the parent, like Vd (they are collinear)', () => {
+    // The parent curve depends on F and Vd only through F·D/Vd, which is the
+    // non-identifiability the on-screen copy has to state. Halving F must do
+    // exactly what doubling Vd does, and nothing to the timing.
+    const dflt = oral();
+    const halfF = oral(0.4);
+    expect(halfF.horizonH).toBe(dflt.horizonH);
+    halfF.points.forEach((p, i) => {
+      expect(p.t).toBeCloseTo(dflt.points[i]!.t, 12);
+      expect(p.c).toBeCloseTo(dflt.points[i]!.c / 2, 10);
+    });
+  });
+
+  it('F and Vd are INDISTINGUISHABLE on the parent line', () => {
+    // Stated as an equality rather than left implicit, because it is the claim the
+    // slider's copy makes to the reader: the two bands are one observable seen
+    // twice. Halving F and doubling Vd must produce the identical parent curve.
+    const halfF = oral(0.4);
+    const doubleVd = build1c({
+      compound: ranged,
+      route: 'oral',
+      schedule: single(350),
+      vdL: VD_ABS * 2,
+    });
+    halfF.points.forEach((p, i) => {
+      expect(p.c).toBeCloseTo(doubleVd.points[i]!.c, 12);
+    });
+  });
+
+  it('MOVES the metabolite lines — the one place F differs from Vd', () => {
+    // The mirror of the Vd metabolite-INVARIANCE oracle above, and the on-screen
+    // proof that these are two parameters and not one. Systemic formation follows
+    // the absorbed dose (fm · ke · F·D · e^(−ke·t)), so unlike the parent volume,
+    // F does not cancel: it scales the whole metabolite curve with it.
+    const nominal = oral().metabolites![0]!.points;
+    const halved = oral(0.4).metabolites![0]!.points;
+    expect(nominal.some((p) => p.c > 0)).toBe(true);
+    // No ffp on this fixture, so the metabolite is systemic-formation only and
+    // must scale EXACTLY with F — a strictly stronger check than "it moved".
+    halved.forEach((p, i) => {
+      expect(p.c).toBeCloseTo(nominal[i]!.c / 2, 12);
+    });
+  });
+
+  it('the F band maps like the half-life band, not like the Vd band', () => {
+    const built = oral();
+    const band = bandFor(built.bands, 'f')!;
+    expect(band.lowLabel).toMatch(/low f/i);
+    expect(band.highLabel).toMatch(/high f/i);
+    // Low F ⇒ low concentration (the opposite of the Vd inversion).
+    const peakIndex = built.points.reduce((best, p, i, all) => (p.c > all[best]!.c ? i : best), 0);
+    expect(band.points[peakIndex]!.cLow).toBeLessThan(band.points[peakIndex]!.cHigh);
+  });
+
+  it('offers NO F axis on a non-oral route — IV bioavailability is 1 by definition', () => {
+    // The gate is the ENGINE route, which also excludes `transdermal` (it rides
+    // the zero-order path and its schema stores no F at all).
+    const iv = build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350) });
+    expect(iv.fRange).toBeUndefined();
+    expect(bandFor(iv.bands, 'f')).toBeUndefined();
+    // …and an F passed anyway is ignored rather than silently scaling an IV dose.
+    const forced = build1c({ compound: ranged, route: 'iv_bolus', schedule: single(350), F: 0.4 });
+    expect(forced.points).toEqual(iv.points);
   });
 });
 
