@@ -8,6 +8,53 @@ must-follow instruction file — `CLAUDE.md` holds the working conventions and
 
 Newest first; test counts and commit hashes are as-of that milestone.
 
+**INHALED GATED AND NOT ADDED — THE ROUTE NAME DOES NOT NAME AN INPUT TYPE (2026-08-18,
+advisor-reviewed, docs only).** Judged in the same session as the peak-copy consolidation, because
+the 2026-08-18 Tmax pre-check was supposed to make it a ten-minute "no". It was a no, and none of the
+three reasons anybody would have written down first was the actual one.
+
+**The pre-check does not apply, and applying it would have been a confident false negative.** It
+reads: a single monotone input peaks at input-off, so a Tmax well inside the window falsifies the
+one-input family. Its unstated precondition is that the input WINDOW and the absorption PROCESS are
+the same thing — true of a patch, false of an inhaler, which separates deposition (one breath) from
+absorption (minutes to hours). Run it naively on albuterol and its 0.42 h Tmax "falsifies" a
+single-input model that is in fact exactly right. So the screen recorded days earlier gained a
+precondition rather than a row. Second pass running, a recorded screen needed auditing rather than
+applying — which is now the pattern, not the exception.
+
+**The finding: "inhaled" is not a route in this schema's sense.** Every route so far maps onto one
+engine input, and the input-type screen is built on that correspondence. Three inhaled products land
+on three different rows — Staccato loxapine is effectively a bolus (Tmax ~1 min), a salbutamol pMDI
+is first-order from a lung depot (Tmax 0.42 h), and a fluticasone pMDI reports no absorption
+parameter at all. Anything shippable here is a per-product route; a `DataRoute` called `inhaled`
+cannot exist. This points opposite to the SC result: SC taught that a new route need not carry a new
+fact, inhalation teaches that **a route name need not carry an input type.**
+
+**The general gate, and it generalises beyond inhalation.** Borghardt 2015 (AAPS J 17(4):853–870,
+PMC4477002, opened) reports that inhaled models fitted on inhalation data ALONE use a single
+absorption process, while those fitted on inhalation **plus IV** mostly need two or more with
+different absorption half-lives. Those are one finding, not two: the single-input fits are the ones
+nothing could contradict. So the input-type screen's question — "what input type did the source
+FIT?" — is only as good as the source's power to distinguish, and **a single-exponential fit to
+single-route data is _unfalsified_, not _confirmed_.** Same family as the F/Vd attribution argument
+the variability panel teaches, and as fentanyl's fitted `ka` landing on the flip-flop boundary.
+
+**The best candidate failed somewhere else entirely.** Adasuve escapes both general objections —
+deep-lung deposition means essentially nothing is swallowed, and the input is a single event — so it
+was gated on its own numbers, from the label's §12.3 Table 3. It dies on DISPOSITION: a
+one-compartment reading is out by **15× in both directions at once** (volume from Cmax 35.4 L vs
+`Vz` from clearance 531 L), which is a distribution phase the label describes in words and does not
+quantify. It is short by **exactly one number** — the distribution half-life — where sumatriptan's
+label happened to supply the equivalent and closed. Recorded as a pre-registered gate rather than a
+rejection, in the SC style: it ships when a source reports that one parameter.
+
+**And the objection everyone reaches for is wrong for the biggest class of inhaled drugs.**
+"Inhaled defers because the swallowed fraction is a second parallel input" does not hold for inhaled
+corticosteroids: fluticasone's oral bioavailability is <1%, so the swallowed portion contributes
+essentially nothing and the plasma curve really is lung-only. It fails for a different reason (no
+reported Tmax or absorption half-life). Written down because a plausible general objection that is
+false for the largest sub-class is precisely the kind of note the 2026-08-18 re-gate found decaying.
+
 **ONE QUESTION, FIVE ANSWERS — THE PEAK COPY CONSOLIDATED (2026-08-18, advisor-reviewed, 628
 tests, no compound change).** "Does this curve have a peak, or does it just end?" was answered
 independently in five places: the chart's peak-marker toggle, the label on the marker dot, the live

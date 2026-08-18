@@ -2002,7 +2002,9 @@ all four routes. It is a scale, never a recommended dose.
 **Inhaled still NOT added.** Inhaled is a different screen entirely — pulmonary deposition fraction
 is not a bioavailability, and most sources fit multi-phase deposition/absorption, which the
 input-type screen defers. (**SC was still blocked when this entry was written and shipped later the
-same day** — see "The subcutaneous route" below.)
+same day** — see "The subcutaneous route" below.) **Gated properly on 2026-08-18 and still not added
+— see "The inhaled route" at the end of this file, which corrects this note's framing: the blocker
+is not one screen but the fact that "inhaled" does not name a single input type at all.**
 
 ### The subcutaneous route — sumatriptan SHIPPED (2026-07-20, 602 tests)
 
@@ -2091,3 +2093,161 @@ class of defect is invisible to the entire test suite.**
 A second, self-inflicted instance: the compound's `metabolism` prose ended "…how much of an **oral**
 dose the first pass destroys", written while oral was still going to ship, and survived the cut.
 Shipping a compound falsifies prose in files the diff never touches — the theophylline lesson, again.
+
+### The inhaled route — NOT ADDED (2026-08-18), and the reason is not the one anybody expected
+
+The fifth candidate through the §12 "more routes" seam, gated because the 2026-08-18 pre-check had
+just made it cheap to judge. It is **not added**, and the recorded reason matters more than the
+verdict, because the obvious reason is wrong twice over.
+
+**FIRST, THE FINDING: "inhaled" DOES NOT NAME AN INPUT TYPE.** Every route added so far — and every
+route rejected — answered the input-type screen with one row. A patch is zero-order. An IM depot, an
+SC depot and a suppository are first-order. That one-route-one-input-type correspondence is so
+consistent that the screen is built on it. Inhalation breaks it:
+
+| Product                                    | What the input actually is                                   |
+| ------------------------------------------ | ------------------------------------------------------------ |
+| Loxapine, Staccato (Adasuve)               | effectively **instantaneous** — a bolus, Tmax ~1 min         |
+| Albuterol, pMDI (Ventolin HFA)             | **first-order** from a lung depot, Tmax 0.42 h               |
+| Fluticasone propionate, pMDI (Flovent HFA) | **no absorption parameter reported at all**; polyexponential |
+
+Those are three different rows of the screen under one clinical word. So the question "does inhaled
+ship?" has no answer: `DataRoute` entries are supposed to map onto exactly one engine input, and
+`inhaled` cannot. Anything shippable here is a **per-product route**, not a route called `inhaled` —
+which is a stronger negative than the SC pass produced, and points the opposite way. SC taught that a
+new route need not mean a new fact; inhalation teaches that **a route name need not mean an input
+type**, and the schema's whole route→input mapping assumes it does.
+
+#### The Tmax pre-check DOES NOT APPLY here — and applying it would produce a confident false negative
+
+Worth writing down carefully, because the pre-check was recorded days earlier (fentanyl, above) and
+the temptation to reach for it is exactly the "true statement that is not the gate" failure the same
+pass warned about. The pre-check reads: _a single monotone input rises to input-off, so its Tmax IS
+the end of the input window, with SD 0; a Tmax well inside the window falsifies the whole one-input
+family._
+
+Its unstated precondition is that **the input window and the absorption process are the same thing.**
+For a patch or an infusion they are: the drug arrives systemically exactly while the input runs.
+Inhalation separates them — deposition takes one breath (seconds), absorption from the deposited
+material takes minutes to hours. Run the pre-check naively on albuterol and you compare a Tmax of
+**0.42 h** against an input window of a few seconds, "falsify" the single-input family, and be
+**wrong**: a single first-order input from a lung depot is exactly what that Tmax describes.
+
+So the pre-check gains a precondition rather than a new row: **only apply it where the source states
+a delivery WINDOW (a wear period, an infusion duration), not merely a delivery EVENT.** This is the
+second time in two passes that a recorded screen needed auditing rather than merely applying.
+
+#### The real general gate: a single-input fit means "not falsified", not "confirmed"
+
+**Borghardt JM, Weber B, Staab A, Kloft C. Pharmacometric Models for Characterizing the
+Pharmacokinetics of Orally Inhaled Drugs. AAPS J. 2015;17(4):853–870. doi:10.1208/s12248-015-9760-6.
+PMID 25845315** (PMC4477002, free full text, opened). Two sentences decide it:
+
+> "The majority of empirical PK models was based on inhalation data alone and described the systemic
+> PK by a one or two compartment systemic disposition model with a **single absorption process**."
+
+> "Most empirical PK models developed on **both inhalation and IV data** indicated **at least two
+> absorption processes differing in their absorption half-lives**."
+
+Read together those are not two findings, they are one: the single-input inhaled models are the ones
+fitted where nothing could contradict them. When the study design can actually see the input shape —
+inhalation plus IV — it resolves into two or more parallel processes (fast alveolar, slow conducting
+airway, plus GI absorption of the swallowed fraction where the drug is orally bioavailable at all).
+
+**This upgrades the input-type screen generally, for every future route.** The screen asks "what
+input type did the source FIT?" — and that question is only as good as the source's power to
+distinguish. A single-exponential fit to single-route data is _unfalsified_, not _confirmed_, and
+copying it into a compound file launders an untested assumption into a curve that looks measured.
+Same family as the F/Vd non-identifiability the variability panel teaches, and as fentanyl's fitted
+`ka` landing on the flip-flop boundary: the honest question is not "does a fit exist?" but "could
+this data have told me it was wrong?"
+
+**And deposition fraction is not a bioavailability.** It depends on aerodynamic particle size, on the
+device, on inhalation flow and breath-hold, and on the patient's own airways (Borghardt: age, height,
+sex, and disease stage all alter deposition patterns). There is no "inhaled F" for a drug the way
+there is an oral or an SC one — only an F for a drug-device-technique combination, which is not a
+fact about the molecule and has no slot in this schema.
+
+#### Loxapine (Adasuve) — the best case, and it fails on DISPOSITION, one number short
+
+Recorded in full because it is the candidate that nearly works, and because it fails for a reason
+nothing above predicts. The Staccato device makes a thermally-generated ~1–2 µm aerosol that deposits
+deep in the lung, so it escapes both general objections at once: essentially nothing is swallowed
+(no parallel GI path), and the input is a single event. Source opened: **ADASUVE (loxapine)
+inhalation powder, US prescribing information, DailyMed SPL setid
+`50e11732-7387-452d-b3e6-db3a431d5c4a`**, §12.3 Table 3, healthy subjects, 10 mg, N = 114:
+
+| Parameter   | Value (mean ± SD)      |
+| ----------- | ---------------------- |
+| Cmax        | 257 ± 219 ng/mL        |
+| Tmax        | 1.13 min (25–75%: 1–2) |
+| AUC(0–2 h)  | 66.7 ± 18.2 ng·h/mL    |
+| AUC(inf)    | 188 ± 47 ng·h/mL       |
+| Terminal t½ | 7.61 ± 1.87 h          |
+
+The label also states the product "delivers 9.1 mg of loxapine out of the mouthpiece" of a 10 mg
+dose. So the input side is fully specified — and then the disposition side fails a one-compartment
+reading by **15×, in both directions at once** (the `F·D/V` ceiling test diagnosing the model, as it
+did for sumatriptan):
+
+- anchor the volume on Cmax → `Vd = 9.1 mg / 0.257 mg/L` = **35.4 L**, and a 1-comp AUC(inf) of
+  `D/(Vd·ke)` = **2,822 ng·h/mL against a reported 188** — 15× high (and AUC(0–2 h) 470 vs 66.7, 7×);
+- anchor on clearance instead → `CL = D/AUC` = **48.4 L/h**, `Vz = CL/ke` = **531 L**, and the 1-comp
+  Cmax ceiling is `9.1/531` = **17.1 ng/mL against a reported 257** — 15× low.
+
+A 15× gap between the volume the peak implies and the volume the tail implies is not a tolerance
+question; it is a distribution phase, stated by the label in words ("Loxapine is removed rapidly from
+the plasma and distributed in tissues"). **The compound is two-compartment and the label does not
+report enough to pin it.** Precisely: Cmax gives `Vc` = 35.4 L, AUC gives `CL` and hence
+`k10 = CL/Vc` = 1.367 /h, and the terminal t½ gives `β` = 0.0911 /h — but `k21 = αβ/k10` needs **α**,
+the distribution rate, which the label never states and which no IV loxapine study was found to
+supply (loxapine has never been marketed intravenously). The system is short by **exactly one
+number**. Compare sumatriptan, where the label happened to report the distribution half-life and the
+same construction closed.
+
+One further caution even if that number appeared: the reported Cmax carries an SD of 219 on a mean of
+**257 — a CV of 85%**, which the label attributes to "substantial variability in the early plasma
+concentrations" of a 1-minute Tmax. A curve drawn through that mean is a curve through a very wide
+cloud.
+
+#### The others, briefly
+
+- **Albuterol (Ventolin HFA, DailyMed setid `d92c5d6b-ff10-4087-36a2-1cfc464cb967`) — no.** The label
+  gives Tmax 0.42 h, a peak of ~3 ng/mL at a 1,080 µg dose, and a terminal t½ of ~4.6 h, and that is
+  all: **no volume, no clearance, and no statement of the lung/swallowed split.** Nothing to derive a
+  volume from, so no curve. This is the compound whose Tmax makes the pre-check misfire (above).
+- **Fluticasone propionate (Flovent HFA, DailyMed setid `74563f7b-8512-4b76-8c55-b88b9cd3206b`) —
+  no, and instructively.** It DEFEATS the swallowed-fraction objection outright: oral bioavailability
+  is "negligible (<1%), primarily due to incomplete absorption and presystemic metabolism in the gut
+  and liver", so whatever is swallowed contributes essentially nothing systemically and the plasma
+  curve really is lung-only. It has a usable disposition too (Vd 4.2 L/kg, CL 1,093 mL/min, terminal
+  t½ ~7.8 h). It dies anyway, on the input: the label reports **no Tmax and no absorption half-life
+  for the inhaled route at all**, and describes the disposition as "polyexponential". Keep this case
+  in mind before writing "inhaled defers because of the swallowed fraction" — for the biggest class
+  of inhaled drugs, inhaled corticosteroids, that objection does not hold.
+- **Inhaled insulin (Afrezza) — excluded structurally, not gated.** Dosed in units rather than mass,
+  and the measured quantity is serum insulin above an endogenous baseline the subject keeps making.
+  Neither fits an engine whose inputs are mg and whose output is a concentration attributable to the
+  dose. Not a sourcing question; do not re-open it as one.
+
+#### Pre-registered gates, so this is not re-litigated from the armchair
+
+Written in the SC style ("SC ships when a source reports SC alone"), per product rather than for
+"inhaled" as a route:
+
+1. **Inhaled loxapine ships when a source reports its distribution half-life** (or any second
+   disposition parameter that closes the 2-comp system — Vss with Vc, or an α/β pair). Everything
+   else is already in hand and the arithmetic above is done.
+2. **Any other inhaled product ships only against a source that fitted its absorption with IV data in
+   the same design**, per Borghardt — a single-exponential fit to inhalation-only data does not clear
+   the input-type screen, it merely was not in a position to fail it.
+3. Whatever ships, it ships as **its own product-specific route**, never as a `DataRoute` called
+   `inhaled`.
+
+**A design note for whoever picks this up.** A Staccato-type product is an instantaneous input with
+`F < 1` — an input type the engine HAS (`iv_bolus`) but has never had to scale, because `F` is
+applied only on the engine's `oral` path and every IV route is `F = 1` by definition. So unlike
+`transdermal`, `im`, `sc` and `rectal`, this one is **not free**: it needs `F` applied to the bolus
+mass in `derive.ts`, plus the exhaustive route `Record`s widened (`BIOAVAILABILITY_LABELS`,
+`FIRST_ORDER_ABSORPTION_COPY`, `ZERO_ORDER_INPUT_COPY`, `PEAK_SEMANTICS`) — which will fail to
+compile until they are, which is the point of them.
