@@ -133,6 +133,15 @@ describe('a route may not contradict its own kind', () => {
  * a patch's horizon at the wear duration exactly. That is a fact about the code,
  * not a coincidence of the current data — but it is the sort of fact that changes
  * quietly, which is why it is asserted over the whole set rather than argued.
+ *
+ * NOTE the fixed `infusionDuration: 1` below. It is NOT chosen as representative —
+ * the UI's default is `DEFAULT_INFUSION_DURATION_H` and its control ranges past it.
+ * The test does not need to sweep that space, because the tail `curveHorizon` adds
+ * is itself `infusionDuration + 5·t½`: the horizon grows with the infusion, so the
+ * peak at infusion end stays strictly inside the window for ANY duration or dose.
+ * The single value is enough only because of that structural fact; if the horizon
+ * rule ever stops scaling with the input, this test stops covering infusions and
+ * the sweep has to come back.
  */
 describe('kind agrees with the curve it describes', () => {
   const singleDose = (amount: number): DoseSchedule => ({
@@ -164,7 +173,27 @@ describe('kind agrees with the curve it describes', () => {
     }
   }
 
-  it('covers the whole shipped set (a silent zero here would prove nothing)', () => {
+  /**
+   * COVERAGE, asserted against the DATA rather than against `routeOptions`, which
+   * is the thing under test here. A count floor would not do: `cases.length > 100`
+   * passes happily while thirty routes go missing, and "a route silently generating
+   * no tests" is not hypothetical — a literal list in `loader.test.ts` once omitted
+   * `im`, so ketamine's IM route shipped with ZERO derivation coverage. So the claim
+   * is per-route: every route any compound file declares must have been built at
+   * least once above. If `routeOptions` stops offering one, this fails instead of
+   * quietly shrinking.
+   */
+  it('builds every route that any compound actually declares', () => {
+    const declared = new Set<string>();
+    for (const compound of compounds) {
+      for (const route of Object.keys(compound.routes)) declared.add(route);
+    }
+    const built = new Set<string>(cases.map((c) => c.route));
+    for (const route of declared) {
+      expect(built.has(route), `no compound was built on ${route} — coverage lost`).toBe(true);
+    }
+    // And the set is not empty for a trivial reason (no compounds loaded at all).
+    expect(declared.size).toBeGreaterThan(0);
     expect(cases.length).toBeGreaterThan(100);
   });
 
