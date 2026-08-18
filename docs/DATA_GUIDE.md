@@ -53,9 +53,9 @@ to one number. This guide is how we keep that honest.
   For any linear parent → metabolite pair, `AUC_p = F·D/CL_p` and
   `AUC_m = fm·F·D/(k_m·Vd_m)`, so the exposure ratio collapses to
   **`molar AUC_m/AUC_p = fm_MOLAR · CL_p/CL_m`** — independent of route, dose, `ka`
-  and (for the molar ratio) of the MW conversion, which cancels exactly: the ×MW_m/MW_p
+  and (for the molar ratio) of the MW conversion, which cancels exactly: the ×MW*m/MW_p
   factor enters via the stored mass `fm` and leaves again converting mass AUC back to
-  molar. So the ratio a curator claims in `notes` is _arithmetic_, checkable in one line
+  molar. So the ratio a curator claims in `notes` is \_arithmetic*, checkable in one line
   without building anything: procainamide/NAPA is `0.40 × (40.4/9.70) = 1.67`. Two traps
   this closes. (1) **Quote the 0→∞ ratio, and expect the plotted window to read under it**
   — an elimination-limited metabolite is still collecting its tail at the horizon
@@ -185,8 +185,8 @@ collapsed into ordinary numbers. Adding a preset needs **no engine change**.
 
 **The teaching payoff, and why it justifies the machinery.** Procainamide's two
 presets move parent and metabolite in OPPOSITE directions: slow acetylators show
-~1.5× the parent exposure (AUC = F·D/CL) but ~0.5× the NAPA (AUC_m = fm·F·D/(k_m·Vd_m),
-which is _independent_ of the parent's disposition, so the fm ratio alone sets it).
+~1.5× the parent exposure (AUC = F·D/CL) but ~0.5× the NAPA (AUC*m = fm·F·D/(k_m·Vd_m),
+which is \_independent* of the parent's disposition, so the fm ratio alone sets it).
 The NAPA/parent AUC ratio flips across the toggle — 1.95 (NAPA dominates) to 0.65
 (parent dominates). Both ratios are exact closed forms, so they are oracles rather
 than magnitude eyeballs (`tests/data/phenotype.test.ts`). "A slow metaboliser has
@@ -685,6 +685,15 @@ source actually fit?** That one fact picks the driver, and it decides ship-vs-de
 | first-order from a depot (`ka_td`)                     | `oralConcentrationFromModes`, IV-like `F`, no first pass | ships     |
 | transit chain / Weibull / multi-phase / parallel paths | neither                                                  | **defer** |
 
+**Run this pre-check BEFORE the table — compare the reported Tmax to the end of the input window.**
+Every shippable row above is a SINGLE input, and a single input rises monotonically to input-off:
+its Tmax _is_ the end of the window, identically, for every subject, with SD 0. So a reported Tmax
+sitting well INSIDE the window falsifies the whole family before a parameter is fitted — fentanyl's
+33.5–38.1 h (SD 14.5–18.0) against a 72 h wear, below. It is a pre-check rather than a fourth row
+because it names no input type; it rules out all of them at once, in ten minutes rather than a day.
+Its converse is not proof: a Tmax _at_ the window's end is necessary, not sufficient (clonidine had
+to pass the input-type question too).
+
 - **Nicotine transdermal — DEFERRED (parallel dual release + a transit chain + time-varying CL).**
   The tempting case: `Gisleskog 2021` is ALREADY the file's IV disposition source and its title
   covers transdermal, so the parameters looked in-hand, and a patch bypasses first pass entirely —
@@ -701,14 +710,46 @@ source actually fit?** That one fact picks the driver, and it decides ship-vs-de
   absorption (α 3.72, β 1.53) into a depot, and its 1-comp CL 90.4 L/h contradicts Gisleskog's
   67.4 L/h anyway. nicotine.json's standing note — "transdermal ... complex absorption not modelled
   here" — is hereby CONFIRMED with specifics, not overturned.
-- **Fentanyl transdermal — DEFERRED (skin depot ⇒ the washout is absorption-rate-limited).** The
-  best-looking zero-order case, because the label states the input as a constant rate outright
-  (25–100 µg/h) — the zero-order input handed over as data. It fails on the tail: a **cutaneous
-  depot** (1.07 ± 0.43 mg still in skin at removal) keeps absorbing after the patch is off, so the
-  post-removal apparent t½ (~17 h, range 13–22 h; **43 h in the elderly vs 20 h in the young**) is
-  the ABSORPTION rate, not fentanyl's own elimination — flip-flop, the intrinsic-vs-apparent trap
-  (morphine/digitoxin). A rectangular window would draw that tail on the wrong rate. Note the
-  honesty asymmetry: the patch-ON rise is faithfully zero-order, only the washout is not.
+- **Fentanyl transdermal — DEFERRED (re-gated 2026-08-18; the blocker is the RISE, not the tail).**
+  The best-looking zero-order case, because the label states the input as a constant rate outright
+  (25–100 µg/h) — the zero-order input handed over as data. **The reason recorded here in 2026-07-17
+  was wrong**, and that matters, because it is a true statement that is not a gate: the washout IS
+  absorption-rate-limited (the label names the cause outright — "continued systemic absorption from
+  residual fentanyl in the skin"), but it is FITTABLE. Model the patch as a zero-order output into a
+  first-order skin depot — which costs **no engine math**, being the convolution of a rectangular
+  input with the oral unit response, i.e. `batemanModeIntegral`, already built for the IV-infusion
+  metabolite — and it reproduces the label's 50%-fall of 17 h _exactly_ at an absorption t½ of
+  ~7 h, while landing all four Table A Cmax values within 15% (25 µg/h → 0.60 vs 0.6; 50 → 1.19 vs
+  1.4; 75 → 1.79 vs 1.7; 100 → 2.39 vs 2.5, on Vd 6 L/kg and IV t½ 7 h).
+  **What actually kills it is Table A's Tmax: 33.5–38.1 h (SD 14.5–18.0) under a 72 h wear.** Any
+  monotone input peaks at input-off, for every subject, with SD 0 — so a mean Tmax two-thirds of the
+  way through the window falsifies the entire family before a single parameter is fitted. And the
+  two ends of the curve are tied to ONE rate constant here: buying the 17 h washout costs the rise,
+  leaving the curve at **69%** of its end-of-wear value at 24 h and still climbing, against a label
+  that says it has "levelled off between 12 and 24 hours". Tuning cannot reach the ceiling either —
+  an INFINITELY fast depot (a plain zero-order input, clonidine's model) still only reaches 91% at
+  24 h, and then falls at fentanyl's own 7 h half-life rather than 17 h. Fitting either end costs
+  the other; the data needs two absorption paths (a fast fill plus a slow deep depot), which is
+  row 3 of the table above — nicotine's verdict, reached from the opposite direction.
+  **Pre-answer for the obvious rescue**, or this reopens in three months: decoupling the two ends —
+  pure zero-order during wear PLUS a separately-parameterised residual depot that drains only after
+  removal — does fit the washout, the 91% rise ceiling and the Cmax table simultaneously. It still
+  dies on Tmax. Nothing monotone survives that number.
+  **Two traps this pass walked into, both worth the ink.** (a) The post-removal 50%-fall time is
+  **not** `ln2/ka`. The depot sits at a quasi-steady-state store when the patch comes off, so the
+  early decline is slower than _either_ rate — equating them produced a first, confident, wrong
+  verdict ("no single `ka` can reach 17 h") that a five-line script overturned. (b) At the fitted
+  value the model sits on the **flip-flop boundary**: solving for a 17 h washout gives `ka` =
+  0.0991 /h against `ke` = 0.0990 /h. So even in the corner where the fit works, the curve cannot
+  tell a reader whether that tail is skin or elimination — the F/Vd _attribution_ argument again,
+  and a better reason to refuse than any magnitude miss would have been.
+  **A number removed rather than carried forward.** The 2026-07-17 note quoted a cutaneous depot of
+  "1.07 ± 0.43 mg still in skin at removal", with no patch strength attached. It could not be
+  re-found in the SPL opened for this pass (setid `67cb9ea4-5adb-4a3a-9568-266b6f472078`) and a
+  targeted search did not surface it, so it is deleted here as unverified rather than re-quoted —
+  as is the "43 h in the elderly vs 20 h in the young" spread beside it. Note the near-miss: the
+  fitted depot store at 72 h for a 100 µg/h patch is **1.01 mg**, which would have read as a
+  triumphant independent confirmation of a number nobody can source.
 
 **The seam is NOT dead — the clean case is a continuously-worn patch, and CLONIDINE SHIPPED IT**
 (below). If the patch stays on for the whole plotted window, removal is never in frame and the depot
