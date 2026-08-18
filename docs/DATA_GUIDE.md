@@ -589,17 +589,71 @@ total exposure is **conservative, not over-drawn** — the tall ~500 ng/mL M3G C
 intrinsic-t½ compressing that AUC into a sharp peak (the documented no-enterohepatic caveat, same as
 IV). Mass balance closes (`ffp` molar 0.480 ≤ 1 − F = 0.708). See `compounds/morphine.json` notes.
 
-**Oseltamivir → carboxylate — still DEFERRED, now for a sharper reason (the timing screen, not the
-engine).** The `ffp` engine _can_ represent a purely-pre-systemic metabolite (`fm ≈ 0`,
-`ffp` ≈ ≥75%-of-dose carboxylate), so the engine limit is gone — but oseltamivir **fails the
-first-pass timing screen above**: its carboxylate is formation-rate-limited (single-dose oral
-data: carboxylate Tmax ~6 h, t½ 6.2 h, vs **parent Tmax 0.5 h**), an ~8–12× violation on the
-_dominant_ line. The single-`ka` model would peak the carboxylate at ~0.8 h — inverting its
-signature slow-rising, persistent shape into an early spike. (AUC stays faithful, Cmax lands only
-~24% high, but the _shape_ is wrong.) Deferred pending a future `ffp` extension that **decouples the
-metabolite input rate from the parent `ka`** (a separate formation rate). This was evaluated as the
-intended flagship `ffp` compound and rejected on the timing datum — the reason morphine was shipped
-in its place.
+**Oseltamivir → carboxylate — still DEFERRED, re-gated 2026-08-18 on MASS BALANCE (which does not
+depend on any timing datum), plus a second, independent gate.** The `ffp` engine _can_ represent a
+purely-pre-systemic metabolite (`fm ≈ 0`, `ffp` ≈ ≥75%-of-dose carboxylate), so the engine limit was
+never the blocker. Two things are, and neither is what this note said before.
+
+**Gate 1 — the carboxylate cannot be drawn as an ordinary systemic metabolite, by conservation of
+mass.** This is worth stating because it is the reading a curator naturally reaches for after
+reading the label's own sentence, "Absorbed oseltamivir is primarily (>90%) eliminated by conversion
+to oseltamivir carboxylate" — which describes _systemic_ elimination of the parent, i.e. an ordinary
+`fm`. That reading fits beautifully on exposure: with the molar→mass conversion (MW 312.4 → 284.35),
+`fm` 0.75 molar = **0.683 mass**, and `AUC = fm·D/CL` = 51.2 mg / 18.8 L/h = **2723 ng·h/mL**
+against the label's 2719 — 0.15%. It then dies on the parent. Two different bioavailabilities are in
+play and they are NOT the same quantity:
+
+- **carboxylate yield** ≈ 0.87 — the oral carboxylate AUC (2719 at 75 mg) against the IV-parent
+  carboxylate AUC (4147 at 100 mg, NCT02717754), dose-normalised. Corroborated by the label itself:
+  0.87 × 0.857 molar conversion = 0.75, which is exactly "at least 75% of an oral dose reaches the
+  systemic circulation as oseltamivir carboxylate".
+- **intact-parent availability** ≈ 0.26 — the parent's own oral AUC (112 at 75 mg) against its
+  IV AUC (581 at 100 mg), same two studies. A PBPK review quotes ~0.35 by a different construction.
+
+**The gap between those two numbers IS the pre-systemic fraction**, and it is what forecloses the
+systemic reading: on a parent availability of 0.26–0.35, systemic conversion alone would need
+`fm_mass` ≈ **2.1** — more carboxylate than there is parent to make it from. That is impossible
+rather than merely ill-fitting, it holds across the whole range of the disputed `F`, and it is
+`derive.ts`'s mass-`fm`>1 warning firing on real data. So ~70% of the carboxylate is formed
+pre-systemically: the `ffp` classification was right.
+
+**Gate 2 — the carboxylate is not one-compartment-consistent** (the escitalopram/sotalol signature,
+found while checking gate 1 and independent of it). The label gives Vss 23–26 L, "equivalent to
+extracellular body fluid", renal CL 18.8 L/h, and a terminal t½ of 6–10 h. Any two of those imply
+the third and they do not agree: Vss + CL ⇒ t½ **0.88 h**; CL + t½ ⇒ Vz **163–271 L**, a ~9× gap and
+physiologically implausible for a polar acid. So even if the timing problem below were solved, the
+carboxylate could not be drawn as a one-compartment line on the label's own numbers.
+
+**On the timing screen — the old reason, now marked UNVERIFIED in both directions.** This note
+previously recorded "carboxylate Tmax ~6 h vs **parent Tmax 0.5 h**, an ~8–12× violation", with the
+single-`ka` model peaking the carboxylate at ~0.8 h. That 0.5 h carries no source here and could not
+be confirmed; secondary sources put the oral parent nearer ~1 h and the carboxylate nearer ~4 h,
+which would make the violation ~2.4× rather than 8–12×, but He et al. 1999 is paywalled and was NOT
+opened, so **neither figure should be quoted as established**. Do not repeat the 8–12× claim, and do
+not replace it with the smaller one. Nothing above depends on it.
+
+**The find that should decide this for the next curator: NCT02717754** (Hoffmann-La Roche, posted
+results; oseltamivir given **INTRAVENOUSLY**, 100/200 mg BID × 5 d, n=99 healthy). Day-5 values:
+parent t½ 1.40/1.88 h, carboxylate t½ 7.97/8.17 h, carboxylate Tmax **3.69/3.41 h** — with no
+absorption step in the picture at all. The carboxylate's late peak is therefore intrinsic to its own
+formation and elimination, not an artefact of how fast the tablet dissolves. That kills the feature
+this note used to propose. "Decouple the metabolite input rate from the parent `ka`" would mean
+introducing a formation rate constant that **no source reports**, fitted to make the curve look
+right — the same manufactured parameter this guide refuses for phenotype covariance, for the rectal
+portal/systemic split, and for merged variability bands. A parameter invented to fix a shape is not
+a measurement, and the shape is the teaching point.
+
+**Verdict: deferred on two independent gates, and the proposed fix is withdrawn rather than
+scheduled.** It remains the compound that motivated `ffp`, and morphine remains what shipped in its
+place.
+
+_Sources opened for this pass_ — DailyMed TAMIFLU SPL, setid `1948cafd-b5b3-4212-9d5d-8c293b1baad5`
+(the ≥75% figure, Vss 23–26 L, renal CL 18.8 L/h, t½ 1–3 h / 6–10 h, and the 75 mg BID steady-state
+Cmax/AUC for both species); the EMA Tamiflu SmPC §5.2, read directly from the EPAR product-information
+PDF (same numbers, plus "a volume equivalent to extracellular body fluid"); and the posted results of
+**NCT02717754** via the ClinicalTrials.gov API. He et al. 1999 (Clin Pharmacokinet 37:471–84,
+PMID 10628898) is the origin of the disputed Tmax figures and is **paywalled — not opened**, which is
+why no Tmax is quoted here as established.
 
 ### Flip-flop (ka < ke) — acamprosate SHIPPED (the judgment call was made)
 

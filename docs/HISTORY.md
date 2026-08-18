@@ -8,6 +8,59 @@ must-follow instruction file — `CLAUDE.md` holds the working conventions and
 
 Newest first; test counts and commit hashes are as-of that milestone.
 
+**TWO SHELVED COMPOUNDS RE-GATED, NEITHER SHIPPED — AND BOTH RECORDED REASONS WERE WRONG
+(2026-08-18, advisor-reviewed, 0 compounds added, docs only).** The session's brief was the cheapest
+kind of win: two compounds — fentanyl transdermal and oseltamivir — had already been researched and
+shelved, each with a note naming the capability that would unblock it. Build the capability, ship the
+compound. Neither survived re-gating, and in both cases the note's stated reason turned out to be a
+true statement that was not the gate. That is the milestone: **a recorded deferral reason decays like
+any other claim, and re-opening one is an audit of the note, not just of the compound.**
+
+**Fentanyl — the blocker is the RISE, not the tail.** The 2026-07-17 note deferred it because the
+post-removal washout is absorption-rate-limited (a skin depot keeps absorbing after the patch is
+off). True, and fittable: modelling the patch as a zero-order output into a first-order skin depot
+costs **no engine math** — it is a rectangular input convolved with the oral unit response, i.e.
+`batemanModeIntegral`, already built for the IV-infusion metabolite — and it lands the label's 17 h
+50%-fall _exactly_ at an absorption t½ of ~7 h, with all four Table A Cmax values inside 15%. What
+kills it is a number nobody had looked at: **Table A's Tmax, 33.5–38.1 h under a 72 h wear.** Any
+monotone input peaks at input-off, for every subject, with SD 0 — so a mean Tmax two-thirds of the
+way through the window falsifies the whole family before a parameter is fitted. Extracted as a
+**reusable pre-check** on the input-type screen, because it costs ten minutes and would have saved a
+day. The rejected rescue (zero-order during wear + a separate residual depot draining after removal)
+fits everything else and still dies on Tmax; it is written down so it is not re-proposed.
+
+**Oseltamivir — the gate is mass balance, and the proposed fix is withdrawn.** The old note deferred
+it pending an engine feature: decouple a pre-systemic metabolite's formation rate from the parent's
+`ka`. Re-gating found two independent blockers instead, neither needing that feature. (1) The
+carboxylate cannot be drawn as an ordinary systemic metabolite: the exposure fit is gorgeous
+(`fm·D/CL` = 2723 vs the label's 2719 ng·h/mL) but the parent's intact oral availability is only
+~0.26–0.35, so systemic conversion alone would need `fm_mass` ≈ **2.1** — more metabolite than
+parent. Impossible, not ill-fitting. (2) The carboxylate is not one-compartment-consistent: Vss 23 L
+
+- CL 18.8 L/h ⇒ t½ 0.88 h, against a reported 6–10 h — a ~9× volume gap, the escitalopram signature.
+  And the feature itself is now refused on principle: **NCT02717754** gives the carboxylate a Tmax of
+  3.4–3.7 h after INTRAVENOUS parent, with no absorption step at all, so its late peak is intrinsic —
+  a decoupled formation rate would have to be _fitted_, and a parameter invented to fix a shape is not
+  a measurement. Same refusal as phenotype covariance and the rectal portal split.
+
+**Three advisor catches, all before any code was written.** (a) A "gate first with a throwaway
+script" steer that turned a day of engine work into ten minutes of arithmetic — twice. (b) A caught
+near-miss on fentanyl: the first, confident verdict ("no single `ka` reaches 17 h") came from
+equating the post-removal 50%-fall time with `ln2/ka`. It is not — the depot sits at a
+quasi-steady-state store at patch-off, so the early decline is slower than _either_ rate. A five-line
+script overturned it. (c) The instruction NOT to write oseltamivir's correction the way fentanyl's
+was written: fentanyl's replacement number came from the label's own table, opened; oseltamivir's
+would have come from a PBPK paper's summary of a paywalled paper. The old 0.5 h parent Tmax is
+recorded as **unverified in both directions** rather than replaced — the failure mode this project
+has already had twice (theophylline, subcutaneous).
+
+Two further sharp edges, both recorded: at fentanyl's fitted value the model sits on the **flip-flop
+boundary** (`ka` 0.0991 vs `ke` 0.0990), so even where the fit works the curve cannot attribute its
+own tail — the F/Vd argument again; and the old fentanyl note's cited "1.07 ± 0.43 mg skin depot"
+could not be re-found in the current SPL and was **deleted as unverified**, the near-miss being that
+the fitted depot store is 1.01 mg and would have read as triumphant confirmation of a number nobody
+can source.
+
 **THE SUBCUTANEOUS ROUTE — THE TAXONOMY CLOSED, AND A NEGATIVE RESULT IS STILL A RESULT
 (2026-07-20, advisor-reviewed, 599 → 602 tests, 48 compounds).** The §12 "more routes" seam a fourth
 time, again with **no engine math** (first-order input → the engine's `oral` path). Ships
