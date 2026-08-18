@@ -8,6 +8,55 @@ must-follow instruction file — `CLAUDE.md` holds the working conventions and
 
 Newest first; test counts and commit hashes are as-of that milestone.
 
+**ONE QUESTION, FIVE ANSWERS — THE PEAK COPY CONSOLIDATED (2026-08-18, advisor-reviewed, 628
+tests, no compound change).** "Does this curve have a peak, or does it just end?" was answered
+independently in five places: the chart's peak-marker toggle, the label on the marker dot, the live
+caption's Cmax/Tmax clause, the standing note's heading and opener, and that note's closing "not a
+measured Cmax from any study" noun. **Every one of them was correct**, which is what makes this
+milestone worth recording — the defect was not a wrong string, it was that correctness had to be
+re-achieved five times in step. The route-ternary fallthrough that has now shipped wrong three times
+(transdermal `PeakNote`, rectal `ModelAssumptionsNote`, subcutaneous `PeakNote`) is this same bug
+caught one level down.
+
+**The generalisation the earlier fixes missed.** After `sc`, the standing instruction became
+"convert the ternary to an exhaustive `Record<DataRoute, …>`, don't extend it". That closes
+FALLTHROUGH — a new route cannot silently inherit the last branch. It does nothing about
+DUPLICATION: five exhaustive records, each individually correct, can still disagree with one
+another, and the next route has to land in all five. `src/ui/peak.ts` resolves the question once
+into a `PeakSemantics` object and the five surfaces render its strings; none of them sees `route`
+for this purpose any more. The acceptance check was a grep, not a test — after the change,
+`route === 'transdermal'` survives in those files only inside doc comments.
+
+**The part that makes the class actually impossible, rather than merely tidy.** `kind` is a claim
+about the SHAPE of the plotted curve, so it is checked against the plotted curve:
+`tests/ui/peak-semantics.test.tsx` builds all **135** compound×route combinations and asserts
+`end_of_input` holds of exactly those still climbing when the plot stops. Verified by sabotage
+before being trusted — describing clonidine's patch as peaking fails with _"clonidine on
+transdermal: curve never turns over but is described as `peak`"_. The invariant was measured before
+the test was written on top of it (a throwaway probe over all 135 curves; exactly one at the edge),
+not assumed from reading — and it is structural, since `curveHorizon` gives an infusion
+`infusionDuration + 5·t½` of tail while the patch path alone truncates at input-off.
+
+**Two adjacent defects the work surfaced, one of them real.** (a) `ModelAssumptionsNote`'s
+zero-order branch was still a live two-arm ternary whose else was the infusion sentence — armed, in
+the file whose own doc comment describes the trap — so the next zero-order route (an implant, a
+depot with a stated duration) would have been described to the reader as an infusion. Now
+`ZERO_ORDER_INPUT_COPY`. (b) Grepping route ternaries turned up a **latent math** bug, not a copy
+one: the metabolite branch is gated on the ENGINE route (`iv_bolus || oral || iv_infusion`, which a
+patch passes) but then chose its formation model on the CLINICAL route, so a transdermal parent
+declaring a metabolite would have fallen through to the IV-BOLUS model — the whole wear-period dose
+arriving at t = 0. Latent only because clonidine declares no metabolites. Pinned by
+`tests/ui/patch-metabolite.test.ts`, which without the fix puts the metabolite's peak at **12.3 h
+instead of 151+ h**. This is the `fRangeOral` defect again (a function reading the oral block under
+an engine-route gate), and the third time the rule has paid: **any function taking a route must read
+for the route it was given.**
+
+**The kind is named for the physics, not the product** — `end_of_input`, not `end_of_wear`, on the
+advisor's catch. A patch is today's only instance, but the property is "the window ends while the
+input is still running", which any future stated-duration route shares; naming the kind after
+patches would have invited a fifth kind instead of a second instance. The product-specific noun
+("wear") stays a per-route string.
+
 **TWO SHELVED COMPOUNDS RE-GATED, NEITHER SHIPPED — AND BOTH RECORDED REASONS WERE WRONG
 (2026-08-18, advisor-reviewed, 0 compounds added, docs only).** The session's brief was the cheapest
 kind of win: two compounds — fentanyl transdermal and oseltamivir — had already been researched and

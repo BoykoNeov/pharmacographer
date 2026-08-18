@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ConcentrationChart } from '../../src/ui/components/ConcentrationChart.tsx';
 import type { CurvePoint, MetaboliteCurve } from '../../src/ui/curve.ts';
+import { peakSemanticsFor } from '../../src/ui/peak.ts';
 
 /**
  * Per-metabolite line show/hide chips (this feature). Every metabolite line is
@@ -34,6 +35,7 @@ function render(metabolites: MetaboliteCurve[]) {
       parentName="Parent"
       horizonH={4}
       peak={point(0, 5)}
+      peakSemantics={peakSemanticsFor('iv_bolus')}
       concUnit="mg/L"
       onConcUnitChange={() => {}}
     />,
@@ -95,6 +97,7 @@ describe('toggling a metabolite chip hides only that line', () => {
           parentName="Parent"
           horizonH={4}
           peak={point(0, 5)}
+          peakSemantics={peakSemanticsFor('iv_bolus')}
           concUnit="mg/L"
           onConcUnitChange={() => {}}
         />,

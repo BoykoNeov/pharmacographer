@@ -69,16 +69,39 @@ const FIRST_ORDER_ABSORPTION_COPY: Record<DataRoute, string> = {
   transdermal: 'A patch is a zero-order input, not a first-order one.',
 };
 
+/**
+ * The ZERO-ORDER counterpart, and a `Record` for the same reason the first-order
+ * one is — this was a live two-arm ternary (`route === 'transdermal' ? … : …`)
+ * sitting in the very file whose doc comment above describes that trap. Its else
+ * branch was the infusion sentence, so the next route mapped onto a zero-order
+ * input — an implant, a depot with a stated delivery duration — would have been
+ * described to the reader as "the infusion ... over its stated duration, starting
+ * and stopping instantly", under a curve that is not an infusion. Two routes reach
+ * this today; the other five are written out because exhaustiveness is the point,
+ * exactly as below.
+ */
+const ZERO_ORDER_INPUT_COPY: Record<DataRoute, string> = {
+  transdermal:
+    'A patch is modelled as delivering drug at a constant rate for the whole wear period — no lag while the skin depot loads, and no variation with site, temperature, or adhesion.',
+  iv_infusion:
+    'The infusion is modelled as a constant rate over its stated duration, starting and stopping instantly.',
+  // Unreachable: the caller only arrives here for a route whose ENGINE input is
+  // zero-order. Written out rather than left to a fallthrough for the same reason
+  // the first-order table spells out its IV rows.
+  oral: 'An oral dose is a first-order input, not a zero-order one.',
+  im: 'An intramuscular dose is a first-order input, not a zero-order one.',
+  sc: 'A subcutaneous dose is a first-order input, not a zero-order one.',
+  rectal: 'A rectal dose is a first-order input, not a zero-order one.',
+  iv_bolus: 'An IV bolus has no input phase at all.',
+};
+
 function absorptionAssumption(route: DataRoute) {
   const engineRoute = engineRouteOf(route);
   if (engineRoute === 'iv_bolus') return null;
   if (engineRoute === 'iv_infusion') {
     return (
       <li>
-        <strong>Zero-order input.</strong>{' '}
-        {route === 'transdermal'
-          ? 'A patch is modelled as delivering drug at a constant rate for the whole wear period — no lag while the skin depot loads, and no variation with site, temperature, or adhesion.'
-          : 'The infusion is modelled as a constant rate over its stated duration, starting and stopping instantly.'}
+        <strong>Zero-order input.</strong> {ZERO_ORDER_INPUT_COPY[route]}
       </li>
     );
   }

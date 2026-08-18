@@ -279,8 +279,22 @@ never "select your genotype" — `tests/ui/phenotype-picker.test.tsx` asserts it
   which `PeakNote` printed as _"An **oral** dose rises…"_ under 602 green tests.
   So the fix is no longer "add your branch": **convert the ternary to an exhaustive
   `Record<DataRoute, …>`** so the next route fails to COMPILE instead of inheriting
-  a confident paragraph about the wrong organ. Four now exist —
-  `BIOAVAILABILITY_LABELS`, `DATA_ROUTES`, `FIRST_ORDER_ABSORPTION_COPY`,
-  `ROUTE_MEANING`. Extending a chain fixes one route and re-arms the trap.
+  a confident paragraph about the wrong organ. Extending a chain fixes one route
+  and re-arms the trap. Five now exist — `BIOAVAILABILITY_LABELS`, `DATA_ROUTES`,
+  `FIRST_ORDER_ABSORPTION_COPY`, `ZERO_ORDER_INPUT_COPY`, and `PEAK_SEMANTICS`.
+- **Exhaustiveness stops fallthrough; it does not stop DUPLICATION, which is the
+  same bug one level up.** Five surfaces each asked "does this curve have a peak,
+  or does it just end?" and each answered with its own correct ternary — chart
+  toggle, chart marker, caption, note heading, note closing noun. Nothing was
+  wrong; the defect was that correctness had to be re-achieved five times, so a
+  sixth route had to land in five places or the chart would contradict the
+  paragraph under it. `src/ui/peak.ts` answers it ONCE and the five surfaces
+  render its strings, seeing `route` no longer. When you find yourself writing a
+  route branch, ask whether some other component already branches on the same
+  QUESTION — if so the fix is one resolved object, not a second correct ternary.
+  And where a copy decision restates a property of the plotted curve, **assert it
+  against the curve**: `tests/ui/peak-semantics.test.tsx` builds all 135 compound×route
+  combinations and fails if a route claims a peak its curve does not have, which is
+  the first version of this trap that CI can see.
 - Tests, lint, build, and magnitude checks are all blind to whether a citation
   is real. Never ship a source you did not open.

@@ -40,6 +40,7 @@ import {
   type VariabilityAxis,
   type VariabilityBand,
 } from '../curve.ts';
+import type { PeakSemantics } from '../peak.ts';
 
 type YScale = 'linear' | 'log';
 
@@ -112,20 +113,23 @@ interface ConcentrationChartProps {
   /** The model-predicted peak (Cmax at Tmax) of the main curve, marked on the plot. */
   peak: CurvePoint;
   /**
-   * What the marked point MEANS, which is not the same on every route. On a
-   * bolus/oral/infusion curve it is a true peak: the curve rises, turns over and
-   * falls, so "Cmax at Tmax" is a fact about the drug. A continuously-worn patch
-   * never turns over — it climbs monotonically toward `Css = R0/CL` — so its
-   * marker is just the concentration reached when the wear period (and with it the
-   * plot) ends. Calling that a Tmax would assert a peak that does not exist and
-   * make 168 h look like a property of the drug rather than of the product.
+   * What the marked point MEANS, resolved by `peakSemanticsFor(route)` in App —
+   * NOT decided here. On a bolus/oral/infusion curve it is a true peak: the curve
+   * rises, turns over and falls, so "Cmax at Tmax" is a fact about the drug. A
+   * continuously-worn patch never turns over — it climbs monotonically toward
+   * `Css = R0/CL` — so its marker is just the concentration reached when the wear
+   * period (and with it the plot) ends. Calling that a Tmax would assert a peak
+   * that does not exist and make 168 h look like a property of the drug rather
+   * than of the product.
    *
-   * Deliberately NOT "plateau": that is true of clonidine (7 days is ~13
-   * half-lives) but would be false for a future short-wear patch that comes off
-   * still rising. "End of wear" holds for every zero-order-in/first-order-out
-   * patch, because such a curve is monotone up to — and never past — the plateau.
+   * This used to be a `'peak' | 'end_of_wear'` flag that the chart turned back
+   * into strings with two more inline ternaries — the toolbar button and the
+   * marker label — which is two of the five places that independently answered
+   * the same question. The chart now renders strings it is handed and asks
+   * nothing. REQUIRED, deliberately: a default would restore exactly the silent
+   * inheritance this exists to end. See `src/ui/peak.ts`.
    */
-  peakKind?: 'peak' | 'end_of_wear';
+  peakSemantics: PeakSemantics;
   /** Display unit for every concentration on the chart (data stays canonical mg/L). */
   concUnit: ConcentrationDisplayUnit;
   /** Change the concentration display unit (owned by App so the caption agrees). */
@@ -240,7 +244,7 @@ export function ConcentrationChart({
   parentName,
   horizonH,
   peak,
-  peakKind = 'peak',
+  peakSemantics,
   concUnit,
   onConcUnitChange,
 }: ConcentrationChartProps) {
@@ -377,7 +381,7 @@ export function ConcentrationChart({
             onClick={() => setShowPeak((v) => !v)}
             aria-pressed={showPeak}
           >
-            {peakKind === 'end_of_wear' ? 'End of wear' : 'Cmax / Tmax'}
+            {peakSemantics.heading}
           </button>
         </div>
         <span className="chart__toolbar-label">units</span>
@@ -482,7 +486,15 @@ export function ConcentrationChart({
                           region at a glance, with the hatch doing the work of
                           telling two overlapping regions apart. */}
                       <rect width={6} height={6} fill={color} fillOpacity={0.1} />
-                      <line x1={0} y1={0} x2={0} y2={6} stroke={color} strokeWidth={1.4} strokeOpacity={0.45} />
+                      <line
+                        x1={0}
+                        y1={0}
+                        x2={0}
+                        y2={6}
+                        stroke={color}
+                        strokeWidth={1.4}
+                        strokeOpacity={0.45}
+                      />
                     </pattern>
                   );
                 })}
@@ -539,7 +551,7 @@ export function ConcentrationChart({
                 ifOverflow="extendDomain"
               >
                 <Label
-                  value={`${peakKind === 'end_of_wear' ? 'End of wear' : 'Cmax'} ${fmtNum(toDisplayConcentration(peak.c, concUnit))} ${concUnit} @ ${fmtNum(peak.t)} h`}
+                  value={`${peakSemantics.markerPrefix} ${fmtNum(toDisplayConcentration(peak.c, concUnit))} ${concUnit} @ ${fmtNum(peak.t)} h`}
                   // Peaks sitting on the y-axis (IV bolus, Tmax = 0) would clip a
                   // top-centred label off the left edge, so anchor those to the right.
                   position={peak.t < horizonH * 0.08 ? 'right' : 'top'}

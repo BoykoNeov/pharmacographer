@@ -1296,7 +1296,16 @@ export function buildCurve(input: CurveInput): CurveResult {
                 doses,
                 times,
               )
-            : route === 'iv_infusion'
+            : // ENGINE route, not the clinical one. This read `route === 'iv_infusion'`,
+              // while the gate admitting a compound to this branch at all (above) asks
+              // `engineRoute`. A patch passes that gate — `engineRouteOf('transdermal')`
+              // IS `iv_infusion` — and then failed this test, so a transdermal parent
+              // declaring a metabolite would have had its metabolite drawn with the
+              // IV-BOLUS formation model: the whole wear-period dose arriving at t = 0.
+              // Latent rather than live (clonidine declares no metabolites), and found
+              // by grepping route ternaries while consolidating the peak copy. Same
+              // lesson as `fRangeOral` reading `routes.oral` under an engine-route gate.
+              engineRoute === 'iv_infusion'
               ? infusionMetaboliteConcentrationCurve(
                   [{ coef: 1 / params.vd, rate: mainKe }],
                   mainKe * params.vd,
@@ -1506,7 +1515,16 @@ export function buildCurve2c(input: CurveInput): TwoCompartmentCurveResult {
                 doses,
                 times,
               )
-            : route === 'iv_infusion'
+            : // ENGINE route, not the clinical one. This read `route === 'iv_infusion'`,
+              // while the gate admitting a compound to this branch at all (above) asks
+              // `engineRoute`. A patch passes that gate — `engineRouteOf('transdermal')`
+              // IS `iv_infusion` — and then failed this test, so a transdermal parent
+              // declaring a metabolite would have had its metabolite drawn with the
+              // IV-BOLUS formation model: the whole wear-period dose arriving at t = 0.
+              // Latent rather than live (clonidine declares no metabolites), and found
+              // by grepping route ternaries while consolidating the peak copy. Same
+              // lesson as `fRangeOral` reading `routes.oral` under an engine-route gate.
+              engineRoute === 'iv_infusion'
               ? infusionMetaboliteConcentrationCurve(
                   twoCompModes(disposition, 1),
                   disposition.cl,
@@ -1713,7 +1731,16 @@ export function buildCurve3c(input: CurveInput): ThreeCompartmentCurveResult {
                 doses,
                 times,
               )
-            : route === 'iv_infusion'
+            : // ENGINE route, not the clinical one. This read `route === 'iv_infusion'`,
+              // while the gate admitting a compound to this branch at all (above) asks
+              // `engineRoute`. A patch passes that gate — `engineRouteOf('transdermal')`
+              // IS `iv_infusion` — and then failed this test, so a transdermal parent
+              // declaring a metabolite would have had its metabolite drawn with the
+              // IV-BOLUS formation model: the whole wear-period dose arriving at t = 0.
+              // Latent rather than live (clonidine declares no metabolites), and found
+              // by grepping route ternaries while consolidating the peak copy. Same
+              // lesson as `fRangeOral` reading `routes.oral` under an engine-route gate.
+              engineRoute === 'iv_infusion'
               ? infusionMetaboliteConcentrationCurve(
                   threeCompModes(disposition, 1),
                   disposition.cl,
