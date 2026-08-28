@@ -8,6 +8,47 @@ must-follow instruction file — `CLAUDE.md` holds the working conventions and
 
 Newest first; test counts and commit hashes are as-of that milestone.
 
+**OMEPRAZOLE RE-GATED AND STILL NOT ADDED — THE MEMORY IS NOT IN THE PLASMA (2026-08-28,
+advisor-reviewed, docs only).** The first deferral re-opened because the ENGINE changed under it
+rather than because a source surfaced: omeprazole was excluded in v1 as "a genuine superposition
+violation … so it belongs in the nonlinear phase, not v1", and the nonlinear phase then shipped
+(phenytoin, ethanol, theophylline). The verdict survives and every word of the reason is different —
+the third consecutive pass in which re-opening a deferral audited **the note**, not the compound.
+
+**The gate is model SHAPE, and one comparison decides it.** `modelsMM.ts` makes elimination a
+function of the concentration present at that instant; its only state variables are amounts of drug.
+Omeprazole's plasma half-life is 0.5–1 h and it is dosed once daily, so 24 h is **24–48 half-lives**
+and the concentration at the next dose is zero to any precision a plot has. A concentration-driven
+model therefore predicts day 5 identical to day 1 — accumulation ratio exactly 1.00 — at ANY `Vmax`
+and `Km`. The label reports AUC 51% and Cmax 58% higher on day 5 than after the first dose (20 mg
+delayed-release oral suspension). That is not a tolerance miss; it is a model with no state to carry
+the effect. Two independent lines corroborate without being load-bearing: the accumulation happens
+only in people who HAVE the enzyme (Andersson 1998 — extensive metabolisers rise day 1 to day 7, poor
+metabolisers do not change), and the modellers who fitted it needed time-dependent inhibition, i.e.
+an equation for how much enzyme exists (Wu 2014).
+
+**The true statement that was not the gate — and could not be rescued into data.** Saturation is
+real: Rost & Roots 1996 measured CYP2C19-dependent clearance falling 19.0 → 8.4 L/h between dose
+levels. But they measured it **on day 7**, when the enzyme has been inactivated for a week, so a
+`Vmax`/`Km` fitted to it is a fit to a population of enzyme that no longer exists on day 1. Even the
+component the engine COULD represent has no citable parameters.
+
+**The reusable output is a screen, not a rejection.** _When exposure changes over repeated dosing,
+compare the dosing interval with the half-life; if the concentration returns to ≈ zero between doses
+and exposure still climbs, the memory is not in the plasma and no concentration-driven model can
+reproduce it at any parameter values._ It passes the compounds that already ship — phenytoin and
+ethanol accumulate because the drug is still THERE at the next dose — and it disposes of every
+mechanism-based inactivator at once (clarithromycin, ritonavir, paroxetine, esomeprazole), which is
+the difference between a screen and a one-off. Pre-registered re-open condition: an enzyme-turnover
+state in the engine (a `Vmax` that is itself a differential equation), which is an engine feature of
+Michaelis–Menten size and **not** a sourcing deferral, so searching harder will never clear it.
+
+Same pass: corrected a stale line recording procainamide→NAPA as still waiting on a single-value
+`fm`. It shipped 2026-07-17. The blocker dissolved two ways, neither of them "a better single
+number" — urinary recovery was the wrong measure (a lower bound, not a formation fraction) and the
+phenotype presets carry a separate `fm` per population. A blocker phrased as "this quantity is not
+one number" is worth re-reading as "not one number _for one population_".
+
 **INHALED GATED AND NOT ADDED — THE ROUTE NAME DOES NOT NAME AN INPUT TYPE (2026-08-18,
 advisor-reviewed, docs only).** Judged in the same session as the peak-copy consolidation, because
 the 2026-08-18 Tmax pre-check was supposed to make it a ten-minute "no". It was a no, and none of the

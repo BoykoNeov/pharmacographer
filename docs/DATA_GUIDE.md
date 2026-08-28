@@ -281,12 +281,18 @@ zolpidem, glipizide — are in the seed-expansion section below.
 These were on the handoff §14 candidate seed list but did **not** ship after
 vetting. The rationale is preserved here so it isn't re-litigated:
 
-- **Omeprazole — excluded, `linear: false`.** Omeprazole inhibits its own
-  metabolising enzyme (CYP2C19), so its clearance falls as concentration rises:
-  AUC increases _more_ than dose-proportionally above ~40 mg and exposure grows
-  on repeated dosing (autoinhibition; at high dose CYP2C19 saturates and CYP3A4
-  takes over). That is a genuine superposition violation — the same class of
-  problem as phenytoin — so it belongs in the nonlinear phase, not v1.
+- **Omeprazole — re-gated 2026-08-28 and still NOT ADDED, for a different
+  reason.** The original note read: "clearance falls as concentration rises …
+  a genuine superposition violation — the same class of problem as phenytoin —
+  so it belongs in the nonlinear phase, not v1." The second clause expired when
+  the Michaelis–Menten engine landed (phenytoin, ethanol and theophylline all
+  ship), so the deferral was re-opened. **It fails on model SHAPE, not on the
+  nonlinear phase and not on sourcing:** omeprazole's clearance falls because
+  the drug destroys its own enzyme and the enzyme has to be re-made over days,
+  while this engine's nonlinear path makes clearance a function of the
+  concentration present _now_. See "Omeprazole re-gated — the memory is not in
+  the plasma" at the end of this file for the falsifying arithmetic and for the
+  **between-dose-trough screen** it produced.
 - **Lisinopril — deferred, not excluded (blocker re-confirmed 2026-07-09).** Its
   kinetics are compatible with the linear model (the terminal ~40 h phase is
   saturable ACE binding that does _not_ accumulate; the accumulation-governing
@@ -442,9 +448,16 @@ representable. Rationale preserved so it isn't re-litigated:
 
 The multi-compartment §12 engine extension unblocked diazepam, and cefotaxime then shipped as a
 one-compartment collapse; allopurinol→oxypurinol now adds the oral-parent path (all above).
-**Procainamide still waits** — not on the parent's compartmental structure (now representable) but
-on a citable single-value `fm` (procainamide→NAPA formation is acetylator-bimodal, 7–34% urinary
-recovery, so `fm` is not one number).
+**Procainamide → NAPA SHIPPED 2026-07-17** (`compounds/procainamide.json`), correcting the line
+that stood here: it was recorded as waiting on a citable single-value `fm`, because
+procainamide→NAPA formation is acetylator-bimodal (7–34% urinary recovery). Two things resolved
+that, and neither was "a better single number". First, urinary recovery was the **wrong measure** —
+it is a lower bound on the fraction formed, not the fraction formed (the cefotaxime distinction);
+Lima 1979 reports a formation-CLEARANCE fraction, which is the engine's `fm`, at 0.40 in fast and
+0.20 in slow acetylators. Second, the **phenotype presets** dissolved the bimodality instead of
+averaging it away: fast and slow ship as two selectable populations, each carrying its own `fm` and
+half-life, swapped atomically. A blocker phrased as "this quantity is not one number" is worth
+re-reading as "this quantity is not one number _for one population_".
 
 ### The age/covariate-anchoring screen — diazepam oral (2026-07-17)
 
@@ -2251,3 +2264,127 @@ applied only on the engine's `oral` path and every IV route is `F = 1` by defini
 mass in `derive.ts`, plus the exhaustive route `Record`s widened (`BIOAVAILABILITY_LABELS`,
 `FIRST_ORDER_ABSORPTION_COPY`, `ZERO_ORDER_INPUT_COPY`, `PEAK_SEMANTICS`) — which will fail to
 compile until they are, which is the point of them.
+
+### Omeprazole re-gated — NOT ADDED (2026-08-28), because the memory is not in the plasma
+
+The first deferral re-opened purely because the **engine** changed underneath it. Omeprazole was
+excluded in v1 with the note "a genuine superposition violation — the same class of problem as
+phenytoin — so it belongs in the nonlinear phase, not v1." Phenytoin, ethanol and theophylline now
+ship against the Michaelis–Menten path, so the second half of that sentence expired the day
+`linear: false` stopped meaning "we don't ship this". The verdict is unchanged; **every word of the
+reason is different**, which is the third consecutive time re-opening a deferral audited the note
+rather than the compound (fentanyl, oseltamivir, now this).
+
+#### What the engine can represent, stated precisely
+
+`modelsMM.ts` integrates
+
+```
+dA_central/dt = input(t) + ka·A_depot − Vmax·C/(Km + C)
+```
+
+Elimination is a function of `C` **at that instant** and of nothing else. The model has exactly two
+state variables, both amounts of drug (depot and central). There is no state for the enzyme, so
+nothing in it can remember yesterday.
+
+#### The falsification, from the label alone
+
+Omeprazole is dosed once daily and the label gives a **plasma half-life of 0.5 to 1 hour**. A 24-hour
+interval is therefore **24 to 48 half-lives**: the concentration at the next dose is not "small", it
+is zero to every precision a plot has. So a concentration-driven model, at _any_ `Vmax` and `Km`, has
+`C ≈ 0` for roughly the last twenty hours of every interval — full enzyme capacity restored — and
+predicts **day 5 identical to day 1. Zero accumulation.**
+
+The same label reports the opposite:
+
+> "The systemic exposure (AUC and Cmax) to omeprazole following once daily dosing of 20 mg
+> delayed-release oral suspension for 5 days is 51% and 58% higher, respectively, than after the
+> first dose."
+
+(Quoted with its formulation attached, because that sentence is about the 20 mg **delayed-release
+oral suspension** specifically.) That is not a tolerance miss to be argued about — the model predicts
+a ratio of exactly 1.00 and the drug does 1.51. It is the signature of a model with **no state to
+carry the effect**. Note also that the label elsewhere says bioavailability "increases slightly upon
+repeated administration", i.e. it attributes part of the rise to absorption rather than clearance;
+that does not rescue anything, because the prediction being falsified is _no change at all_.
+
+#### Corroboration, in decreasing order of weight
+
+The arithmetic above is sufficient. Two independent lines agree with it and neither is load-bearing:
+
+1. **The accumulation only happens in people who have the enzyme.** Andersson 1998 (abstract): "In
+   the EMs there was an increase in AUC from day 1 to day 7 for omeprazole", while "In the PMs the
+   AUC of both omeprazole and lansoprazole was unchanged during repeated dosing." Saturation by
+   concentration would not care who is metabolising; loss of a specific enzyme's capacity would look
+   exactly like this.
+2. **The modellers who fitted it needed enzyme state.** Wu 2014 (abstract): "strong time-dependent
+   inhibition of CYP2C19 by esomeprazole greatly altered the R-omeprazole PK". Time-dependent
+   inhibition means inactivation plus resynthesis — a differential equation for how much enzyme
+   exists, with its own turnover half-life. That is an engine feature, not a data field.
+
+#### The part of the old note that was TRUE, and still not the gate
+
+Saturation is real. Rost & Roots 1996 (abstract) report that going from 40 mg/d to a 60 mg regimen
+(the abstract's phrasing, "60 mg/d omeprazole twice daily", is ambiguous about the daily total) cut
+CYP2C19-dependent plasma clearance from **19.0 to 8.4 L/h** and lengthened the formation half-life of
+5′-hydroxyomeprazole from 0.58 to 1.45 h. So the original bullet was not wrong about saturation
+existing; it was wrong that saturation was the blocker.
+
+And even that part cannot be salvaged into data, which is the sharper point: **those clearances were
+measured on day 7 of treatment**, when the enzyme has already been inactivated for a week. A `Vmax`
+and `Km` fitted to them would have the time-dependent effect baked in — a fit to a population of
+enzyme that no longer exists on day 1. There is no clean citable pair. Even the component this engine
+_could_ model has no parameters to model it with.
+
+#### The reusable output: the between-dose-trough screen
+
+Generalise it — it is cheap, needs only a half-life and a dosing interval, and settles a whole class:
+
+> **When a compound's exposure CHANGES over repeated dosing, compare the dosing interval with the
+> half-life. If the concentration returns to ≈ zero between doses and exposure still climbs, the
+> memory is not in the plasma, and no concentration-driven model can reproduce it at any parameter
+> values.** Something outside the drug's own amount — enzyme, receptor, transporter — is carrying
+> state across the trough.
+
+Run it against what already ships and it passes them, which is the check that it is a screen and not
+just a rejection: phenytoin (t½ 7–42 h, dosed daily) and ethanol (a single session) accumulate
+because **the drug is still there** when the next dose arrives. Their `Vmax`/`Km` sees a
+concentration it can act on. Omeprazole's does not.
+
+Scope: this fails every mechanism-based enzyme inactivator the same way and for the same reason —
+clarithromycin, ritonavir, paroxetine, esomeprazole. Do not re-open them one at a time; the screen
+has already answered them.
+
+#### Pre-registered gate, so this is not re-litigated
+
+**Omeprazole ships only if the engine gains an enzyme-turnover state** — a `Vmax` that is itself a
+differential equation, driven by an inactivation rate and an enzyme half-life. That is a new engine
+capability of roughly the size of the Michaelis–Menten path, not a data change, and it would then
+need a citable `k_inact`/`K_I` pair plus an enzyme turnover half-life. **It is not a sourcing
+deferral, so no amount of literature searching will clear it.** If it is ever built, the teaching
+payload is genuinely new and not currently represented anywhere in the app: a drug whose half-life
+today depends on what you took last week.
+
+#### Sources opened
+
+- **PRILOSEC (omeprazole magnesium) delayed-release granules, US prescribing information**, DailyMed
+  SPL setid `b6761f84-53ac-4745-a8c8-1e5427d7e179`, label updated 2024-03-19 — Clinical Pharmacology
+  / Pharmacokinetics (full label page).
+- **Andersson T, Holmberg J, Röhss K, Walan A.** Pharmacokinetics and effect on caffeine metabolism
+  of the proton pump inhibitors, omeprazole, lansoprazole, and pantoprazole. _Br J Clin Pharmacol._
+  1998;45(4):369–375. doi:10.1046/j.1365-2125.1998.t01-1-00702.x. PMID 9578184 — **abstract only**
+  (not open access).
+- **Rost KL, Roots I.** Nonlinear kinetics after high-dose omeprazole caused by saturation of
+  genetically variable CYP2C19. _Hepatology._ 1996;23(6):1491–1497. doi:10.1002/hep.510230628. PMID
+  8675169 — **abstract only**.
+- **Wu F, Gaohua L, Zhao P, Jamei M, Huang SM, Bashaw ED, Lee SC.** Predicting nonlinear
+  pharmacokinetics of omeprazole enantiomers and racemic drug using PBPK modeling and simulation.
+  _Pharm Res._ 2014;31(8):1919–1929. doi:10.1007/s11095-013-1293-z. PMID 24590877 — **abstract
+  only**.
+
+A note on how those were read, because it nearly went wrong: PubMed and Europe PMC article pages both
+return a cookie wall or an empty shell to a fetcher, and the first web search returned a _summary_
+containing the EM-versus-PM finding. That summary was not used. The abstracts above were re-fetched
+through the Europe PMC REST API and the two sentences quoted in this entry came back verbatim from
+it — the theophylline rule ("a search-summary number is not a source") applied before writing, not
+after.
