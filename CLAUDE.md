@@ -8,6 +8,7 @@ and the things that are easy to get wrong. The companion docs, read on demand:
 | ---------------------------- | ------------------------------------------------------------- |
 | `PHARMACOGRAPHER_HANDOFF.md` | the full plan + phase list (§ refs below point here)          |
 | `docs/DATA_GUIDE.md`         | **curation rules** — every screen/gate, and the rejection log |
+| `CONTRIBUTING.md`            | the PR **process** + reviewer checklist (points at the guide) |
 | `docs/PK_MODEL.md`           | the PK math                                                   |
 | `docs/HISTORY.md`            | milestone narrative: rejected alternatives + advisor catches  |
 

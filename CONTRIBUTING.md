@@ -84,16 +84,20 @@ a rejection-log entry and no file at all.
 ## Checks to run
 
 ```bash
-npm test              # vitest — structure, derivation, oracle math
+npm test        # vitest — structure, derivation, oracle math
 npm run lint
-npm run build         # tsc -b + vite build (the typecheck gate)
-npm run format:check  # prettier
+npm run build   # tsc -b + vite build (the typecheck gate)
 ```
 
-All four should pass before you open the PR. Note what none of them can see: a
-citation that does not exist, a wrong number in `notes`, a curve of the wrong
-magnitude, and any sentence rendered on screen. Those are the reviewer's job and
-yours, not CI's.
+All three should pass before you open the PR. For formatting, check **only the
+files you touched** — `npx prettier --check <your files>`. Repo-wide
+`npm run format:check` currently reports pre-existing issues in `src` and
+`tests`; leave them alone rather than shipping a PR that reformats files your
+change never touched.
+
+Note what none of these can see: a citation that does not exist, a wrong number
+in `notes`, a curve of the wrong magnitude, and any sentence rendered on screen.
+Those are the reviewer's job and yours, not CI's.
 
 ## How a change is judged
 

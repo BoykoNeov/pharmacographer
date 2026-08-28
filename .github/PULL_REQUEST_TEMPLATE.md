@@ -32,7 +32,8 @@
 - [ ] `npm test`
 - [ ] `npm run lint`
 - [ ] `npm run build`
-- [ ] `npm run format:check`
+- [ ] `npx prettier --check <the files you touched>` (not repo-wide — see
+      CONTRIBUTING.md)
 - [ ] Launched the app (`npm run build && npm run preview`) — required if this
       touches route-, phenotype- or copy-keyed UI
 
