@@ -7,6 +7,36 @@ microconstants), and every value is implicitly tied to conditions. "Half-life =
 X" is almost always a measured _distribution under specific conditions_ collapsed
 to one number. This guide is how we keep that honest.
 
+## How to use this guide
+
+It is long and it is **chronological** — a curation log, not a manual read
+front-to-back. Two ways in.
+
+**If you are adding a compound**, work the list in "Adding a compound —
+checklist" (below), and run the reusable **screens** it points at. Each screen is
+a cheap pre-write gate that has already killed at least one candidate:
+
+| Screen                              | Answers                                                                                                  | Where                                                                  |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| **`F·D/V` ceiling test**            | is one compartment enough, at this volume?                                                               | "Sourcing rules" (above)                                               |
+| **Metabolite AUC-ratio check**      | is the exposure ratio I claim in `notes` arithmetically true?                                            | "Sourcing rules" (above)                                               |
+| **Input-type screen**               | is this route one input type, or several stacked?                                                        | "Transdermal route — nicotine and fentanyl DEFERRED"                   |
+| **Tmax-vs-window pre-check**        | does the reported Tmax sit at the end of the input window?                                               | same section — **and read its precondition** under "The inhaled route" |
+| **First-pass timing screen**        | does this metabolite form pre-systemically, on the parent's `ka`?                                        | "Oral first-pass metabolism"                                           |
+| **Formation-rate-limited recipe**   | the metabolite's Vd is unidentifiable — what do I assume, and what cancels?                              | "Acetaminophen → glucuronide + sulfate"                                |
+| **Molar→mass `fm` conversion**      | my `fm` came from a clearance fraction — what do I multiply by?                                          | "Methylxanthines", and the morphine/nicotine precedents                |
+| **Phenotype-anchoring**             | the `fm` is bimodal — which population is this single number?                                            | "Procainamide → NAPA"                                                  |
+| **Age/covariate-anchoring screen**  | the source publishes regressions, not values — at what covariate?                                        | "The age/covariate-anchoring screen"                                   |
+| **Rate-limiting-step screen**       | does any on-screen sentence name a parameter as the cause of a feature the curve no longer gets from it? | "Flip-flop (ka < ke)"                                                  |
+| **1-comp faithfulness for a patch** | why a collapse that is wrong for a tablet can be right for a patch                                       | "Transdermal SHIPPED — clonidine"                                      |
+
+**If you are considering a compound**, search this file for its name first.
+Everything below "What "linear" means here" that is dated is a **log entry**,
+including a long **rejection log** of compounds evaluated and excluded or
+deferred. Re-opening one is not a fresh look at the compound: it is an audit of
+**the recorded reason**, which may have been a true statement that was never the
+actual gate (twice now — see the inhaled and omeprazole entries).
+
 ## Sourcing rules
 
 - **Preferred bulk source: FDA Structured Product Labels.** The _Clinical
@@ -28,8 +58,10 @@ to one number. This guide is how we keep that honest.
   curatorial transform of the reported spread, not a separately reported interval
   — note it in `conditions` (e.g. "mean (SD 0.6 h)"). If a source reports an
   actual range or CI, use that verbatim instead and say so.
-- **Model-shape approximations are also a citation issue.** v1 is strictly
-  one-compartment. Drugs that are genuinely multi-compartment get collapsed: e.g.
+- **Model-shape approximations are also a citation issue.** One-, two- and
+  three-compartment models all ship, so collapsing is now a **choice**, not a
+  constraint — but the choice is still routine (a 1-comp fit is easier to source
+  and easier to read). Drugs that are genuinely multi-compartment get collapsed: e.g.
   using a steady-state Vss as the single Vd, or treating a drug with a
   distribution phase / saturable absorption as monophasic. This is faithful to
   the _terminal_ slope but distorts the _early_ curve shape. When you collapse a
@@ -1716,8 +1748,10 @@ it). Populate it whenever you add a compound.
   inferred curve, but the UI **must** label that line "inferred, not based on
   route-specific data".
 - `derived: true` anywhere on a displayed line → the UI marks it computed.
-- `linear: false` → multiple-dose superposition is disabled (and such compounds
-  do not ship in v1).
+- `linear: false` → superposition is invalid, so the whole schedule is integrated
+  as one ODE instead. Such compounds **do ship** (phenytoin, ethanol,
+  theophylline); they carry `dispositionMM` **instead of** `disposition`, and the
+  schema forbids writing a half-life on them. See "What "linear" means here".
 
 ## The derivation layer
 
@@ -1731,15 +1765,41 @@ and returns a list of what it derived (so the UI can show it):
 
 ## Adding a compound — checklist
 
-1. Pick a **linear**, well-characterised drug with clean label PK (see the v1
-   seed list in handoff §14).
-2. Create `src/data/compounds/<id>.json` following the schema above.
-3. Source each parameter from a primary label/paper; set `derived`, `sourceRef`,
-   `unit`, `conditions` honestly. Add every source under `sources`.
-4. Write the curator reasoning in `notes` — especially any judgement calls about
-   which value or range you chose and why.
-5. Run `npm test` (schema validation + derivation against the engine) and the app
-   to eyeball the curve.
+The order matters: the gates are all **before** the JSON, because the cheapest
+outcome of a bad candidate is a rejection-log entry and no file.
+
+1. **Search this file for the compound's name.** If it is already in the
+   rejection log, you are re-opening a decision — audit the recorded reason
+   (see "How to use this guide"), don't just re-derive the numbers.
+2. **Open real sources** and pick your parameter set. Preferred: FDA label
+   (openFDA / DailyMed by `?setid=<uuid>`), then EMA SmPC, then primary papers.
+   Never ship a citation you did not open — every automated check in this repo
+   is blind to whether a source exists or says what you claim.
+3. **Run the screens that apply** (the table in "How to use this guide"), on
+   paper, before writing any JSON. At minimum the `F·D/V` ceiling test; plus the
+   input-type screen for a new route, the timing screen for a pre-systemic
+   metabolite, the AUC-ratio check for any exposure claim.
+4. **Create `src/data/compounds/<id>.json`** following the schema above. A
+   **linear** compound is pure data — `loader.ts` picks the file up and
+   `loader.test.ts` derives every route of it. A **nonlinear** compound, a
+   **phenotype preset** and a **new route** each carry extra gates of their own
+   (see their sections below); they are not pure data.
+5. Source each parameter; set `derived`, `sourceRef`, `unit`, `conditions`
+   honestly. Add every source under `sources`. Write the required `description`
+   (~2 sentences, `.max(400)`, renders in a fixed-height box).
+6. **Write the curator reasoning in `notes`** — the judgement calls about which
+   value or range you chose and why, and any shape approximation you accepted.
+   Prose claims here are invisible to CI; a wrong number can sit in `notes`
+   through a fully green run.
+7. **Run `npm test`.** It proves _structure and derivation_ — schema, loader,
+   every route deriving. It **never proves magnitude**.
+8. **Magnitude-check by hand.** Build the curve and compare its peak to a
+   reported Cmax. For a zero-order input use `Css = R0/CL` (independent of Vd, so
+   it is a free check on the data) and check the _approach_ too, via
+   `ke = CL/Vd` against a reported time to steady state.
+9. **Launch the app and look at it** — `npm run build && npm run preview` — for
+   anything route-, phenotype- or copy-keyed. On-screen prose is invisible to the
+   test suite, and route copy has silently described the wrong organ three times.
 
 ### The nonlinear pass — phenytoin + ethanol added 2026-07-17 (the first `linear: false` ships)
 

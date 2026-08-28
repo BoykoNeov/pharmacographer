@@ -94,10 +94,18 @@ docs/
 
 ## Contributing data
 
-Compounds are one provenance-rich file each, designed for review.
-[`docs/DATA_GUIDE.md`](./docs/DATA_GUIDE.md) is the contributor spec: which
-sources to prefer, how to record provenance and curator reasoning, and which
-drugs are deliberately excluded from v1 (nonlinear PK).
+Compounds are one provenance-rich file each, designed for review — adding a
+linear one is pure data, with no engine or schema change.
+
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md) is the **process**: what a PR must
+  contain, how it is judged, and the standing refusals.
+- [`docs/DATA_GUIDE.md`](./docs/DATA_GUIDE.md) is the **curation authority**:
+  which sources to prefer, the pre-write screens to run, how to record
+  provenance and curator reasoning, and the rejection log of compounds already
+  evaluated and deferred.
+
+The checks that matter most are the ones CI cannot run: whether a citation is
+real, and whether the plotted curve matches a reported concentration.
 
 ## License
 
