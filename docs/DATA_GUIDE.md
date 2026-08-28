@@ -290,8 +290,8 @@ vetting. The rationale is preserved here so it isn't re-litigated:
   nonlinear phase and not on sourcing:** omeprazole's clearance falls because
   the drug destroys its own enzyme and the enzyme has to be re-made over days,
   while this engine's nonlinear path makes clearance a function of the
-  concentration present _now_. See "Omeprazole re-gated — the memory is not in
-  the plasma" at the end of this file for the falsifying arithmetic and for the
+  concentration present _now_. See the omeprazole re-gate entry at the
+  end of this file for the falsifying arithmetic and for the
   **between-dose-trough screen** it produced.
 - **Lisinopril — deferred, not excluded (blocker re-confirmed 2026-07-09).** Its
   kinetics are compatible with the linear model (the terminal ~40 h phase is
