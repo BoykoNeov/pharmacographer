@@ -54,6 +54,24 @@
     "geneticFactors": ["CYP2D6"],
     "notes": "Diphenhydramine is metabolised predominantly by CYP2D6, which is genetically polymorphic; poor metabolisers have higher exposure and a longer effective half-life. This tool does not (yet) model genotype presets — the value shown is a population average, and CYP2D6 is flagged here as a future genotype-example seam (§12) alongside metoprolol."
   },
+  "validation": [
+    {
+      "kind": "cmax",
+      "route": "oral",
+      "dose": {
+        "value": 50,
+        "unit": "mg"
+      },
+      "range": [
+        37,
+        83
+      ],
+      "unit": "ng/mL",
+      "tolerance": 0.2,
+      "sourceRef": "blyden1986",
+      "conditions": "50 mg oral, n=10 healthy volunteers. A DOCUMENTED MISS, recorded rather than hidden: the IV-derived 4.5 L/kg volume puts the modelled peak ~17% above the top of the reported range, which this file’s notes attribute to F and Tmax uncertainty across studies. The tolerance holds that known gap and nothing more, so a parameter change that widens it fails here"
+    }
+  ],
   "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
   "sources": {
     "blyden1986": {

@@ -58,6 +58,21 @@
     "geneticFactors": ["CYP2D6"],
     "notes": "Half-life depends on urine pH (renal excretion of unchanged drug is pH-sensitive). CYP2D6 (polymorphic) contributes to metabolism (4-hydroxylation). These modulate exposure but are not used to produce a dose."
   },
+  "validation": [
+    {
+      "kind": "cmax",
+      "route": "oral",
+      "dose": {
+        "value": 15,
+        "unit": "mg"
+      },
+      "value": 36.6,
+      "unit": "ng/mL",
+      "tolerance": 0.05,
+      "sourceRef": "dexedrine_label",
+      "conditions": "mean maximal plasma concentration after three 5 mg immediate-release tablets (15 mg total), reached at about 3 h; the anchor the Cmax-consistent volume within the cited 3-5 L/kg range was chosen against"
+    }
+  ],
   "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
   "sources": {
     "dexedrine_label": {

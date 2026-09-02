@@ -75,6 +75,21 @@
       "notes": "Oxypurinol is the active metabolite that carries essentially all of allopurinol's therapeutic (xanthine-oxidase-inhibiting, urate-lowering) effect. It is COMPUTED end-to-end by the metabolite engine as a Bateman curve off the ONE-COMPARTMENT ORAL parent and DRAWN as a dashed line - making allopurinol the FIRST shipped compound to exercise the oral-parent metabolite path (cefotaxime's parent is IV; diazepam's is two-compartment). The parent-metabolite contrast is the most extreme in the set: oxypurinol peaks LATER, HIGHER (~6.5 vs ~3 mcg/mL) and outlasts the parent by more than a day (t½ ~18 h vs ~1.5 h). It is renally eliminated with tubular reabsorption 'similar to the reabsorption of uric acid' (FDA label), which is why renal impairment markedly prolongs it. TIMING CAVEAT: the label reports the oxipurinol peak at ~4.5 h, but the systemic-formation model peaks later (~7 h) because a portion of oxypurinol forms PRE-SYSTEMICALLY (first-pass xanthine oxidase) and so appears sooner than formation from circulating parent alone - the engine models only systemic formation, so it renders the peak height correctly but somewhat late. Qualitatively the story is unchanged (later, higher, long-lived vs the parent)."
     }
   ],
+  "validation": [
+    {
+      "kind": "cmax",
+      "route": "oral",
+      "dose": {
+        "value": 300,
+        "unit": "mg"
+      },
+      "value": 3,
+      "unit": "mcg/mL",
+      "tolerance": 0.05,
+      "sourceRef": "fda_label",
+      "conditions": "single 300 mg oral dose, healthy subjects; the ZYLOPRIM label's maximum plasma level for the PARENT (its ~6.5 mcg/mL oxipurinol figure anchors the metabolite line, which this single-dose parent check does not cover)"
+    }
+  ],
   "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
   "sources": {
     "fda_label": {

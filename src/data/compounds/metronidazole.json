@@ -51,6 +51,21 @@
       "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
     }
   },
+  "validation": [
+    {
+      "kind": "cmax",
+      "route": "oral",
+      "dose": {
+        "value": 500,
+        "unit": "mg"
+      },
+      "value": 12,
+      "unit": "mcg/mL",
+      "tolerance": 0.07,
+      "sourceRef": "fda_label",
+      "conditions": "the label's ~12 mcg/mL peak for a 500 mg oral dose. The curve reads ~5% under at the Cmax-consistent 0.55 L/kg volume (near the low end of the cited 0.51-1.1 L/kg Vss range) - the documented monophasic-collapse tradeoff, since the reported Vss is a tissue volume and the plasma peak constrains the effective one"
+    }
+  ],
   "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
   "sources": {
     "fda_label": {

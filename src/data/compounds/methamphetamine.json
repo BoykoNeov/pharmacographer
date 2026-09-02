@@ -58,6 +58,24 @@
     "geneticFactors": ["CYP2D6"],
     "notes": "Half-life depends strongly on urine pH (renal excretion of unchanged drug is pH-sensitive: faster in acidic urine, much slower when alkaline). Partly metabolised by CYP2D6 (polymorphic) to amphetamine and 4-hydroxymethamphetamine. These modulate exposure but are not used to produce a dose."
   },
+  "validation": [
+    {
+      "kind": "cmax",
+      "route": "oral",
+      "dose": {
+        "value": 10,
+        "unit": "mg"
+      },
+      "range": [
+        14.5,
+        33.8
+      ],
+      "unit": "ng/mL",
+      "tolerance": 0.05,
+      "sourceRef": "schepers_2003",
+      "conditions": "plasma Cmax range after controlled 10 mg oral S-(+)-methamphetamine in human volunteers. A reported spread, not a mean, so agreement means landing inside it - scoring against a midpoint would invent a precision the source does not claim"
+    }
+  ],
   "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
   "sources": {
     "cruickshank_2010": {

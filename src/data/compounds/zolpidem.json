@@ -44,6 +44,21 @@
       }
     }
   },
+  "validation": [
+    {
+      "kind": "cmax",
+      "route": "oral",
+      "dose": {
+        "value": 10,
+        "unit": "mg"
+      },
+      "value": 121,
+      "unit": "ng/mL",
+      "tolerance": 0.05,
+      "sourceRef": "fda_label",
+      "conditions": "mean peak concentration after a single 10 mg oral dose (reported range 58-272); the label also reports the half-life and Tmax this curve is built from, so the anchor is independent of neither - it checks the model, not the sourcing"
+    }
+  ],
   "flags": { "nonlinear": false },
   "sources": {
     "fda_label": {

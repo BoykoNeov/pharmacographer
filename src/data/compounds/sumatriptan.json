@@ -99,6 +99,34 @@
     }
   },
   "metabolites": [],
+  "validation": [
+    {
+      "kind": "cmax",
+      "route": "sc",
+      "dose": {
+        "value": 6,
+        "unit": "mg"
+      },
+      "value": 74,
+      "unit": "ng/mL",
+      "tolerance": 0.05,
+      "sourceRef": "imitrex_injection_label",
+      "conditions": "mean Cmax 74 +/- 15 ng/mL after a 6 mg subcutaneous dose (9 healthy males, deltoid injection)"
+    },
+    {
+      "kind": "tmax",
+      "route": "sc",
+      "dose": {
+        "value": 6,
+        "unit": "mg"
+      },
+      "value": 12,
+      "unit": "min",
+      "tolerance": 0.05,
+      "sourceRef": "imitrex_injection_label",
+      "conditions": "peak reached in about 12 minutes (range 5-20) after 6 mg subcutaneous. The load-bearing half of this compound's magnitude check: Tmax nearly coincides with the 15 min distribution half-life, so absorption and distribution overlap and a wrong inverted ka could land the height while missing the instant"
+    }
+  ],
   "flags": {
     "nonlinear": false,
     "narrowTherapeuticIndex": false

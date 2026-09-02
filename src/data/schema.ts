@@ -63,6 +63,11 @@ const ClearanceUnit = z.enum(['L/h/kg', 'L/h', 'L/min', 'mL/min', 'mL/h', 'L/day
 const RateConstantUnit = z.enum(['1/h', '1/min', '1/day', '1/d']);
 /** Bioavailable fraction F. */
 const FractionUnit = z.enum(['fraction', 'percent']);
+/**
+ * Dose amounts, as a source reports them (a validation observation's `dose`).
+ * Subset of the engine `mass` converter's units — no `kg`, which is never a dose.
+ */
+const MassUnit = z.enum(['mg', 'g', 'µg', 'mcg', 'ng']);
 /** Concentration (the Michaelis constant Km). Subset the engine converter accepts. */
 const ConcentrationUnit = z.enum(['mg/L', 'g/L', 'µg/mL', 'mcg/mL', 'ng/mL', 'mg/mL']);
 /**
@@ -376,6 +381,92 @@ const RoutesSchema = z.strictObject({
 });
 
 /**
+ * A single MEASURED observation the plotted curve must reproduce — the
+ * magnitude check, moved out of prose and into CI.
+ *
+ * `npm test` has always proven structure and derivation and never magnitude:
+ * schema, loader and derivation all pass happily while a curve sits an order of
+ * magnitude away from anything anyone measured. `CONTRIBUTING.md` says so
+ * outright ("this number cannot come from CI, so it has to come from you"), and
+ * every compound file records its check as a sentence in `notes` — where it is
+ * invisible to the suite, decays silently when a parameter is edited, and has
+ * already been found FABRICATED once (sumatriptan's "76.5 ng/mL at 11.6 min",
+ * written before the check was run; the real numbers were 72.7 at 12.0).
+ *
+ * An entry here is the same claim, re-keyed so a machine can check it:
+ * `tests/data/magnitude.test.ts` builds the curve and fails if it misses. Three
+ * rules make that honest rather than decorative:
+ *
+ * 1. **The observation is a MEASUREMENT, so `sourceRef` must name a real source**
+ *    — no sentinels. A derived value cannot check the derivation that produced it.
+ * 2. **Record the number that was reported, not the number the model gives.**
+ *    Where the two differ the entry keeps the reported value and widens
+ *    `tolerance`, with `conditions` saying why: a recorded gap of a stated size is
+ *    a fact about the model, and pinning it means a later edit that changes the
+ *    gap is visible. Tuning the observation to fit the curve inverts the whole
+ *    point — the curve is the thing under test.
+ * 3. **`tolerance` is as tight as the truth allows.** It is a RELATIVE bound on
+ *    the miss (0.10 = the curve must land within 10%), applied to `value` or,
+ *    when the source reports a spread rather than a point, outside the `range`.
+ *
+ * Deliberately SINGLE-DOSE only for now: a steady-state or multi-dose
+ * observation (acyclovir's 5 mg/kg q8h peak, clonidine's `Css = R0/CL`) needs a
+ * schedule field this does not have, and a half-built one would invite entries
+ * whose conditions the checker silently ignores.
+ */
+const ObservationBase = {
+  /**
+   * Which route the observation was made on. Must be a route the compound
+   * declares and marks `available` — an inferred route has no measurement to
+   * check against, by definition.
+   */
+  route: z.enum(Object.keys(RoutesSchema.shape) as [keyof typeof RoutesSchema.shape]),
+  /** The single dose given, in the unit the source reports it in. */
+  dose: z.strictObject({ value: z.number().positive(), unit: MassUnit }),
+  /** Infusion duration, h — required for (and only for) an `iv_infusion` observation. */
+  infusionDurationH: z.number().positive().optional(),
+  /** The reported point value, when the source gives one. */
+  value: z.number().positive().optional(),
+  /** The reported spread, when the source gives a range or a mean ± SD band instead. */
+  range: z.tuple([z.number(), z.number()]).optional(),
+  /** Relative tolerance on the miss, e.g. 0.1 for "within 10%". Justify anything loose in `conditions`. */
+  tolerance: z.number().positive().max(1),
+  /** Key into `sources` — a measurement, so never a sentinel and never null. */
+  sourceRef: z.string().min(1),
+  /** Dose, population, formulation, and the reason for any loose tolerance. */
+  conditions: z.string().min(1),
+};
+
+const ObservationSchema = z
+  .discriminatedUnion('kind', [
+    z.strictObject({
+      /** Peak concentration after the single dose. */
+      kind: z.literal('cmax'),
+      unit: ConcentrationUnit,
+      ...ObservationBase,
+    }),
+    z.strictObject({
+      /** Time of that peak. Meaningful only on a route whose curve HAS a peak. */
+      kind: z.literal('tmax'),
+      unit: TimeUnit,
+      ...ObservationBase,
+    }),
+  ])
+  .refine((o) => o.value !== undefined || o.range !== undefined, {
+    message: 'an observation must report a value, a range, or both',
+    path: ['value'],
+  })
+  .refine((o) => o.range === undefined || o.range[0] <= o.range[1], {
+    message: 'range must be [low, high] with low <= high',
+    path: ['range'],
+  })
+  .refine((o) => (o.route === 'iv_infusion') === (o.infusionDurationH !== undefined), {
+    message:
+      'infusionDurationH is required for an iv_infusion observation and meaningless for any other route',
+    path: ['infusionDurationH'],
+  });
+
+/**
  * A metabolite formed from the parent (handoff §12; metabolites spike). The
  * previously-reserved `metabolites` slot, now typed. `fractionFormed` is the
  * fraction of the parent dose converted to this metabolite; `vd` and `halfLife`
@@ -652,6 +743,16 @@ export const CompoundSchema = z
     /** Parent→metabolite kinetics (§12); an empty/omitted array = parent-only. */
     metabolites: z.array(MetaboliteSchema).optional(),
 
+    /**
+     * Measured observations the plotted curve is checked against in CI — see
+     * {@link ObservationSchema}. Optional, and absent on most compounds: the
+     * field is new, and back-filling it is per-compound curation work, not a
+     * mechanical migration (each entry needs the dose, the population and the
+     * source the number actually came from). Absent means "not yet checked by
+     * machine", never "checked and fine".
+     */
+    validation: z.array(ObservationSchema).nonempty().optional(),
+
     flags: z
       .strictObject({
         nonlinear: z.boolean().optional(),
@@ -744,6 +845,29 @@ export const CompoundSchema = z
       if ('ka' in route && route.ka) checkRef(route.ka.sourceRef, `routes.${routeName}.ka`);
       if ('tmax' in route && route.tmax) checkRef(route.tmax.sourceRef, `routes.${routeName}.tmax`);
     }
+    // A validation observation is a MEASUREMENT: its sourceRef must name a real
+    // entry in `sources`, never a sentinel (a derived value cannot check the
+    // derivation that produced it), and the route must be one the compound
+    // actually declares as available — an inferred route has nothing measured to
+    // check against.
+    compound.validation?.forEach((o, i) => {
+      if (!Object.keys(compound.sources).includes(o.sourceRef)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `validation.${i}.sourceRef "${o.sourceRef}" must be a key in sources — an observation is a measurement, so a sentinel like "${SOURCE_REF_SENTINELS[0]}" cannot stand behind it`,
+          path: ['validation', i, 'sourceRef'],
+        });
+      }
+      const route = compound.routes[o.route];
+      if (!route?.available) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `validation.${i} is an observation on route "${o.route}", which this compound does not offer as available; a curve the file marks "inferred, not measured" has no measurement to be checked against`,
+          path: ['validation', i, 'route'],
+        });
+      }
+    });
+
     // Metabolite parameters cite the same compound-level bibliography.
     compound.metabolites?.forEach((m, i) => {
       checkRef(m.fractionFormed.sourceRef, `metabolites.${i}.fractionFormed`);
