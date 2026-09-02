@@ -6,7 +6,8 @@ and the things that are easy to get wrong. The companion docs, read on demand:
 
 | Doc                          | Holds                                                         |
 | ---------------------------- | ------------------------------------------------------------- |
-| `PHARMACOGRAPHER_HANDOFF.md` | the full plan + phase list (§ refs below point here)          |
+| `PHARMACOGRAPHER_HANDOFF.md` | the ORIGINAL plan + phase list (§ refs below point here)      |
+| `docs/ROADMAP.md`            | the LIVE plan: what is open, and what each item is blocked on |
 | `docs/DATA_GUIDE.md`         | **curation rules** — every screen/gate, and the rejection log |
 | `CONTRIBUTING.md`            | the PR **process** + reviewer checklist (points at the guide) |
 | `docs/PK_MODEL.md`           | the PK math                                                   |
@@ -28,6 +29,13 @@ engine/  pure PK math. NO React, NO DOM, NO data/JSON imports, NO I/O.
 data/    one JSON file per compound + Zod schema + loader + derivation layer.
 ui/      React components. The only layer that imports data and engine.
 ```
+
+Two spines run through the engine, and a new model supplies its piece rather than
+re-implementing a route or a timeline: **`modes.ts`** writes every route once for
+the LINEAR models (a curve is `Σ coef_λ·e^(−λt)`, so what differs is only how the
+modes are computed), and **`ode.ts`** walks the dose timeline once for the
+NONLINEAR ones (marks, the dose-instant convention, the input-rate midpoint
+probe), which `modelsMM.ts` and `modelsEnzyme.ts` share.
 
 - The **engine is pure**: parameters + schedule in → concentration array out. It
   knows nothing about drugs, files, or pixels. `tsconfig.app.json` sets
@@ -64,7 +72,12 @@ a patient weight — never frame it otherwise.
 ## Testing (handoff §10)
 
 Engine correctness is proven against **closed-form analytic answers**, not golden
-snapshots: e.g. IV bolus `C(0)=D/Vd`, `C(t½)=C(0)/2`; numeric AUC ≈ `D/(Vd·ke)`;
+snapshots. Compound MAGNITUDE — long the standing hole, "the number CI cannot
+give you" — is proven against `validation` observations: a compound may carry the
+concentration a source actually measured at a stated dose and route, and
+`tests/data/magnitude.test.ts` builds the curve and fails on the miss (see
+`docs/DATA_GUIDE.md` "Validation observations"). Only 8 of 48 compounds carry
+one; absence means unchecked, never fine. The analytic oracles: e.g. IV bolus `C(0)=D/Vd`, `C(t½)=C(0)/2`; numeric AUC ≈ `D/(Vd·ke)`;
 flip-flop `ka≈ke` branch returns finite values; superposition of one dose equals
 the single-dose curve. Numeric AUC via trapezoid on a fine grid, assert within a
 small relative tolerance. Write the test before/with the math and make it pass.
@@ -104,8 +117,10 @@ all pass.
 
 Follow the phases in handoff §13 — engine + tests before UI.
 
-**Phase 7 (polish & expand) is complete. There is no public deploy, and that is a
-decision, not a gap** — a GitHub Pages workflow was built and then removed at the
+**Phases 0–7 are complete and handoff §12 is nearly exhausted; `docs/ROADMAP.md`
+is the live plan** — what is open, and what each item is actually blocked on
+(sourcing, a missing input type, or a decision). **There is no public deploy, and
+that is a decision, not a gap** — a GitHub Pages workflow was built and then removed at the
 user's request (`4721f0c`): the workflow was deleted, the live Pages site was
 unpublished, and the in-flight run cancelled. Do **not** re-add a deploy without
 asking first. Work now comes from handoff §12 (extension points), picked for
@@ -135,6 +150,21 @@ engine/schema/derive change needed.
   model's own low-concentration limit rather than a contradiction — the `Km≫C` collapse
   as data. Its Vd is byte-identical across the two files on purpose; **no test compares
   them**.
+- **Enzyme turnover (`modelsEnzyme.ts`) — capacity as a STATE, and the only engine
+  capability with no compound behind it.** Michaelis–Menten still treats `Vmax` as a
+  constant of the molecule, so its only state is drug; here enzyme is a second state
+  (`e = E/E₀`, `Vmax(t) = Vmax·e(t)`) driven either way by saturable
+  **inactivation** (`k_inact`/`K_I`) or **induction** of synthesis (`indMax`/`EC50`),
+  both defaulting off. With both off `e ≡ 1` and it IS `modelsMM.ts`, which is the
+  collapse that ties it to the oracle-pinned path. It exists because the data guide
+  pre-registered it as the gate for omeprazole ("a `Vmax` that is itself a
+  differential equation"), and it draws the curve the between-dose-trough screen says
+  no concentration-driven model can: exposure climbing over repeated doses across a
+  trough of literally zero. **It is unwired** — no schema block, no resolver, no
+  compound — and the gate has MOVED, not opened: shipping one needs `k_deg` plus a
+  `k_inact`/`K_I` pair fitted to PLASMA concentrations. An in vitro `K_I` in µM at the
+  enzyme is a different quantity, and scaling it is the manufactured-number failure
+  this project refuses everywhere else. See `docs/ROADMAP.md` A1.
 - **Metabolites**, N per parent (not one), drawn in parallel off the shared
   parent CL. The route gate is `iv_bolus || oral || iv_infusion` across all
   three **linear** models (no metabolites off an MM parent).
@@ -264,11 +294,16 @@ never "select your genotype" — `tests/ui/phenotype-picker.test.tsx` asserts it
 
 **Two standing traps** (both have bitten before, both are invisible to CI):
 
-- `npm test` proves _structure + derivation_, never _numeric correctness_.
-  Magnitude-check a new compound by building the engine curve and comparing peak
-  concentration to a reported Cmax. For a zero-order input use `Css = R0/CL` (it
-  depends on clearance ALONE, so it is a free check on the data), and check the
-  _approach_ too — `ke = CL/Vd` against a reported time-to-steady-state.
+- `npm test` proves _structure + derivation_; it proves _numeric correctness_ only
+  where a compound carries `validation` observations (8 of 48 — check the file).
+  Magnitude-check a new compound by hand as before — build the engine curve and
+  compare its peak to a reported Cmax; for a zero-order input use `Css = R0/CL`,
+  which depends on clearance ALONE and is therefore a free check on the data, and
+  check the _approach_ too via `ke = CL/Vd` against a reported time-to-steady-state
+  — and then **write the anchor into `validation` so the next edit cannot break it
+  silently**. Single-dose Cmax/Tmax only so far; steady-state observations need the
+  schema extension in `docs/ROADMAP.md` B2. A magnitude number that lives only in
+  `notes` decays on every parameter change, and has been found fabricated once.
 - **Tests are blind to on-screen prose, and a route ternary silently inherits its
   last branch.** Adding `transdermal` left `PeakNote` explaining a patch with the
   ORAL story ("the peak (Tmax) is where those balance") under a curve that never

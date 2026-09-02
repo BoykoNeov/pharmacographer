@@ -29,10 +29,24 @@ Guiding order of priorities: **honest before pretty before featureful.**
 
 ## Status
 
-Early development — **Phase 0 (scaffold & guardrails)** is in place: build
-tooling, the pure units/types layer of the PK engine, tests, and the persistent
-disclaimer. The PK math, data layer, and UI land in later phases. See the build
-plan in [`PHARMACOGRAPHER_HANDOFF.md`](./PHARMACOGRAPHER_HANDOFF.md) §13.
+Working, and well past the original plan's v1. The app plots **48 curated
+compounds** across seven clinical routes, with the honesty layer wired through
+all of it.
+
+The engine covers one-, two- and three-compartment linear disposition (sharing
+one route spine), nonlinear Michaelis–Menten elimination, N metabolites per
+parent including pre-systemic formation, illustrative phenotype presets, and
+per-parameter variability bands. A nonlinear model whose metabolic **capacity is
+itself a state** (enzyme turnover) is implemented and tested but not yet wired to
+any compound — it is waiting on parameters nobody has published against plasma
+concentrations.
+
+There is deliberately **no public deploy**: run it locally.
+
+- [`docs/ROADMAP.md`](./docs/ROADMAP.md) — what is open and what each item is
+  actually blocked on.
+- [`PHARMACOGRAPHER_HANDOFF.md`](./PHARMACOGRAPHER_HANDOFF.md) — the original
+  plan, kept as written.
 
 ## Tech stack
 
@@ -43,7 +57,7 @@ plan in [`PHARMACOGRAPHER_HANDOFF.md`](./PHARMACOGRAPHER_HANDOFF.md) §13.
   one per parameter, individually toggleable and never merged into one envelope).
 - **Vitest** — engine correctness validated against closed-form analytic answers.
 - **Zod** — runtime validation of compound data files.
-- Static, no-backend deploy.
+- Static and backend-free — but not deployed; see Status.
 
 ## Architecture (hard boundaries)
 
@@ -83,13 +97,17 @@ Requires Node 20+ (developed on Node 24).
 ```
 src/
   engine/   # PURE PK math — no UI, no data imports
-  data/     # compound files + schema/validation + loader   (later phase)
+  data/     # compound files + schema/validation + loader + derivation
   ui/       # React components + the persistent disclaimer banner
 tests/
   engine/   # closed-form oracle tests for the math
+  data/     # schema, loader, derivation — and the curve-vs-measurement check
+  ui/       # the honesty layer, route copy, and curve assembly
 docs/
   PK_MODEL.md   # the pharmacokinetic model, documented
   DATA_GUIDE.md # data sourcing rules + how to add a compound
+  ROADMAP.md    # what is open, and what each item is blocked on
+  HISTORY.md    # why things are built the way they are
 ```
 
 ## Contributing data
@@ -104,8 +122,12 @@ linear one is pure data, with no engine or schema change.
   provenance and curator reasoning, and the rejection log of compounds already
   evaluated and deferred.
 
-The checks that matter most are the ones CI cannot run: whether a citation is
-real, and whether the plotted curve matches a reported concentration.
+The checks that matter most are the ones CI mostly cannot run: whether a
+citation is real, and whether any on-screen sentence is true. Curve MAGNITUDE
+used to be on that list — a compound can now carry `validation` observations,
+and the suite builds its curve and checks it against what a source actually
+measured. Most compounds do not carry them yet, so absence means unchecked
+rather than fine.
 
 ## License
 

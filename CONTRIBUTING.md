@@ -40,6 +40,7 @@ the data guide:
 | A **phenotype preset**                      | both populations from one study; override only what the polymorphism touches; `presets[0]` must override nothing |
 | A **new clinical route**                    | the input-type screen first; then every route-keyed surface in the UI                                            |
 | **Engine** math                             | a closed-form oracle test, written with the math — not a golden snapshot                                         |
+| A **validation observation**                | a real source key (never a sentinel), an available route, the reported number even where the model misses it     |
 
 ## Before you write anything
 
@@ -70,10 +71,15 @@ a rejection-log entry and no file at all.
   values carry `derived: true` and a sentinel (`definition`, `derived_from_tmax`,
   `derived_from_clearance`, …). A value with no defensible source is **omitted,
   not guessed**.
-- **The magnitude check, in the PR description.** Say what you compared and what
-  you got: peak concentration against a reported Cmax, or `Css = R0/CL` for a
-  zero-order input. `npm test` proves structure and derivation and **never proves
-  magnitude** — this number cannot come from CI, so it has to come from you.
+- **The magnitude check — as a `validation` entry, not just a sentence.** Say what
+  you compared and what you got (peak concentration against a reported Cmax, or
+  `Css = R0/CL` for a zero-order input), and then encode the single-dose half of
+  it in the compound's `validation` block so the suite re-runs it forever. See
+  "Validation observations" in the data guide for the rules — the source must be
+  real, the reported number goes in even when the model misses it, and the
+  tolerance must be as tight as the truth allows. `npm test` proves magnitude for
+  a compound that carries such entries and **not otherwise**: the judgement about
+  which observation is worth anchoring to is still yours.
 - **Confirmation you launched the app** (`npm run build && npm run preview`) if
   the change touches anything route-, phenotype- or copy-keyed. On-screen prose
   is invisible to the test suite.
@@ -96,8 +102,10 @@ files you touched** — `npx prettier --check <your files>`. Repo-wide
 change never touched.
 
 Note what none of these can see: a citation that does not exist, a wrong number
-in `notes`, a curve of the wrong magnitude, and any sentence rendered on screen.
-Those are the reviewer's job and yours, not CI's.
+in `notes`, and any sentence rendered on screen. Those are the reviewer's job and
+yours, not CI's. A curve of the wrong magnitude USED to be on that list — it is
+now caught for any compound carrying `validation` observations, which is 8 of 48,
+so treat the other 40 as unchecked rather than fine.
 
 ## How a change is judged
 
@@ -143,4 +151,5 @@ than code. "I could not source this defensibly" is always an acceptable answer.
 | What is the math?              | [`docs/PK_MODEL.md`](./docs/PK_MODEL.md)                     |
 | Why is it built this way?      | [`docs/HISTORY.md`](./docs/HISTORY.md)                       |
 | What are the code conventions? | [`CLAUDE.md`](./CLAUDE.md)                                   |
+| What is open, and why?         | [`docs/ROADMAP.md`](./docs/ROADMAP.md)                       |
 | What was the original plan?    | [`PHARMACOGRAPHER_HANDOFF.md`](./PHARMACOGRAPHER_HANDOFF.md) |

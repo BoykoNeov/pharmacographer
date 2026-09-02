@@ -8,6 +8,96 @@ must-follow instruction file — `CLAUDE.md` holds the working conventions and
 
 Newest first; test counts and commit hashes are as-of that milestone.
 
+**THE CAPACITY BECAME A STATE, AND CI LEARNED TO SEE MAGNITUDE (2026-09-02, 628 → 663 tests, 48
+compounds, no compound added).** Two hurdles this project had named and declared out of reach were
+taken in one pass, and in both cases what changed is the SHAPE of the remaining blocker rather than
+the answer.
+
+**1. The engine gained an enzyme-turnover model — and moving a gate is not opening it.** The
+omeprazole re-gate (2026-08-28) pre-registered exactly one engine capability: "a `Vmax` that is
+itself a differential equation". Its between-dose-trough screen — _if the concentration returns to
+zero between doses and exposure still climbs, no concentration-driven model can reproduce it at any
+parameter values_ — is a statement about models whose only state is DRUG, which is every model this
+engine had. `modelsEnzyme.ts` carries enzyme as a second state (`e = E/E₀`, so `Vmax(t) = Vmax·e(t)`),
+pushed either way by saturable INACTIVATION (`k_inact`/`K_I`) or INDUCTION of synthesis
+(`indMax`/`EC50`), both defaulting off so that `e ≡ 1` reproduces `modelsMM.ts` exactly — the same
+kind of collapse anchor as `Q → 0` for the compartment models.
+
+The test that justifies the module is a NEGATIVE oracle: the same daily schedule under both models,
+with the trough at literally zero (10⁻⁹ of the peak, >100 drug half-lives per interval). Michaelis–
+Menten repeats day 1 to 1e-9; the turnover model climbs +40% in AUC by day 5. The curve the screen
+said was unreachable is drawn, next to the model that cannot draw it. Both sabotages — dropping the
+inactivation term, and a capacity that ignores the enzyme — were verified to fail loudly (5 and 8
+tests) before the oracles were trusted.
+
+**No compound ships against it, which is the point of writing this down.** The pre-registration had
+two clauses and only the first is discharged. The second — `k_deg` plus a `k_inact`/`K_I` pair — is
+now a SOURCING gate, and it carries a trap of exactly the kind this project refuses elsewhere:
+published inactivation constants are overwhelmingly in vitro, in µM at the enzyme, and scaling them
+to a whole body is a physiologically-based exercise whose output would be a fit to a model we never
+ran. So the entry in the data guide is updated to say the gate moved, what would clear it, and what
+must not be used to clear it. The same engine also makes phenytoin's autoinduction representable —
+its own cited source fitted delayed induction — but the induced `Vmax` is not in the repo, and
+Frame & Beal's lag-then-step shape is not the continuous turnover form implemented here; both
+caveats are recorded rather than papered over.
+
+**The structural half:** the timeline walk MM already had (marks, the dose-instant convention, the
+input-rate midpoint probe) is model-independent in exactly the way `modes.ts` is for the linear
+models, so it moved to `ode.ts` and both nonlinear paths share it. `modelsMM.ts` is behaviour-
+identical on top of it, proved by its own untouched oracle suite. This is `src/ui/peak.ts`'s lesson
+applied a layer down: the defect that matters is not a wrong answer, it is correctness that has to be
+re-achieved in step.
+
+**2. The magnitude check moved into CI, which every document here said was impossible.**
+`CONTRIBUTING.md` said it outright — "this number cannot come from CI, so it has to come from you" —
+and `CLAUDE.md` listed it first among the standing traps. Both were true of a curve compared against
+a SENTENCE. Neither is true of a curve compared against a typed field.
+
+The cost of prose was never theoretical: a fabricated magnitude number reached shipped `notes` once
+(sumatriptan's "76.5 ng/mL at 11.6 min", written before the check was run; measured 72.7 at 12.0),
+caught by a human reading the file and by no gate — and a number in `notes` decays silently on every
+parameter edit besides. A `validation` entry is the same claim, machine-checkable: kind, route, dose,
+the reported value or range, a tolerance, and the source. The schema enforces that the `sourceRef` is
+a REAL source (never a sentinel — a derived value cannot check the derivation that produced it) and
+that the route is one the file marks available (a line labelled "inferred, not measured" has nothing
+measured to check against).
+
+Three design decisions do the honesty work, and each was a choice with a plausible alternative:
+
+- **A recorded gap is data.** Where the model misses, the entry keeps the REPORTED number and widens
+  the tolerance with the reason in `conditions` — diphenhydramine's oral peak sits ~17% above
+  Blyden's band; levofloxacin reads ~18% under the label's 750 mg Cmax, because that label's own
+  750 mg value is supra-proportional to its 500 mg one and no linear model can match both. The
+  alternative (encode only the compounds that pass) would have made the harness look better than the
+  data is.
+- **A tolerance nobody needs is itself a defect**, since slack hides a regression inside itself: an
+  entry whose tolerance exceeds three times the miss it admits fails.
+- **A range is a region of agreement, not a midpoint.** A source reporting 37–83 has not claimed 60.
+
+Ten observations across eight compounds, every number re-keyed from the anchor already asserted in
+that compound's own file and attributed to the same source. Verified by sabotage: moving zolpidem's
+Vd to the top of its OWN cited range — a change every other gate in the repo accepts — fails with
+"the curve gives 0.1070 mg/L, the source reports 0.121".
+
+**The finding the transcription turned up, which is worth more than the entries.** Two compounds
+state a magnitude check in `notes` that cannot be attributed to either source in their own files
+(glipizide's ~300–450 ng/mL for 5 mg; lorazepam's ~20 ng/mL after 2 mg). They were left UNENCODED
+rather than attributed to a guess, and recorded in the roadmap as an open item. This is the
+theophylline rule meeting the sumatriptan one: a number nobody can trace is not made citable by
+being old, and moving prose into a typed field is an audit of the prose.
+
+**3. The plan was stale in a way that mattered.** `README.md` announced "Phase 0 (scaffold &
+guardrails)" over a 48-compound app; the handoff still opened with "greenfield, nothing is built
+yet"; and `docs/PK_MODEL.md` documented a one-compartment v1 that "excludes nonlinear compounds",
+which three shipped compounds contradict. A reader arriving at this repo was told a version of it
+that stopped existing months ago. So: `PK_MODEL.md` was rewritten to document the engine as built
+(both spines, all four models, metabolites, the route/input-type split, and what is deliberately NOT
+modelled), a new `docs/ROADMAP.md` holds the LIVE plan with a pre-registered gate on every open item,
+and the handoff is now explicitly the ORIGINAL plan — kept as written, since its architecture, units
+policy and bright line are all still exactly right. The split mirrors the one `DATA_GUIDE`/
+`CONTRIBUTING` already made: a chronological record is not a current-state document, and pretending
+otherwise is how "v1 is one-compartment" survived into a file three models later.
+
 **OMEPRAZOLE RE-GATED AND STILL NOT ADDED — THE MEMORY IS NOT IN THE PLASMA (2026-08-28,
 advisor-reviewed, docs only).** The first deferral re-opened because the ENGINE changed under it
 rather than because a source surfaced: omeprazole was excluded in v1 as "a genuine superposition

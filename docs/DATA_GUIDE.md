@@ -29,6 +29,8 @@ a cheap pre-write gate that has already killed at least one candidate:
 | **Age/covariate-anchoring screen**  | the source publishes regressions, not values — at what covariate?                                        | "The age/covariate-anchoring screen"                                   |
 | **Rate-limiting-step screen**       | does any on-screen sentence name a parameter as the cause of a feature the curve no longer gets from it? | "Flip-flop (ka < ke)"                                                  |
 | **1-comp faithfulness for a patch** | why a collapse that is wrong for a tablet can be right for a patch                                       | "Transdermal SHIPPED — clonidine"                                      |
+| **Between-dose-trough screen**      | exposure climbs over repeated doses — can any concentration-driven model do that?                        | "Omeprazole re-gated"                                                  |
+| **Validation observation**          | the magnitude check I just ran by hand — how do I make CI keep running it?                               | "Validation observations"                                              |
 
 **If you are considering a compound**, search this file for its name first.
 Everything below "What "linear" means here" that is dated is a **log entry**,
@@ -1763,6 +1765,69 @@ and returns a list of what it derived (so the UI can show it):
 - Scale `vd` (L/kg) to absolute L using the reference subject weight.
 - Estimate `ka` from `Tmax` only if `ka` is absent (mark it derived).
 
+## Validation observations — the magnitude check, kept
+
+The magnitude check is the one gate this project always said a machine could not
+run: build the curve, compare its peak to a concentration somebody measured. It
+was written into `notes` as a sentence, which has two failure modes, both real.
+It **decays** — every parameter edit invalidates it and nothing says so — and it
+can be **fabricated**: sumatriptan shipped with "76.5 ng/mL at 11.6 min" in its
+notes, written before the check was run (measured: 72.7 at 12.0), and it was
+caught by a human reading the file, not by any gate.
+
+A `validation` entry is the same claim in a typed field, so
+`tests/data/magnitude.test.ts` re-runs it forever:
+
+```jsonc
+"validation": [
+  {
+    "kind": "cmax",                    // or "tmax"
+    "route": "oral",                   // must be a route the file marks available
+    "dose": { "value": 500, "unit": "mg" },
+    "value": 5.1,                      // and/or "range": [low, high]
+    "unit": "mcg/mL",
+    "tolerance": 0.05,                 // relative bound on the miss
+    "sourceRef": "fda_label",          // a REAL source key — never a sentinel
+    "conditions": "mean Cmax 5.1 +/- 0.8 mcg/mL after a single 500 mg oral dose; …"
+  }
+]
+```
+
+**The rules, and each one is load-bearing.**
+
+- **It is a MEASUREMENT.** `sourceRef` must resolve to an entry in `sources` — the
+  schema rejects a sentinel, because a derived value cannot check the derivation
+  that produced it. The route must be `available: true`: a line the UI labels
+  "inferred, not measured" has nothing measured to be checked against.
+- **Record what was REPORTED, never what the model gives.** Where the two differ,
+  keep the reported number, widen `tolerance`, and say why in `conditions`. Two
+  such entries ship deliberately: diphenhydramine's oral peak sits ~17% above
+  Blyden's reported band (the IV-derived volume, as its notes already say), and
+  levofloxacin reads ~18% under the label's 750 mg Cmax because that label's own
+  750 mg value is supra-proportional to its 500 mg one — no linear model can match
+  both. Pinning a gap of a stated SIZE is worth more than not recording it: the
+  next edit that widens it fails.
+- **A tolerance nobody needs is itself a defect.** The harness rejects any entry
+  whose tolerance exceeds three times the miss it actually admits — slack that
+  wide hides a regression inside itself.
+- **A range is a region of agreement, not a midpoint.** A source reporting
+  37–83 ng/mL has not claimed 60; the checker scores 0 anywhere inside and
+  measures from the nearest edge outside. Where a source gives a mean AND a
+  spread, the mean is what it asserts, so the point value is used.
+- **Single-dose only, for now.** A steady-state or multi-dose observation needs a
+  schedule field the schema does not have yet (`docs/ROADMAP.md` B2); a
+  half-built one would silently ignore conditions a curator wrote down.
+
+**When you add one, add the compound to `VALIDATED_IDS`** in the harness — the
+coverage assertion is a listed set rather than a count, because a count floor
+passes happily while an entry quietly disappears (the `loader.test.ts` lesson).
+
+**Two anchors were deliberately NOT encoded**, and the reason is the standing
+citation rule rather than an oversight: glipizide's "~300–450 ng/mL for 5 mg" and
+lorazepam's "~20 ng/mL after 2 mg" appear in their own `notes` but match neither
+source in their own files. An observation with a guessed citation is worse than
+no observation. Either trace them or mark the sentence unattributed.
+
 ## Adding a compound — checklist
 
 The order matters: the gates are all **before** the JSON, because the cheapest
@@ -1792,11 +1857,15 @@ outcome of a bad candidate is a rejection-log entry and no file.
    Prose claims here are invisible to CI; a wrong number can sit in `notes`
    through a fully green run.
 7. **Run `npm test`.** It proves _structure and derivation_ — schema, loader,
-   every route deriving. It **never proves magnitude**.
-8. **Magnitude-check by hand.** Build the curve and compare its peak to a
-   reported Cmax. For a zero-order input use `Css = R0/CL` (independent of Vd, so
-   it is a free check on the data) and check the _approach_ too, via
-   `ke = CL/Vd` against a reported time to steady state.
+   every route deriving — and, for a compound carrying `validation` entries, the
+   magnitude of its curve. With no such entries it **does not prove magnitude**.
+8. **Magnitude-check by hand, then WRITE IT DOWN as a `validation` entry.** Build
+   the curve and compare its peak to a reported Cmax. For a zero-order input use
+   `Css = R0/CL` (independent of Vd, so it is a free check on the data) and check
+   the _approach_ too, via `ke = CL/Vd` against a reported time to steady state.
+   The single-dose Cmax/Tmax half of that goes straight into `validation` (see
+   "Validation observations" above) so the check survives the next edit; the
+   steady-state half still lives in `notes` until the schema grows a schedule.
 9. **Launch the app and look at it** — `npm run build && npm run preview` — for
    anything route-, phenotype- or copy-keyed. On-screen prose is invisible to the
    test suite, and route copy has silently described the wrong organ three times.
@@ -2424,6 +2493,31 @@ need a citable `k_inact`/`K_I` pair plus an enzyme turnover half-life. **It is n
 deferral, so no amount of literature searching will clear it.** If it is ever built, the teaching
 payload is genuinely new and not currently represented anywhere in the app: a drug whose half-life
 today depends on what you took last week.
+
+> **UPDATE (2026-09-02): THE ENGINE HALF IS BUILT, SO THIS GATE HAS MOVED — and moving a gate is
+> not opening it.** `src/engine/modelsEnzyme.ts` carries enzyme as a state (`e = E/E₀`,
+> `Vmax(t) = Vmax·e(t)`), driven by saturable inactivation and/or induction, collapsing exactly onto
+> `modelsMM.ts` when neither is present. It draws precisely what the screen above says a
+> concentration-driven model cannot — exposure climbing across a trough of zero — and
+> `tests/engine/modelsEnzyme.test.ts` asserts that against `modelsMM.ts` refusing to. So the first
+> clause of the pre-registration is discharged.
+>
+> **What remains is exactly the second clause, and it is a sourcing gate now: `k_deg` plus a
+> `k_inact`/`K_I` pair expressed against the PLASMA concentration this engine plots.** Note the trap
+> waiting there, because it is the same one this guide refuses everywhere else: published
+> inactivation constants are overwhelmingly IN VITRO, in µM at the enzyme. Turning those into
+> whole-body parameters is a physiologically-based scaling exercise — hepatocellularity, enzyme
+> abundance, unbound fractions — and a curve built on it would be a fit to a model we never ran, i.e.
+> a manufactured number wearing a citation. **Do not scale an in vitro `K_I` to clear this gate.** A
+> source that fitted the pair to plasma data clears it; nothing else does.
+>
+> Note also what the same engine now makes representable in the OTHER direction: **phenytoin's
+> autoinduction**, which its own file records as a limitation ("the engine — which has no induction
+> term — overstates chronic Css"). Frame & Beal 1998 is already that compound's cited source and
+> already fitted a Michaelis–Menten model with delayed induction; what the repo does NOT hold is the
+> induced `Vmax`, and their DELAYED (lag-then-step) induction is not the continuous turnover form
+> implemented here. Whoever picks it up must open the paper and decide whether the shapes are close
+> enough to claim the citation — and say so in `notes` either way. See `docs/ROADMAP.md` A1.
 
 #### Sources opened
 

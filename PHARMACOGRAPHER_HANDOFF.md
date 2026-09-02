@@ -2,7 +2,15 @@
 
 **Purpose:** an interactive, *educational* tool that plots the pharmacokinetic (PK) concentration-vs-time curve of a drug (and optionally its metabolites) from a curated database, letting the user pick route, dose, and dosing schedule, and that is honest at every step about uncertainty, data provenance, and inter-individual variability.
 
-**Status:** greenfield. Nothing is built yet. This document is the plan to start from.
+**Status of this document:** it is the ORIGINAL PLAN, written when nothing was
+built, and it is kept as written. Almost all of it shipped, several parts of it
+were deliberately not followed (see §12), and a few of its statements are now
+false — v1's "one compartment only" and "exclude nonlinear compounds" most of
+all. **For the current state and the open work, read [`docs/ROADMAP.md`](./docs/ROADMAP.md)**;
+for the math as built, [`docs/PK_MODEL.md`](./docs/PK_MODEL.md); for the working
+conventions, [`CLAUDE.md`](./CLAUDE.md). Read this file for the reasoning behind
+the architecture, the units policy, the honesty requirements and the bright
+line — none of which have changed.
 
 ---
 
@@ -43,6 +51,13 @@ Guiding principles, in priority order:
 - **Linear / semi-log y-axis toggle** (elimination is a straight line on semi-log — pedagogically important and trivial).
 
 ### Explicitly deferred (but designed-for — see §12)
+
+> **All of the following have since shipped**, except where §12's annotations say
+> otherwise: metabolites, nonlinear (Michaelis–Menten) PK, 2- and 3-compartment
+> models, four further routes (IM, SC, rectal, transdermal — inhaled was gated
+> and refused, per the data guide), variability beyond half-life, genotype-style
+> phenotype presets, and a contributor workflow. The list below is the original
+> deferral, not current scope.
 - Metabolites (parent → metabolite coupled kinetics).
 - Nonlinear PK (Michaelis–Menten / zero-order), e.g. phenytoin, ethanol, high-dose salicylate. **These must be tagged and excluded from v1**, because a fixed half-life is *wrong* for them and superposition is invalid.
 - Multi-compartment models (2-/3-compartment, distribution phase).
@@ -373,6 +388,12 @@ Each v1 simplification has a designed seam so the deeper feature slots in **with
 **Phase 7 — Polish & expand.** Fill the seed set to ~8–12 compounds, refine charts, static-site deploy.
 
 **Then:** pick from §12 in whatever order serves the teaching goals (metabolites and genotype presets are the highest-value next steps).
+
+> **Phases 0–7 are complete and §12 is nearly exhausted.** What remains open, and
+> what each item is blocked on, is tracked in [`docs/ROADMAP.md`](./docs/ROADMAP.md)
+> — including the two capabilities this plan never anticipated: a nonlinear model
+> whose metabolic capacity is a state variable, and a CI check that compares a
+> built curve against a measured concentration.
 
 ---
 
