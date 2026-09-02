@@ -43,6 +43,7 @@
  * No React, no DOM, no data/JSON imports, no I/O — see CLAUDE.md / handoff §4.
  */
 
+import { integrateScheduledOde, type ScheduledOdeProblem } from './ode.ts';
 import type { DoseEvent, Route } from './types.ts';
 
 /**
@@ -78,13 +79,14 @@ export interface MichaelisMentenParams {
  */
 const MM_MAX_STEP_FRACTION = 0.05;
 
-/** The integrator's state: drug amounts, mg. */
-interface MmState {
-  /** Amount awaiting absorption at the depot (oral), mg. */
-  depot: number;
-  /** Amount in the central compartment, mg. */
-  central: number;
-}
+/**
+ * State-vector layout for the MM integrator (see `ode.ts`): drug AMOUNTS in mg.
+ * Indices rather than named fields because the shared walker steps a plain
+ * numeric vector — which is what lets the enzyme-turnover model in
+ * `modelsEnzyme.ts` reuse the same walk with a third state variable.
+ */
+const DEPOT = 0;
+const CENTRAL = 1;
 
 /**
  * Capacity-limited elimination rate `Vmax·C/(Km + C)` (mg/h) for a central
@@ -101,14 +103,13 @@ function eliminationRate(params: MichaelisMentenParams, central: number): number
 /** Right-hand side of the ODE system at a given state and (constant) input rate. */
 function derivatives(
   params: MichaelisMentenParams,
-  state: MmState,
+  state: readonly number[],
   inputRate: number,
-): MmState {
-  const absorption = params.ka === undefined ? 0 : params.ka * state.depot;
-  return {
-    depot: -absorption,
-    central: inputRate + absorption - eliminationRate(params, state.central),
-  };
+): number[] {
+  const depot = state[DEPOT] ?? 0;
+  const central = state[CENTRAL] ?? 0;
+  const absorption = params.ka === undefined ? 0 : params.ka * depot;
+  return [-absorption, inputRate + absorption - eliminationRate(params, central)];
 }
 
 /**
@@ -130,74 +131,13 @@ function maxStep(params: MichaelisMentenParams): number {
   return fastest > 0 ? MM_MAX_STEP_FRACTION / fastest : Infinity;
 }
 
-/** One classical RK4 step of size `h`, with both amounts floored at 0. */
-function rk4Step(
-  params: MichaelisMentenParams,
-  state: MmState,
-  inputRate: number,
-  h: number,
-): MmState {
-  const k1 = derivatives(params, state, inputRate);
-  const k2 = derivatives(
-    params,
-    { depot: state.depot + (h / 2) * k1.depot, central: state.central + (h / 2) * k1.central },
-    inputRate,
-  );
-  const k3 = derivatives(
-    params,
-    { depot: state.depot + (h / 2) * k2.depot, central: state.central + (h / 2) * k2.central },
-    inputRate,
-  );
-  const k4 = derivatives(
-    params,
-    { depot: state.depot + h * k3.depot, central: state.central + h * k3.central },
-    inputRate,
-  );
-  return {
-    depot: Math.max(
-      0,
-      state.depot + (h / 6) * (k1.depot + 2 * k2.depot + 2 * k3.depot + k4.depot),
-    ),
-    central: Math.max(
-      0,
-      state.central + (h / 6) * (k1.central + 2 * k2.central + 2 * k3.central + k4.central),
-    ),
-  };
-}
-
-/**
- * Integrate from `from` to `to` at a constant `inputRate`, subdividing into
- * whole steps no larger than {@link maxStep}. The caller guarantees no dose event
- * or infusion boundary falls strictly inside the span, so the input rate really
- * is constant across it.
- */
-function integrateSegment(
-  params: MichaelisMentenParams,
-  state: MmState,
-  inputRate: number,
-  from: number,
-  to: number,
-): MmState {
-  const span = to - from;
-  if (span <= 0) return state;
-  const steps = Math.max(1, Math.ceil(span / maxStep(params)));
-  const h = span / steps;
-  let s = state;
-  for (let i = 0; i < steps; i++) s = rk4Step(params, s, inputRate, h);
-  return s;
-}
-
 /**
  * Total zero-order input rate (mg/h) at time `t` from every infusion running at
  * that instant. Evaluated at a segment MIDPOINT by the caller, so a boundary
  * instant (an infusion starting or stopping exactly at `t`) can never be
  * ambiguous.
  */
-function infusionRateAt(
-  params: MichaelisMentenParams,
-  schedule: DoseEvent[],
-  t: number,
-): number {
+function infusionRateAt(params: MichaelisMentenParams, schedule: DoseEvent[], t: number): number {
   const duration = params.infusionDuration;
   if (duration === undefined) return 0;
   return schedule.reduce(
@@ -237,48 +177,48 @@ export function michaelisMentenCurve(
   if (route === 'iv_infusion' && params.infusionDuration === undefined) {
     throw new Error('michaelisMentenCurve: iv_infusion route requires an infusion duration');
   }
-  if (timeGrid.length === 0) return [];
 
-  // Bolus/oral doses arrive as instantaneous jumps; several may share an instant.
-  const jumpAt = new Map<number, number>();
-  if (route !== 'iv_infusion') {
-    for (const d of schedule) {
-      jumpAt.set(d.time, (jumpAt.get(d.time) ?? 0) + d.amount);
-    }
+  const states = integrateScheduledOde(mmProblem(route, params, schedule), schedule, timeGrid);
+  return states.map((state) => (state[CENTRAL] ?? 0) / params.vd);
+}
+
+/**
+ * The {@link ScheduledOdeProblem} for one MM route — the state layout, the
+ * right-hand side, how a dose enters, and the step bound. Exported to the
+ * enzyme-turnover model's neighbours only in spirit: it is module-private
+ * because the *problem* is what varies between nonlinear models, while the walk
+ * over it (`ode.ts`) is what they share.
+ */
+function mmProblem(
+  route: Route,
+  params: MichaelisMentenParams,
+  schedule: DoseEvent[],
+): ScheduledOdeProblem {
+  const common = {
+    initial: [0, 0],
+    derivatives: (state: readonly number[], inputRate: number) =>
+      derivatives(params, state, inputRate),
+    maxStep: maxStep(params),
+  };
+
+  if (route === 'iv_infusion') {
+    const duration = params.infusionDuration!;
+    return {
+      ...common,
+      inputRateAt: (t) => infusionRateAt(params, schedule, t),
+      breakpoints: schedule.map((d) => d.time + duration),
+    };
   }
 
-  // Marks: every instant the integrator must stop at — grid samples, dose jumps,
-  // and infusion starts/ends (each a step change in the input rate).
-  const marks = new Set<number>(timeGrid);
-  for (const d of schedule) {
-    marks.add(d.time);
-    if (route === 'iv_infusion') marks.add(d.time + params.infusionDuration!);
-  }
-  const ordered = [...marks].sort((a, b) => a - b);
-
-  const sampled = new Map<number, number>();
-  let state: MmState = { depot: 0, central: 0 };
-  let previous: number | undefined;
-
-  for (const mark of ordered) {
-    if (previous !== undefined) {
-      // Midpoint probe: the rate is constant across the segment by construction.
-      const inputRate =
-        route === 'iv_infusion' ? infusionRateAt(params, schedule, (previous + mark) / 2) : 0;
-      state = integrateSegment(params, state, inputRate, previous, mark);
-    }
-    const amount = jumpAt.get(mark);
-    if (amount !== undefined) {
-      state =
-        route === 'iv_bolus'
-          ? { ...state, central: state.central + amount }
-          : { ...state, depot: state.depot + (params.F ?? 1) * amount };
-    }
-    sampled.set(mark, state.central / params.vd);
-    previous = mark;
-  }
-
-  return timeGrid.map((t) => sampled.get(t) ?? 0);
+  // IV bolus lands in the central compartment; every extravascular route lands
+  // in the absorption depot, where `F` has already been applied.
+  return {
+    ...common,
+    applyDose: (state, amount) =>
+      route === 'iv_bolus'
+        ? [state[DEPOT] ?? 0, (state[CENTRAL] ?? 0) + amount]
+        : [(state[DEPOT] ?? 0) + (params.F ?? 1) * amount, state[CENTRAL] ?? 0],
+  };
 }
 
 // ── Closed forms ────────────────────────────────────────────────────────────
@@ -316,11 +256,7 @@ export function firstOrderLimitRateMM(params: MichaelisMentenParams): number {
  * the first-order tail means the drug never formally reaches zero, however
  * straight the saturated part of its decline looks.
  */
-export function ivBolusElapsedTime(
-  params: MichaelisMentenParams,
-  c0: number,
-  c: number,
-): number {
+export function ivBolusElapsedTime(params: MichaelisMentenParams, c0: number, c: number): number {
   if (!(c0 > 0) || !(c > 0) || c > c0) {
     throw new Error('ivBolusElapsedTime: requires c0 > 0 and 0 < c <= c0');
   }
