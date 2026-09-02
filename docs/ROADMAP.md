@@ -166,10 +166,13 @@ Recorded so they are not proposed as oversights:
 
 ### B1. Back-fill `validation` observations — the biggest cheap win
 
-`tests/data/magnitude.test.ts` now checks a built curve against a measured
-concentration, for the **8 compounds** that carry a `validation` block. The other
-40 are unchecked by machine, and most of them already state their magnitude check
-as a sentence in `notes` — a sentence that decays silently on every parameter
+`tests/data/magnitude.test.ts` checks a built curve against a measured
+concentration for the **8 compounds** that carry a `validation` block. Four others
+(phenytoin, ethanol, clonidine, ketamine) are covered by bespoke tests that
+predate it and assert things a declarative entry cannot — a straight-line decline,
+a superlinear steady state, a plateau reached on the label's timescale. The
+remaining ~36 are unchecked by machine, and most already state their magnitude
+check as a sentence in `notes`: a sentence that decays silently on every parameter
 edit, and which has been found fabricated once.
 
 The recipe, per compound, is in `docs/DATA_GUIDE.md` ("Validation observations").
@@ -188,9 +191,15 @@ unattributed — an observation with a guessed citation is worse than none.
 The current schema is single-dose only, deliberately: a steady-state entry needs
 a schedule field, and a half-built one would silently ignore conditions a curator
 wrote down. Adding it unlocks the checks several compounds already document in
-prose: acyclovir's 5 mg/kg q8h steady-state peak, clonidine's `Css = R0/CL` at
-three delivery rates (the free zero-order check, independent of Vd), phenytoin's
-`Css = R0·Km/(Vmax − R0)` cliff, ethosuximide's accumulation.
+prose: acyclovir's 5 mg/kg q8h steady-state peak, ethosuximide's accumulation, and
+the two clonidine plateau values its bespoke test does not cover (the label reports
+three; the test checks one).
+
+It would also let the two nonlinear compounds and clonidine express the numeric
+part of their bespoke tests as data. **Do not delete those tests when it does** —
+what they assert beyond a number (a decline that is straight to 2%, a Css ratio
+that is 2.7× for a 2× dose rate, 90% of plateau by two days) is the teaching point,
+and no declarative entry says it.
 
 Design note for whoever builds it: keep `kind` a closed union and let each kind
 declare the fields it needs, rather than adding optional fields to one shape. The

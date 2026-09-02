@@ -122,12 +122,11 @@ linear one is pure data, with no engine or schema change.
   provenance and curator reasoning, and the rejection log of compounds already
   evaluated and deferred.
 
-The checks that matter most are the ones CI mostly cannot run: whether a
-citation is real, and whether any on-screen sentence is true. Curve MAGNITUDE
-used to be on that list — a compound can now carry `validation` observations,
-and the suite builds its curve and checks it against what a source actually
-measured. Most compounds do not carry them yet, so absence means unchecked
-rather than fine.
+The checks that matter most are the ones CI mostly cannot run: whether a citation
+is real, and whether any on-screen sentence is true. Curve MAGNITUDE is partly off
+that list — a compound can carry `validation` observations, and the suite builds
+its curve and checks it against what a source actually measured. Most compounds do
+not carry them yet, so absence means unchecked rather than fine.
 
 ## License
 

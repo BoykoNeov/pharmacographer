@@ -48,15 +48,23 @@ identical on top of it, proved by its own untouched oracle suite. This is `src/u
 applied a layer down: the defect that matters is not a wrong answer, it is correctness that has to be
 re-achieved in step.
 
-**2. The magnitude check moved into CI, which every document here said was impossible.**
-`CONTRIBUTING.md` said it outright — "this number cannot come from CI, so it has to come from you" —
-and `CLAUDE.md` listed it first among the standing traps. Both were true of a curve compared against
-a SENTENCE. Neither is true of a curve compared against a typed field.
+**2. The magnitude check became DATA — and the standing trap turned out to be stated too strongly.**
+`CONTRIBUTING.md` says "this number cannot come from CI, so it has to come from you" and `CLAUDE.md`
+lists it first among the standing traps. That was already not quite true when it was written: FOUR
+compounds have had magnitude checked in CI for months, by three hand-written test files (phenytoin's
+Css cliff and ethanol's slope in `curve.mm.test.ts`, clonidine's plateau in `transdermal.test.tsx`,
+ketamine's dose range in `intramuscular.test.tsx`). The first draft of this entry repeated the trap's
+wording and had to be corrected against the repo — the same decay the entry is about, one file over.
 
-The cost of prose was never theoretical: a fabricated magnitude number reached shipped `notes` once
-(sumatriptan's "76.5 ng/mL at 11.6 min", written before the check was run; measured 72.7 at 12.0),
-caught by a human reading the file and by no gate — and a number in `notes` decays silently on every
-parameter edit besides. A `validation` entry is the same claim, machine-checkable: kind, route, dose,
+What was actually missing is narrower and more useful to name: **a way to state a magnitude anchor as
+DATA.** A curator who ran the check by hand could write a sentence in `notes` or write a test file.
+The first decays; the second is not a reasonable ask of a data-only contribution, which is precisely
+what "adding a linear compound is pure data" promises. So 44 of 48 compounds took the sentence.
+
+The cost of the sentence was never theoretical: a fabricated magnitude number reached shipped
+`notes` once (sumatriptan's "76.5 ng/mL at 11.6 min", written before the check was run; measured 72.7
+at 12.0), caught by a human reading the file and by no gate. A `validation` entry is the same claim,
+machine-checkable: kind, route, dose,
 the reported value or range, a tolerance, and the source. The schema enforces that the `sourceRef` is
 a REAL source (never a sentinel — a derived value cannot check the derivation that produced it) and
 that the route is one the file marks available (a line labelled "inferred, not measured" has nothing
@@ -77,7 +85,10 @@ Three design decisions do the honesty work, and each was a choice with a plausib
 Ten observations across eight compounds, every number re-keyed from the anchor already asserted in
 that compound's own file and attributed to the same source. Verified by sabotage: moving zolpidem's
 Vd to the top of its OWN cited range — a change every other gate in the repo accepts — fails with
-"the curve gives 0.1070 mg/L, the source reports 0.121".
+"the curve gives 0.1070 mg/L, the source reports 0.121". **The four bespoke tests stay**: what they
+assert beyond a number — a decline straight to 2%, a Css ratio of 2.7× for a 2× dose rate, 90% of
+plateau by two days — is the teaching point, and no declarative entry says it. The overlap worth
+removing is the steady-state schema extension (roadmap B2), not the tests.
 
 **The finding the transcription turned up, which is worth more than the entries.** Two compounds
 state a magnitude check in `notes` that cannot be attributed to either source in their own files

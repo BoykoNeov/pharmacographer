@@ -6,14 +6,26 @@ import { concentration, mass, time } from '../../src/engine/units.ts';
 import type { ConcentrationUnit, MassUnit, TimeUnit } from '../../src/engine/units.ts';
 
 /**
- * THE MAGNITUDE CHECK, IN CI.
+ * THE MAGNITUDE CHECK, AS DATA RATHER THAN AS A BESPOKE TEST.
  *
- * This is the check the project has spent its whole life saying a machine cannot
- * do. `CONTRIBUTING.md`: "`npm test` proves structure and derivation and **never
- * proves magnitude** — this number cannot come from CI, so it has to come from
- * you." `CLAUDE.md` lists it first among the standing traps. Both were true of a
- * curve compared against a number sitting in prose; neither is true of a curve
- * compared against a number in a typed field.
+ * `CONTRIBUTING.md` and `CLAUDE.md` both say magnitude "cannot come from CI, so
+ * it has to come from you", and that is the standing trap. It is not quite what
+ * was true. Magnitude WAS already checked in CI — for four compounds, by three
+ * hand-written test files: `src/ui/curve.mm.test.ts` (phenytoin's Css cliff and
+ * ethanol's 15 mg/dL/h slope), `tests/ui/transdermal.test.tsx` (clonidine's
+ * label-reported 0.4 ng/mL plateau) and `tests/ui/intramuscular.test.tsx`
+ * (ketamine's Cmax across a 12-fold dose range). Each was written because that
+ * compound's parameters are only meaningful together, and each is still the right
+ * shape for what it checks — slopes, half-life ranges, approach times.
+ *
+ * What did not exist was a way to state a magnitude anchor as DATA. A curator who
+ * ran the check by hand had two options: write a sentence in `notes`, or write a
+ * test file. The first decays silently on the next parameter edit; the second is
+ * not something a data-only contribution can reasonably be asked for. So 44 of 48
+ * compounds had the sentence.
+ *
+ * This file is the third option. A compound declares what a source measured, and
+ * the check runs forever without anyone writing a test.
  *
  * The cost of leaving it in prose was not hypothetical. A fabricated magnitude
  * number reached shipped `notes` once (sumatriptan: "76.5 ng/mL at 11.6 min",
@@ -26,7 +38,14 @@ import type { ConcentrationUnit, MassUnit, TimeUnit } from '../../src/engine/uni
  * used, on the route the source used, and require the peak to land where the
  * source said it did.
  *
- * Two things it deliberately does NOT do.
+ * Three things it deliberately does NOT do.
+ *
+ * - **It does not replace the four bespoke tests**, and should not absorb them as
+ *   they stand: they assert things a single-dose Cmax/Tmax entry cannot say (a
+ *   decline that is straight, a steady state that is superlinear in dose rate, a
+ *   plateau reached on the label's timescale). The overlap worth removing is
+ *   listed in `docs/ROADMAP.md` B2 — steady-state observations — not the tests
+ *   themselves.
  *
  * - **It does not check the compounds that carry no entries**, and it must not be
  *   read as if it did. Coverage is asserted below (as a listed set, never a

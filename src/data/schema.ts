@@ -384,14 +384,16 @@ const RoutesSchema = z.strictObject({
  * A single MEASURED observation the plotted curve must reproduce — the
  * magnitude check, moved out of prose and into CI.
  *
- * `npm test` has always proven structure and derivation and never magnitude:
- * schema, loader and derivation all pass happily while a curve sits an order of
- * magnitude away from anything anyone measured. `CONTRIBUTING.md` says so
- * outright ("this number cannot come from CI, so it has to come from you"), and
- * every compound file records its check as a sentence in `notes` — where it is
- * invisible to the suite, decays silently when a parameter is edited, and has
- * already been found FABRICATED once (sumatriptan's "76.5 ng/mL at 11.6 min",
- * written before the check was run; the real numbers were 72.7 at 12.0).
+ * Schema, loader and derivation all pass happily while a curve sits an order of
+ * magnitude away from anything anyone measured. Four compounds are protected from
+ * that by hand-written tests (phenytoin and ethanol in `src/ui/curve.mm.test.ts`,
+ * clonidine in `tests/ui/transdermal.test.tsx`, ketamine in
+ * `tests/ui/intramuscular.test.tsx`); the rest record their check as a sentence in
+ * `notes`, where it is invisible to the suite, decays silently when a parameter is
+ * edited, and has already been found FABRICATED once (sumatriptan's "76.5 ng/mL at
+ * 11.6 min", written before the check was run; the real numbers were 72.7 at 12.0).
+ * A field a curator can fill in is the option those 44 compounds did not have —
+ * writing a test file is not a reasonable ask of a data-only contribution.
  *
  * An entry here is the same claim, re-keyed so a machine can check it:
  * `tests/data/magnitude.test.ts` builds the curve and fails if it misses. Three

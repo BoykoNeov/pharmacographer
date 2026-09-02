@@ -1767,13 +1767,20 @@ and returns a list of what it derived (so the UI can show it):
 
 ## Validation observations — the magnitude check, kept
 
-The magnitude check is the one gate this project always said a machine could not
-run: build the curve, compare its peak to a concentration somebody measured. It
-was written into `notes` as a sentence, which has two failure modes, both real.
-It **decays** — every parameter edit invalidates it and nothing says so — and it
-can be **fabricated**: sumatriptan shipped with "76.5 ng/mL at 11.6 min" in its
-notes, written before the check was run (measured: 72.7 at 12.0), and it was
-caught by a human reading the file, not by any gate.
+The magnitude check — build the curve, compare its peak to a concentration
+somebody measured — has always had two homes, and neither was available to an
+ordinary data contribution. Four compounds got **bespoke tests**, because what
+they assert is a shape rather than a number (phenytoin's Css cliff and ethanol's
+straight-line slope in `src/ui/curve.mm.test.ts`, clonidine's plateau in
+`tests/ui/transdermal.test.tsx`, ketamine's dose range in
+`tests/ui/intramuscular.test.tsx`). Everything else got a **sentence in `notes`**,
+which has two failure modes, both real: it **decays** — every parameter edit
+invalidates it and nothing says so — and it can be **fabricated**, as sumatriptan's
+"76.5 ng/mL at 11.6 min" was, written before the check was run (measured: 72.7 at
+12.0) and caught by a human reading the file rather than by any gate.
+
+A `validation` entry is the third home, and the one a data-only change can
+reasonably be asked to provide: writing a test file is not.
 
 A `validation` entry is the same claim in a typed field, so
 `tests/data/magnitude.test.ts` re-runs it forever:

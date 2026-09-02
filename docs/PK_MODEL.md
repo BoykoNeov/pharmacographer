@@ -292,7 +292,10 @@ Correctness lives in oracles, not golden curves (handoff §10):
   every model, including those with no analytic AUC.
 - **Negative oracles**: superposition must FAIL under saturation; a curve
   described as peaking must actually peak.
-- **Magnitude**, which used to be outside CI's reach and no longer entirely is:
-  compounds carrying a `validation` block have their built curve checked against
-  the concentration a source actually measured (`tests/data/magnitude.test.ts`).
-  Most compounds do not carry one yet — absence means unchecked, not fine.
+- **Magnitude**, two ways. Four compounds have hand-written checks against
+  reported observations, because what they assert is a shape rather than a number
+  (phenytoin's steady-state cliff, ethanol's straight-line decline, clonidine's
+  plateau and its approach, ketamine across a 12-fold dose range). Any compound
+  may also carry `validation` observations, which `tests/data/magnitude.test.ts`
+  builds and checks. Most compounds carry neither — absence means unchecked, not
+  fine.
