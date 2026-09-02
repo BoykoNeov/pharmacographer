@@ -40,6 +40,21 @@
       }
     }
   },
+  "validation": [
+    {
+      "kind": "cmax",
+      "route": "oral",
+      "dose": {
+        "value": 300,
+        "unit": "mg"
+      },
+      "value": 7.4,
+      "unit": "mcg/mL",
+      "tolerance": 0.15,
+      "sourceRef": "pregabalin_be_study",
+      "conditions": "mean Cmax for a single 300 mg oral dose under fasting conditions. A DOCUMENTED MISS of ~13%, and the compound notes explain it as a model-shape artifact rather than a sourcing error: pregabalin absorbs fast and eliminates slowly, so the real peak sits essentially ON the F.D/V ceiling (7.7 mg/L here) while a smooth single-ka Bateman curve always lands just below it. The label volume was kept rather than shrunk to force the peak onto the ceiling"
+    }
+  ],
   "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
   "sources": {
     "fda_label": {

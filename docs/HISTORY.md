@@ -82,8 +82,10 @@ Three design decisions do the honesty work, and each was a choice with a plausib
   entry whose tolerance exceeds three times the miss it admits fails.
 - **A range is a region of agreement, not a midpoint.** A source reporting 37–83 has not claimed 60.
 
-Ten observations across eight compounds, every number re-keyed from the anchor already asserted in
-that compound's own file and attributed to the same source. Verified by sabotage: moving zolpidem's
+Sixteen observations across thirteen compounds, every number re-keyed from an anchor already
+asserted in that compound's own file — and, for the second tranche, taken from the SOURCE RECORD
+itself rather than from prose, since a `sources` entry that quotes "mean Cmax 5.1 +/- 0.8 mcg/mL
+after a single 500 mg oral dose" is the compound's own evidence of what was measured. Verified by sabotage: moving zolpidem's
 Vd to the top of its OWN cited range — a change every other gate in the repo accepts — fails with
 "the curve gives 0.1070 mg/L, the source reports 0.121". **The four bespoke tests stay**: what they
 assert beyond a number — a decline straight to 2%, a Css ratio of 2.7× for a 2× dose rate, 90% of

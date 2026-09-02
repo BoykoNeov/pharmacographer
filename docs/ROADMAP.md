@@ -167,24 +167,31 @@ Recorded so they are not proposed as oversights:
 ### B1. Back-fill `validation` observations — the biggest cheap win
 
 `tests/data/magnitude.test.ts` checks a built curve against a measured
-concentration for the **8 compounds** that carry a `validation` block. Four others
+concentration for the **13 compounds** that carry a `validation` block. Four others
 (phenytoin, ethanol, clonidine, ketamine) are covered by bespoke tests that
 predate it and assert things a declarative entry cannot — a straight-line decline,
 a superlinear steady state, a plateau reached on the label's timescale. The
-remaining ~36 are unchecked by machine, and most already state their magnitude
+remaining ~31 are unchecked by machine, and most already state their magnitude
 check as a sentence in `notes`: a sentence that decays silently on every parameter
 edit, and which has been found fabricated once.
 
 The recipe, per compound, is in `docs/DATA_GUIDE.md` ("Validation observations").
-Compounds whose notes already carry a usable anchor include acyclovir, famotidine,
-psilocin, lsd, morphine, allopurinol (its metabolite line), ethosuximide,
-lorazepam and glipizide.
+The cheapest way to find the next candidate is to read the compound's own
+`sources` entries rather than its `notes`: several titles quote the measured Cmax
+verbatim, which is both the anchor and its attribution in one place. Anchors still
+waiting on a schema extension include allopurinol's metabolite peak (the check is
+of a metabolite line, not the parent), acyclovir's and ethosuximide's
+steady-state values (B2 below), and ketamine's dose-range check (already covered
+by a bespoke test).
 
-**Two of those have an attribution gap, which is itself a finding**: glipizide's
-"~300–450 ng/mL for 5 mg" and lorazepam's "~20 ng/mL after 2 mg" cannot be traced
-to either source in their own files. They were left unencoded rather than
-attributed to a guess. Either find the source or mark the sentence as
-unattributed — an observation with a guessed citation is worse than none.
+**Three compounds have an attribution gap, which is itself a finding**:
+glipizide's "~300–450 ng/mL for 5 mg", lorazepam's "~20 ng/mL after 2 mg", and
+famotidine's "a 20 mg oral study reported ~67 ng/mL" all appear in their own
+`notes` and match no source in their own files. All three were left unencoded
+rather than attributed to a guess — and famotidine is the sharpest case, because
+the model reproduces it to 0.4%, which is exactly the kind of agreement that
+tempts you to write the citation you assume. Either trace the source or mark the
+sentence unattributed.
 
 ### B2. Harness v2 — steady-state and multi-dose observations
 

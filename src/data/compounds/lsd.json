@@ -43,6 +43,34 @@
       }
     }
   },
+  "validation": [
+    {
+      "kind": "cmax",
+      "route": "oral",
+      "dose": {
+        "value": 200,
+        "unit": "mcg"
+      },
+      "value": 3.1,
+      "unit": "ng/mL",
+      "tolerance": 0.12,
+      "sourceRef": "dolder_2017",
+      "conditions": "oral LSD 200 mcg, dose-proportional kinetics reported. The apparent volume was chosen to sit inside the recreational-dose reports, which disagree by ~45% between studies at this same dose (Dolder 2016 reports ~4.5 ng/mL), so the model deliberately runs between them rather than onto either"
+    },
+    {
+      "kind": "cmax",
+      "route": "oral",
+      "dose": {
+        "value": 100,
+        "unit": "mcg"
+      },
+      "value": 1.3,
+      "unit": "ng/mL",
+      "tolerance": 0.35,
+      "sourceRef": "dolder_2017",
+      "conditions": "oral LSD 100 mcg from the same study as the 200 mcg entry, and a DOCUMENTED MISS of ~29% over. The gap is not a parameter error: the source's own two doses are supra-proportional (1.3 -> 3.1 ng/mL is 2.4x for 2x the dose) while reporting dose-proportionality, so no linear model can land on both. Anchored on the 200 mcg value, this one reads high. Recorded to pin the size and direction of that tension rather than to hide it by omitting the lower dose"
+    }
+  ],
   "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
   "sources": {
     "dolder_2017": {

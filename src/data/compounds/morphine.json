@@ -126,6 +126,21 @@
       "notes": "Morphine-6-glucuronide is the ACTIVE metabolite of morphine (hepatic UGT2B7 glucuronidation at the 6-position): a µ-opioid agonist MORE potent than morphine itself. Although it is the minor glucuronide (~1/5.5 the mass of M3G formed), it contributes substantially to analgesia — and, in renal impairment where it accumulates, to toxicity. Drawn as a dashed 'active metabolite' line beside the inactive M3G: the two together are the parallel-glucuronidation centrepiece (M6G active + M3G inactive, formed simultaneously off the shared parent clearance).\n\nDISPOSITION — TRUE vs APPARENT (see the M3G note for the full argument). Stored half-life 2.05 h and volume 29.38 L are M6G's OWN, from direct IV M6G (Hanna 1991); the ~12.9 h apparent half-life after morphine reflects formation-rate limitation by morphine's low-amplitude deep phase plus enterohepatic recycling (unmodelable here). The intrinsic ~2 h is stored so the honesty panel is truthful and the renal-accumulation teaching (M6G's own elimination is what slows in renal failure) stays coherent. AUC is faithful via AUC_m = fm·Dose/(k_m·Vd_m). fm MW-adjusted from the 10.4% molar formation clearance (×1.617 → 16.8% mass)."
     }
   ],
+  "validation": [
+    {
+      "kind": "cmax",
+      "route": "oral",
+      "dose": {
+        "value": 22.5,
+        "unit": "mg"
+      },
+      "value": 28.5,
+      "unit": "ng/mL",
+      "tolerance": 0.25,
+      "sourceRef": "atrux_tallau_2022",
+      "conditions": "reported for 30 mg Sevredol (morphine sulfate), which is ~22.5 mg of morphine BASE - the quantity this compound plots, hence the dose recorded here. A DOCUMENTED MISS of ~20% under: the model draws the effective 1.58 h phase rather than the sensitive-assay tail, which also runs the parent AUC below the reported value in the same direction"
+    }
+  ],
   "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
   "sources": {
     "hasselstrom_1993": {

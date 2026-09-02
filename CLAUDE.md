@@ -80,7 +80,7 @@ ketamine across a 12-fold dose range). Any compound may also carry `validation`
 observations — the concentration a source measured at a stated dose and route —
 which `tests/data/magnitude.test.ts` checks by building the curve (see
 `docs/DATA_GUIDE.md` "Validation observations"). That is the option a data-only
-contribution actually has; 8 of 48 compounds carry one so far, and absence means
+contribution actually has; 13 of 48 compounds carry one so far, and absence means
 unchecked, never fine. The analytic oracles: e.g. IV bolus `C(0)=D/Vd`, `C(t½)=C(0)/2`; numeric AUC ≈ `D/(Vd·ke)`;
 flip-flop `ka≈ke` branch returns finite values; superposition of one dose equals
 the single-dose curve. Numeric AUC via trapezoid on a fine grid, assert within a
@@ -300,7 +300,7 @@ never "select your genotype" — `tests/ui/phenotype-picker.test.tsx` asserts it
 
 - `npm test` proves _structure + derivation_; it proves _numeric correctness_ only
   for the four compounds with bespoke magnitude tests and for those carrying
-  `validation` observations (8 of 48 — check the file).
+  `validation` observations (13 of 48 — check the file).
   Magnitude-check a new compound by hand as before — build the engine curve and
   compare its peak to a reported Cmax; for a zero-order input use `Css = R0/CL`,
   which depends on clearance ALONE and is therefore a free check on the data, and

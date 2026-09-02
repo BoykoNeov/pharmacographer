@@ -80,10 +80,15 @@ const validated = compounds.filter((c) => c.validation && c.validation.length > 
 const VALIDATED_IDS = [
   'allopurinol',
   'dextroamphetamine',
+  'diazepam',
   'diphenhydramine',
   'levofloxacin',
+  'lsd',
+  'morphine',
   'methamphetamine',
   'metronidazole',
+  'pregabalin',
+  'psilocin',
   'sumatriptan',
   'zolpidem',
 ] as const;

@@ -43,6 +43,21 @@
       }
     }
   },
+  "validation": [
+    {
+      "kind": "cmax",
+      "route": "oral",
+      "dose": {
+        "value": 25,
+        "unit": "mg"
+      },
+      "value": 20,
+      "unit": "ng/mL",
+      "tolerance": 0.18,
+      "sourceRef": "psilocin_review",
+      "conditions": "the review reports a DOSE-NORMALISED Cmax of ~0.8 ng/mL per mg of psilocybin over a dose-proportional 7-59.2 mg range; 25 mg x 0.8 = 20 ng/mL is that value scaled, not a separately reported figure. Doses are psilocybin (the prodrug) and the plotted species is psilocin, as the compound displayNote states. A DOCUMENTED MISS of ~13% under, within the apparent-volume spread the review reports (Vz/F 505-1267 L)"
+    }
+  ],
   "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
   "displayNote": "Dose is entered as PSILOCYBIN (the ingested prodrug); the plotted curve is plasma PSILOCIN, its psychoactive metabolite, formed by near-complete pre-systemic dephosphorylation. A 25 mg psilocybin dose is a common clinical/high recreational dose.",
   "sources": {
