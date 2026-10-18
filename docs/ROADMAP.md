@@ -200,7 +200,7 @@ The 2026-10-18 pass downloaded each DailyMed label (the SPL by its `setid`:
 searched it for `Cmax` / `ng/mL` / `mcg/mL`. That turned up four anchors (amoxicillin,
 famotidine, fluconazole, lorazepam) whose numbers no title mentioned. The same
 search came up empty, or found only multi-dose or special-population values, for
-atenolol (its setid no longer resolves), cetirizine (steady-state only, so B2),
+atenolol (the label page resolves, but its SPL download does not, and the label gives Tmax only), cetirizine (steady-state only, so B2),
 glipizide, lamotrigine, levetiracetam, metformin (extended-release only) and
 metoprolol. Ibuprofen, IV acetaminophen and warfarin have values that were
 deliberately not encoded; the data guide says why. Anchors still
