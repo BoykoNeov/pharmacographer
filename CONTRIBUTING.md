@@ -105,7 +105,7 @@ Note what none of these can see: a citation that does not exist, a wrong number
 in `notes`, and any sentence rendered on screen. Those are the reviewer's job and
 yours, not CI's. A curve of the wrong magnitude is only partly on that list now:
 it is caught for the four compounds with bespoke magnitude tests and for any
-compound carrying `validation` observations (13 of 48), so treat the rest as
+compound carrying `validation` observations (17 of 48), so treat the rest as
 unchecked rather than fine.
 
 ## How a change is judged

@@ -42,13 +42,45 @@
       }
     }
   },
+  "validation": [
+    {
+      "kind": "cmax",
+      "route": "oral",
+      "dose": { "value": 500, "unit": "mg" },
+      "range": [5.5, 7.5],
+      "unit": "mcg/mL",
+      "tolerance": 0.05,
+      "sourceRef": "fda_label",
+      "conditions": "500 mg capsule: 'average peak blood levels 1 to 2 hours after administration in the range of ... 5.5 mcg/mL to 7.5 mcg/mL' (food state not stated for the capsules). NOT an independent check: Vd 0.35 L/kg was chosen to reproduce this peak, so this entry only guards it against later edits. The model lands inside the range, near its top"
+    },
+    {
+      "kind": "cmax",
+      "route": "oral",
+      "dose": { "value": 250, "unit": "mg" },
+      "range": [3.5, 5],
+      "unit": "mcg/mL",
+      "tolerance": 0.05,
+      "sourceRef": "fda_label",
+      "conditions": "250 mg capsule: average peak blood levels 'in the range of 3.5 mcg/mL to 5 mcg/mL', same label sentence as the 500 mg entry. The model lands inside the range, near its bottom; since the model is linear it is the 500 mg fit halved, so this mainly checks that the label's two capsule ranges are mutually dose-proportional"
+    },
+    {
+      "kind": "cmax",
+      "route": "oral",
+      "dose": { "value": 875, "unit": "mg" },
+      "value": 13.8,
+      "unit": "mcg/mL",
+      "tolerance": 0.1,
+      "sourceRef": "fda_label",
+      "conditions": "875 mg TABLET, single-dose crossover bioequivalence study in 27 adults, dosed at the start of a light meal after an overnight fast: Cmax 13.8 +/- 4.1 mcg/mL (AUC 35.4 +/- 8.1 mcg.h/mL). The most independent of the three: a different study, formulation and dose from the capsule peak the volume was chosen against. The model reads ~8% low"
+    }
+  ],
   "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
   "sources": {
     "fda_label": {
       "type": "FDA label",
-      "title": "Amoxicillin Capsule (NorthStar Rx LLC; mfr Aurobindo Pharma) — FDA Structured Product Label, clinical pharmacology (half-life, Tmax, peak levels, protein binding)",
+      "title": "Amoxicillin Capsule (NorthStar Rx LLC; mfr Aurobindo Pharma) — FDA Structured Product Label, clinical pharmacology (half-life, Tmax, peak levels, protein binding; 250/500 mg capsule average peak blood levels 3.5–5 and 5.5–7.5 mcg/mL; 875 mg tablet Cmax 13.8 ± 4.1 mcg/mL in a 27-adult bioequivalence study)",
       "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=843f6053-63d9-47d2-81f1-b6aa78a7c20c",
-      "accessed": "2026-07-01"
+      "accessed": "2026-10-18"
     },
     "smpc": {
       "type": "EMA SmPC",
@@ -57,5 +89,5 @@
       "accessed": "2026-07-01"
     }
   },
-  "notes": "Curated from the FDA Structured Product Label for amoxicillin capsules (NorthStar/Aurobindo — half-life 61.3 min, Tmax 1–2 h, 250/500 mg peak blood levels, ~20% protein binding) plus the EMA SmPC (medicines.org.uk) for the apparent volume of distribution (~0.3–0.4 L/kg) and oral bioavailability (~70%), which the US label does not quantify. ke is taken from the ~1 h half-life. Amoxicillin is US oral-only (its IV sibling is ampicillin), so only the oral route is offered. LINEARITY: within 250–3000 mg the bioavailability (AUC) is proportional to dose and elimination is first-order and renal (dose-independent half-life), so identical repeated doses superpose and linear: true. The one documented nonlinearity is in the absorption RATE, not in AUC or elimination: at higher single doses the absorption rate saturates, which flattens Cmax (sub-proportional) and pushes Tmax later. That means the single ka used here is valid for the illustrative dose but would overstate the absorption rate at much larger doses — a shape caveat, not a superposition-breaking nonlinearity. A curatorial cross-check: Vd 0.35 L/kg with F 0.70 reproduces the label's reported 500 mg peak (~7 µg/mL) under this one-compartment model, which is why that Vd point value was chosen within the 0.3–0.4 range. Because the half-life (~1 h) makes ke comparable to the absorption rate ka, amoxicillin is a good illustration of near-flip-flop kinetics. Educational illustration only — not for dosing."
+  "notes": "Curated from the FDA Structured Product Label for amoxicillin capsules (NorthStar/Aurobindo — half-life 61.3 min, Tmax 1–2 h, 250/500 mg peak blood levels, ~20% protein binding) plus the EMA SmPC (medicines.org.uk) for the apparent volume of distribution (~0.3–0.4 L/kg) and oral bioavailability (~70%), which the US label does not quantify. ke is taken from the ~1 h half-life. Amoxicillin is US oral-only (its IV sibling is ampicillin), so only the oral route is offered. LINEARITY: within 250–3000 mg the bioavailability (AUC) is proportional to dose and elimination is first-order and renal (dose-independent half-life), so identical repeated doses superpose and linear: true. The one documented nonlinearity is in the absorption RATE, not in AUC or elimination: at higher single doses the absorption rate saturates, which flattens Cmax (sub-proportional) and pushes Tmax later. That means the single ka used here is valid for the illustrative dose but would overstate the absorption rate at much larger doses — a shape caveat, not a superposition-breaking nonlinearity. A curatorial cross-check: Vd 0.35 L/kg with F 0.70 reproduces the label's reported 500 mg peak (~7 µg/mL) under this one-compartment model, which is why that Vd point value was chosen within the 0.3–0.4 range. Because the volume was fitted to it, that 500 mg peak is a regression guard, not evidence. The independent check is the label's 875 mg tablet study (Cmax 13.8 ± 4.1 mcg/mL in 27 adults): the model gives 12.7, ~8% low, and its AUC (~37 mcg·h/mL against 35.4) agrees too. All three anchors are encoded in `validation`. Because the half-life (~1 h) makes ke comparable to the absorption rate ka, amoxicillin is a good illustration of near-flip-flop kinetics. Educational illustration only — not for dosing."
 }

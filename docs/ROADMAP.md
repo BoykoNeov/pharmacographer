@@ -184,31 +184,38 @@ Recorded so they are not proposed as oversights:
 ### B1. Back-fill `validation` observations — the biggest cheap win
 
 `tests/data/magnitude.test.ts` checks a built curve against a measured
-concentration for the **13 compounds** that carry a `validation` block. Four others
+concentration for the **17 compounds** that carry a `validation` block. Four others
 (phenytoin, ethanol, clonidine, ketamine) are covered by bespoke tests that
 predate it and assert things a declarative entry cannot — a straight-line decline,
 a superlinear steady state, a plateau reached on the label's timescale. The
-remaining ~31 are unchecked by machine, and most already state their magnitude
+remaining ~27 are unchecked by machine, and most already state their magnitude
 check as a sentence in `notes`: a sentence that decays silently on every parameter
-edit, and which has been found fabricated once.
+edit. Two such sentences have turned out to be the model's own output presented
+as a measurement (sumatriptan, then famotidine).
 
 The recipe, per compound, is in `docs/DATA_GUIDE.md` ("Validation observations").
-The cheapest way to find the next candidate is to read the compound's own
-`sources` entries rather than its `notes`: several titles quote the measured Cmax
-verbatim, which is both the anchor and its attribution in one place. Anchors still
+To find the next candidate, **read the full label text, not the source's title**.
+The 2026-10-18 pass downloaded each DailyMed label (the SPL by its `setid`:
+`https://dailymed.nlm.nih.gov/dailymed/services/v2/spls/<setid>.xml`) and
+searched it for `Cmax` / `ng/mL` / `mcg/mL`. That turned up four anchors (amoxicillin,
+famotidine, fluconazole, lorazepam) whose numbers no title mentioned. The same
+search came up empty, or found only multi-dose or special-population values, for
+atenolol (its setid no longer resolves), cetirizine (steady-state only, so B2),
+glipizide, lamotrigine, levetiracetam, metformin (extended-release only) and
+metoprolol. Ibuprofen, IV acetaminophen and warfarin have values that were
+deliberately not encoded; the data guide says why. Anchors still
 waiting on a schema extension include allopurinol's metabolite peak (the check is
 of a metabolite line, not the parent), acyclovir's and ethosuximide's
 steady-state values (B2 below), and ketamine's dose-range check (already covered
 by a bespoke test).
 
-**Three compounds have an attribution gap, which is itself a finding**:
-glipizide's "~300–450 ng/mL for 5 mg", lorazepam's "~20 ng/mL after 2 mg", and
-famotidine's "a 20 mg oral study reported ~67 ng/mL" all appear in their own
-`notes` and match no source in their own files. All three were left unencoded
-rather than attributed to a guess — and famotidine is the sharpest case, because
-the model reproduces it to 0.4%, which is exactly the kind of agreement that
-tempts you to write the citation you assume. Either trace the source or mark the
-sentence unattributed.
+**The three attribution gaps recorded here were resolved 2026-10-18**, and the
+record was wrong about one of them. Lorazepam's "~20 ng/mL after 2 mg" was in its
+own FDA label all along, and is now encoded. Famotidine's "~67 ng/mL" matched no
+source because it was the model's own output. The label's real 20 mg value, 73
+ng/mL, is now encoded, and the model reads ~8% low against it rather than the
+0.4% the old sentence implied. Glipizide's range really is unsourced, and its
+`notes` now say so. Details are in the data guide, "Validation observations".
 
 ### B2. Harness v2 — steady-state and multi-dose observations
 

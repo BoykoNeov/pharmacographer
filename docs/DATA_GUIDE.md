@@ -1829,11 +1829,52 @@ A `validation` entry is the same claim in a typed field, so
 coverage assertion is a listed set rather than a count, because a count floor
 passes happily while an entry quietly disappears (the `loader.test.ts` lesson).
 
-**Two anchors were deliberately NOT encoded**, and the reason is the standing
-citation rule rather than an oversight: glipizide's "~300–450 ng/mL for 5 mg" and
-lorazepam's "~20 ng/mL after 2 mg" appear in their own `notes` but match neither
-source in their own files. An observation with a guessed citation is worse than
-no observation. Either trace them or mark the sentence unattributed.
+**Three untraced anchors, re-audited 2026-10-18 — and the recorded reason was
+wrong for one of them.** This paragraph used to say that glipizide's "~300–450
+ng/mL for 5 mg" and lorazepam's "~20 ng/mL after 2 mg" matched neither source in
+their own files. Opening the labels again showed:
+
+- **Lorazepam's number was in its own `fda_label` all along** ("The peak plasma
+  level of lorazepam from a 2 mg dose is approximately 20 ng/mL"). It was
+  untraced only because the source's title summarised other sentences. It is
+  now encoded. The lesson is the "re-opening audits the reason" rule again: a
+  claim that a source _lacks_ something needs the source opened just as much as
+  a claim that it has it.
+- **Glipizide's is genuinely unattributed.** Neither label prints a
+  concentration. The sentence in `notes` now says so, and nothing is encoded.
+- **Famotidine's "a 20 mg oral study reported ~67 ng/mL" was worse than
+  untraced.** No source reports 67, and 67 is the model's own output to two
+  figures: a modelled number written up as a measured one, which is the
+  sumatriptan failure again. The label does report a 20 mg Cmax, **73 ng/mL**
+  (the control arm of its probenecid interaction study, n = 8), so that is what
+  is encoded. The model reads ~8% low against it. The sentence that claimed
+  agreement has been rewritten, and so has the `vd` condition that called 1.15
+  L/kg Cmax-fitted (it is the midpoint of the cited range).
+
+An observation with a guessed citation is still worse than no observation.
+
+**Three label values were looked at and deliberately NOT encoded**, because each
+would mostly measure something other than the drug:
+
+- **Ibuprofen**: the label's 200 mg Cmax (19 µg/mL) is for the _suspension_
+  (Tmax 0.79 h). The model's absorption comes from the tablet's 1–2 h Tmax and
+  reads 14.2. That 25% gap is a formulation mismatch, not a model miss.
+- **Acetaminophen IV**: the adult 1000 mg Cmax is 28 µg/mL with an SD of 21
+  (Table 5). The one-compartment model, built on the steady-state volume, gives
+  17.2. It structurally cannot draw the end-of-infusion spike of a drug with a
+  real distribution phase. Both the spread and the structural gap would swamp
+  anything the entry could detect.
+- **Warfarin**: the enantiomer study reports R- and S-warfarin Cmax separately
+  (1.34 and 1.37 µg/mL after 25 mg racemate). Adding them makes a racemic peak
+  nobody measured, and the model's Tmax (3 h, from the label) sits far from the
+  study's 0.9 h.
+
+**A fitted parameter makes its anchor a guard, not evidence.** Amoxicillin's Vd
+was chosen to reproduce the label's 500 mg capsule peak, so that entry can only
+catch a later edit. It says so in its `conditions`, and the file also carries
+the label's 875 mg tablet study (a different study, formulation and dose) as the
+independent check. When you encode an anchor that a parameter was tuned to, say
+so in `conditions`, and look for a second one that wasn't.
 
 ## Adding a compound — checklist
 

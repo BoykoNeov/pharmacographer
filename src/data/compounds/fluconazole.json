@@ -51,14 +51,27 @@
       "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
     }
   },
+  "validation": [
+    {
+      "kind": "cmax",
+      "route": "oral",
+      "dose": { "value": 400, "unit": "mg" },
+      "value": 6.72,
+      "range": [4.12, 8.08],
+      "unit": "mcg/mL",
+      "tolerance": 0.1,
+      "sourceRef": "fda_label",
+      "conditions": "single 400 mg oral dose in fasted normal volunteers: 'mean Cmax of 6.72 mcg/mL (range: 4.12 to 8.08 mcg/mL)'. The mean is what is scored. The model reads ~6% high. The label's other single-dose values (150 mg in lactating women, 50 mg in the elderly) are different populations and are deliberately not encoded"
+    }
+  ],
   "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
   "sources": {
     "fda_label": {
       "type": "FDA label",
-      "title": "DIFLUCAN (fluconazole) tablets / injection — FDA Structured Product Label, Clinical Pharmacology (terminal half-life ~30 h, range 20–50 h; volume of distribution approximates total body water; oral bioavailability over 90%; Tmax 1–2 h; protein binding 11–12%; plasma concentrations and AUC dose proportional)",
+      "title": "DIFLUCAN (fluconazole) tablets / injection — FDA Structured Product Label, Clinical Pharmacology (terminal half-life ~30 h, range 20–50 h; volume of distribution approximates total body water; oral bioavailability over 90%; Tmax 1–2 h; protein binding 11–12%; plasma concentrations and AUC dose proportional; single 400 mg oral dose in fasted normal volunteers: mean Cmax 6.72 mcg/mL, range 4.12–8.08)",
       "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=69f199fa-bb92-4837-8b12-427a1c71f622",
-      "accessed": "2026-07-09"
+      "accessed": "2026-10-18"
     }
   },
-  "notes": "A clean LINEAR one-compartment antifungal, curated from the FDA Diflucan label. Reported PK: terminal half-life ~30 h (20–50 h), volume of distribution approximating total body water, oral bioavailability over 90% (food-independent), Tmax 1–2 h, protein binding 11–12%, and plasma concentrations/AUC that are explicitly dose-proportional — so superposition is on firm ground.\n\nTEACHING VALUE — the loading dose. Fluconazole's ~30 h half-life means ~5–6 days to reach steady state on a fixed daily maintenance dose; the label's clinical guidance to give a loading dose of twice the daily maintenance dose on day 1 is the canonical illustration of why a long-half-life drug is loaded. The recurring-dose view (a day-1 double dose then daily maintenance) shows the accumulation-to-plateau this shortcuts. (The app plots illustrative curves for user-chosen doses; it does not recommend a regimen — the bright line holds.)\n\nVOLUME: the label gives the volume qualitatively as 'approximates total body water.' Total body water is ~0.6 L/kg; the value used is ~0.7 L/kg (band 0.6–0.8) to reflect fluconazole's slightly wider distribution at low protein binding. Because F ~ 1 the apparent-vs-true-volume distinction is negligible.\n\nROUTES: oral (F ~0.9) and IV are both real products; the IV form is given as an infusion (iv_infusion available), with iv_bolus offered illustratively (F = 1 by definition).\n\nRENAL ELIMINATION: ~80% excreted unchanged renally — clearance scales with renal function (an educational point, not a patient-specific adjustment). Educational illustration only — not for dosing."
+  "notes": "A clean LINEAR one-compartment antifungal, curated from the FDA Diflucan label. Reported PK: terminal half-life ~30 h (20–50 h), volume of distribution approximating total body water, oral bioavailability over 90% (food-independent), Tmax 1–2 h, protein binding 11–12%, and plasma concentrations/AUC that are explicitly dose-proportional — so superposition is on firm ground.\n\nTEACHING VALUE — the loading dose. Fluconazole's ~30 h half-life means ~5–6 days to reach steady state on a fixed daily maintenance dose; the label's clinical guidance to give a loading dose of twice the daily maintenance dose on day 1 is the canonical illustration of why a long-half-life drug is loaded. The recurring-dose view (a day-1 double dose then daily maintenance) shows the accumulation-to-plateau this shortcuts. (The app plots illustrative curves for user-chosen doses; it does not recommend a regimen — the bright line holds.)\n\nVOLUME: the label gives the volume qualitatively as 'approximates total body water.' Total body water is ~0.6 L/kg; the value used is ~0.7 L/kg (band 0.6–0.8) to reflect fluconazole's slightly wider distribution at low protein binding. Because F ~ 1 the apparent-vs-true-volume distinction is negligible.\n\nMAGNITUDE CHECK (built engine curve). A single 400 mg oral dose peaks at 7.1 mcg/mL at 1.5 h, ~6% above the label's mean Cmax of 6.72 mcg/mL (range 4.12–8.08) in fasted normal volunteers. The volume was chosen from the total-body-water statement, not fitted to this peak, so the agreement is an independent check; it is encoded in `validation`.\n\nROUTES: oral (F ~0.9) and IV are both real products; the IV form is given as an infusion (iv_infusion available), with iv_bolus offered illustratively (F = 1 by definition).\n\nRENAL ELIMINATION: ~80% excreted unchanged renally — clearance scales with renal function (an educational point, not a patient-specific adjustment). Educational illustration only — not for dosing."
 }
