@@ -21,7 +21,8 @@
  *   variability.ts       the variability axes, their ranges and bands
  *   types.ts             CurveInput and the per-model CurveResult union
  *   grid.ts              the sampling grid every builder shares
- *   metabolites.ts       metabolite helpers shared by the linear builders
+ *   linear.ts            horizon + critical times shared by the linear builders
+ *   metabolites.ts       which metabolites, and their curves, for the linear builders
  *   oneCompartment.ts    ┐
  *   twoCompartment.ts    │ one builder per disposition model
  *   threeCompartment.ts  │

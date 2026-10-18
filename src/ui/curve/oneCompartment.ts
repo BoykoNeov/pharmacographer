@@ -4,30 +4,17 @@
  * `disposition` block at all).
  */
 
-import {
-  deriveMetaboliteDisposition,
-  deriveParams,
-  engineRouteOf,
-  resolveTransdermalInput,
-} from '../../data/derive.ts';
+import { deriveParams, engineRouteOf, resolveTransdermalInput } from '../../data/derive.ts';
 import { concentrationCurve } from '../../engine/dosing.ts';
-import {
-  infusionMetaboliteConcentrationCurve,
-  metaboliteConcentrationCurve,
-  oralMetaboliteConcentrationCurve,
-} from '../../engine/metabolite.ts';
+import { metaboliteConcentrationCurve } from '../../engine/metabolite.ts';
 import { FLIP_FLOP_REL_TOL } from '../../engine/models.ts';
 import type { DoseEvent, PkParams, Route } from '../../engine/types.ts';
 import { fmtNum, fmtPercent } from './format.ts';
-import { DEFAULT_SAMPLES, findPeak, mergeGrid, niceCeil, sampleGrid } from './grid.ts';
-import { stripFirstPassUnlessOral } from './metabolites.ts';
-import { DEFAULT_INFUSION_DURATION_H, buildSchedule } from './schedule.ts';
-import type {
-  CurveInput,
-  HalfLifeAxisRegime,
-  MetaboliteCurve,
-  OneCompartmentCurveResult,
-} from './types.ts';
+import { DEFAULT_SAMPLES, findPeak, mergeGrid, sampleGrid } from './grid.ts';
+import { curveHorizonLinear } from './linear.ts';
+import { deriveMetabolites, metaboliteCurves } from './metabolites.ts';
+import { buildSchedule, lastDoseTime, withInfusionWindow } from './schedule.ts';
+import type { CurveInput, HalfLifeAxisRegime, OneCompartmentCurveResult } from './types.ts';
 import {
   fRangeOral,
   halfLifeRangeH,
@@ -52,35 +39,6 @@ import {
 function oralPeakTime(ka: number, ke: number): number {
   if (Math.abs(ka - ke) <= FLIP_FLOP_REL_TOL * Math.max(ka, ke)) return 1 / ke;
   return Math.log(ka / ke) / (ka - ke);
-}
-
-/**
- * Pick a time horizon (h) that shows the whole story: the last dose plus a tail
- * of ~5 elimination half-lives (the curve has decayed to ~3% by then), extended
- * for oral so the absorption phase plays out and for an infusion so it covers
- * the infusion plus its decay. `lastDoseTime` shifts the tail to the end of the
- * course so a recurring schedule isn't clipped mid-decay.
- */
-function curveHorizon(route: Route, params: PkParams, lastDoseTime: number): number {
-  const halfLife = Math.LN2 / params.ke;
-  let tail = 5 * halfLife;
-  if (route === 'oral' && params.ka !== undefined && params.ka > 0) {
-    // Oral: the terminal decline is governed by the SLOWER of absorption (ka) and
-    // elimination (ke) — normally ke, but in flip-flop kinetics (ka < ke) absorption
-    // is rate-limiting and the tail decays at ka (a LONGER half-life). Size the
-    // 5-half-life tail on the slower rate and add ~3 half-lives of the faster
-    // (transient) rate for the other phase. Reduces EXACTLY to the previous
-    // `5·ln2/ke + 3·ln2/ka` when ka > ke, so no normal compound's horizon moves.
-    // (`params.ke` is already the slowest ke in view, so this also keeps a slow
-    // metabolite in the running for the terminal rate.)
-    const terminalRate = Math.min(params.ka, params.ke);
-    const transientRate = Math.max(params.ka, params.ke);
-    tail = 5 * (Math.LN2 / terminalRate) + 3 * (Math.LN2 / transientRate);
-  }
-  if (route === 'iv_infusion' && params.infusionDuration !== undefined) {
-    tail = Math.max(tail, params.infusionDuration + 5 * halfLife);
-  }
-  return niceCeil(lastDoseTime + tail);
 }
 
 /**
@@ -142,17 +100,14 @@ export function buildCurve1c(input: CurveInput): OneCompartmentCurveResult {
   const patch = route === 'transdermal' ? resolveTransdermalInput(compound) : undefined;
   const { params: base, derived, warnings } = deriveParams(compound, route, { weightKg });
 
-  // Disposition + injected infusion duration, shared by the main line and band.
-  // Spread (don't mutate) so a memoized `base` stays a faithful cache entry.
-  let disposition = base;
-  if (engineRoute === 'iv_infusion') {
-    // A patch's window is its WEAR PERIOD, read from the product data; an IV
-    // infusion's is the user's, from the controls.
-    const requested = patch ? patch.wearDurationH : input.infusionDuration;
-    const infusionDuration =
-      requested !== undefined && requested > 0 ? requested : DEFAULT_INFUSION_DURATION_H;
-    disposition = { ...base, infusionDuration };
-  }
+  // Disposition + injected input window, shared by the main line and band. A
+  // patch's window is its WEAR PERIOD, read from the product data; an IV
+  // infusion's is the user's, from the controls.
+  const disposition = withInfusionWindow(
+    base,
+    engineRoute,
+    patch ? patch.wearDurationH : input.infusionDuration,
+  );
 
   // Reference half-life for ke scaling: the reported nominal when there is a
   // range (keeps the band centred), else ln2/ke (identity — no scaling).
@@ -209,20 +164,8 @@ export function buildCurve1c(input: CurveInput): OneCompartmentCurveResult {
           : 'mixed';
 
   const doses = buildSchedule(schedule);
-  const lastDoseTime = doses.reduce((latest, dose) => Math.max(latest, dose.time), 0);
-
-  // Metabolites (IV bolus, oral, or IV infusion parent). Derive their disposition up
-  // front so a long-lived metabolite (keM < parent ke) extends the horizon below and
-  // isn't clipped mid-decay. Formation is driven by the parent ke actually plotted
-  // (mainKe), so moving the half-life slider moves the metabolite consistently.
-  const metaboliteDerivations =
-    (engineRoute === 'iv_bolus' || engineRoute === 'oral' || engineRoute === 'iv_infusion') &&
-    compound.metabolites?.length
-      ? compound.metabolites.map((m) => ({
-          meta: m,
-          ...stripFirstPassUnlessOral(route, deriveMetaboliteDisposition(m, { weightKg })),
-        }))
-      : [];
+  const lastDose = lastDoseTime(doses);
+  const metaboliteDerivations = deriveMetabolites(compound, route, weightKg);
 
   // Size the grid on the slowest curve in view (smallest ke) so neither the band's
   // long-half-life tail nor a slow metabolite is clipped mid-decay.
@@ -235,8 +178,8 @@ export function buildCurve1c(input: CurveInput): OneCompartmentCurveResult {
   // Ending the window at patch-off keeps the unfaithful part out of frame rather
   // than drawing it and disclaiming it. See clonidine.json's `displayNote`.
   const horizonH = patch
-    ? lastDoseTime + patch.wearDurationH
-    : curveHorizon(engineRoute, { ...disposition, ke: slowestKe }, lastDoseTime);
+    ? lastDose + patch.wearDurationH
+    : curveHorizonLinear(engineRoute, disposition, slowestKe, lastDose);
   // Uniform grid for the overall shape, plus the exact dose/infusion instants so
   // discontinuous IV peaks aren't aliased (and the axis doesn't flicker).
   const times = mergeGrid(
@@ -292,59 +235,23 @@ export function buildCurve1c(input: CurveInput): OneCompartmentCurveResult {
     });
   }
 
-  // Evaluate each metabolite over the same grid/schedule as the parent. An IV-bolus
-  // parent contributes a plain Bateman metabolite (formation rate = the plotted mainKe);
-  // an oral parent's metabolite is driven off the parent's residue-form mode
-  // (single 1/Vd mode at mainKe, absorption ka/F), so the slider still reshapes it; an
-  // IV-infusion parent's metabolite is the zero-order-input convolution over that same
-  // single mode (duration from the injected disposition).
-  const metabolites: MetaboliteCurve[] | undefined = metaboliteDerivations.length
-    ? metaboliteDerivations.map(({ meta, params: mp, derived: mDerived, warnings: mWarnings }) => {
-        const c =
-          // ENGINE route: an IM parent forms its metabolite through the same
-          // first-order-input convolution as an oral one. What differs is the
-          // pre-systemic term, already stripped by `stripFirstPassUnlessOral`.
-          engineRoute === 'oral'
-            ? oralMetaboliteConcentrationCurve(
-                [{ coef: 1 / params.vd, rate: mainKe }],
-                mainKe * params.vd,
-                params.ka ?? 0,
-                params.F ?? 1,
-                mp,
-                doses,
-                times,
-              )
-            : // ENGINE route, not the clinical one. This read `route === 'iv_infusion'`,
-              // while the gate admitting a compound to this branch at all (above) asks
-              // `engineRoute`. A patch passes that gate — `engineRouteOf('transdermal')`
-              // IS `iv_infusion` — and then failed this test, so a transdermal parent
-              // declaring a metabolite would have had its metabolite drawn with the
-              // IV-BOLUS formation model: the whole wear-period dose arriving at t = 0.
-              // Latent rather than live (clonidine declares no metabolites), and found
-              // by grepping route ternaries while consolidating the peak copy. Same
-              // lesson as `fRangeOral` reading `routes.oral` under an engine-route gate.
-              engineRoute === 'iv_infusion'
-              ? infusionMetaboliteConcentrationCurve(
-                  [{ coef: 1 / params.vd, rate: mainKe }],
-                  mainKe * params.vd,
-                  mp,
-                  doses,
-                  disposition.infusionDuration ?? DEFAULT_INFUSION_DURATION_H,
-                  times,
-                )
-              : metaboliteConcentrationCurve({ ...mp, keParent: mainKe }, doses, times);
-        const mPoints = times.map((t, i) => ({ t, c: c[i] ?? 0 }));
-        return {
-          id: meta.id,
-          name: meta.name,
-          active: meta.active,
-          points: mPoints,
-          peak: findPeak(mPoints),
-          derived: mDerived,
-          warnings: mWarnings,
-        };
-      })
-    : undefined;
+  // The parent as the reader SEES it: a single 1/Vd mode at the plotted mainKe, so
+  // moving the half-life, Vd or F slider moves every metabolite line consistently.
+  // (The Vd slider's move cancels exactly — see VariabilityAxis.)
+  const metabolites = metaboliteCurves(
+    metaboliteDerivations,
+    engineRoute,
+    {
+      unitModes: [{ coef: 1 / params.vd, rate: mainKe }],
+      cl: mainKe * params.vd,
+      ka: params.ka,
+      F: params.F,
+      infusionDuration: disposition.infusionDuration,
+      ivBolus: (mp, d, t) => metaboliteConcentrationCurve({ ...mp, keParent: mainKe }, d, t),
+    },
+    doses,
+    times,
+  );
 
   const halfLifeH = Math.LN2 / mainKe;
   return {

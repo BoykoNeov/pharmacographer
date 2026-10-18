@@ -13,7 +13,7 @@ import {
 } from '../../engine/modelsMM.ts';
 import type { DoseEvent, Route } from '../../engine/types.ts';
 import { DEFAULT_SAMPLES, findPeak, mergeGrid, sampleGrid } from './grid.ts';
-import { DEFAULT_INFUSION_DURATION_H, buildSchedule } from './schedule.ts';
+import { buildSchedule, lastDoseTime, withInfusionWindow } from './schedule.ts';
 import type { CurveInput, CurvePoint, MichaelisMentenCurveResult } from './types.ts';
 
 /**
@@ -153,16 +153,10 @@ export function buildCurveMM(input: CurveInput): MichaelisMentenCurveResult {
   const engineRoute = engineRouteOf(route);
   const { params: base, derived, warnings } = deriveParamsMM(compound, route, { weightKg });
 
-  let params = base;
-  if (engineRoute === 'iv_infusion') {
-    const requested = input.infusionDuration;
-    const infusionDuration =
-      requested !== undefined && requested > 0 ? requested : DEFAULT_INFUSION_DURATION_H;
-    params = { ...base, infusionDuration };
-  }
+  const params = withInfusionWindow(base, engineRoute, input.infusionDuration);
 
   const doses = buildSchedule(schedule);
-  const lastDoseTime = doses.reduce((latest, dose) => Math.max(latest, dose.time), 0);
+  const lastDose = lastDoseTime(doses);
 
   const build = (horizonH: number): CurvePoint[] => {
     const times = mergeGrid(
@@ -177,7 +171,7 @@ export function buildCurveMM(input: CurveInput): MichaelisMentenCurveResult {
   const bioavailable = engineRoute === 'oral' ? (params.F ?? 1) : 1;
   const largestDose = doses.reduce((most, dose) => Math.max(most, dose.amount), 0);
   const provisionalPeak = (bioavailable * largestDose) / params.vd;
-  const probe = build(curveHorizonMM(engineRoute, params, lastDoseTime, provisionalPeak));
+  const probe = build(curveHorizonMM(engineRoute, params, lastDose, provisionalPeak));
 
   // Pass 2 — re-size from what the course actually leaves behind. The tail has to
   // clear the highest concentration reached AT OR AFTER the last dose; anything
@@ -191,11 +185,11 @@ export function buildCurveMM(input: CurveInput): MichaelisMentenCurveResult {
   // max would size every horizon off a concentration the curve never reaches, which
   // is exactly the second pass being cancelled out. Fall back only if the probe
   // found nothing at all (an empty schedule).
-  const tailPeak = probe.reduce((most, p) => (p.t >= lastDoseTime && p.c > most ? p.c : most), 0);
+  const tailPeak = probe.reduce((most, p) => (p.t >= lastDose && p.c > most ? p.c : most), 0);
   const horizonH = curveHorizonMM(
     engineRoute,
     params,
-    lastDoseTime,
+    lastDose,
     tailPeak > 0 ? tailPeak : provisionalPeak,
   );
   const points = build(horizonH);

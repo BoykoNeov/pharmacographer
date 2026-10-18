@@ -249,24 +249,28 @@ deferral audits the recorded reason.
 
 ## C. Structure and tooling
 
-### C1. `src/ui/curve.ts` is 1,800 lines and holds four curve builders
+### C1. Split the curve builders — DONE for `src/ui/`, open for `derive.ts`
 
-`buildCurve`, `buildCurve2c`, `buildCurve3c` and `buildCurveMM` each repeat the
-same shape — resolve params, choose a horizon, compute critical times, sample,
-find the peak, assemble bands and metabolites — with model-specific pieces
-inside. Alongside them the file also owns route options, variability ranges,
-formatting and display units. It is the one module in the repo where finding
-something takes a search.
+`src/ui/curve.ts` was 1,800 lines holding four curve builders plus route options,
+variability ranges, formatting and display units. It is now `src/ui/curve/`, one
+module per concern, behind the unchanged `curve.ts` path, which re-exports the
+same public names and owns only the model dispatch — now an exhaustive
+`Record<CompoundModel, builder>`, so a fifth model fails to compile instead of
+falling through to the one-compartment body.
 
-This is the same class of defect `src/ui/peak.ts` fixed one level up: not a wrong
-answer, but correctness re-achieved N times in step. A split into a `curve/`
-directory behind the existing barrel path would be mechanical and fully guarded
-by the suite (the module has ~1,300 lines of tests across `curve.test.ts`,
-`curve.mm.test.ts`, `variability-axes` and `peak-semantics`). Worth doing before
-a fifth model lands, not after.
+The split was the cheap half; the point was the duplication behind it — the same
+class of defect `src/ui/peak.ts` fixed one level up, correctness re-achieved N
+times in step. The three linear builders now share one horizon, one
+multi-exponential critical-time pass, one input-window injection and one
+metabolite path (whose formation model is chosen by an exhaustive `Record` on the
+engine route, replacing three copies of the chain that once mis-routed a patch's
+metabolite). Proven behaviour-preserving by building all 577 compound × route ×
+schedule × slider cases with the old and new code and comparing the JSON byte for
+byte, not only by the suite.
 
-`src/data/derive.ts` (1,200 lines, five resolvers) has the same shape and the
-same argument, one layer down.
+**Still open:** `src/data/derive.ts` (1,200 lines, five resolvers) has the same
+shape and the same argument, one layer down. Same recipe: split mechanically in
+one commit, dedupe in a second, and diff every derivation before and after.
 
 ### C2. What stays absent
 

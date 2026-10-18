@@ -4,7 +4,7 @@
  */
 
 import { recurringDoses } from '../../engine/dosing.ts';
-import type { DoseEvent } from '../../engine/types.ts';
+import type { DoseEvent, Route } from '../../engine/types.ts';
 
 /**
  * Default infusion duration (h) for the `iv_infusion` route — ~15 minutes, a
@@ -49,4 +49,31 @@ export interface DoseSchedule {
 export function buildSchedule({ amount, count, interval, adHoc }: DoseSchedule): DoseEvent[] {
   const regular = recurringDoses({ amount, count, interval });
   return [...regular, ...adHoc];
+}
+
+/** The time (h) of the latest dose in a schedule — where every horizon's tail starts. */
+export function lastDoseTime(doses: DoseEvent[]): number {
+  return doses.reduce((latest, dose) => Math.max(latest, dose.time), 0);
+}
+
+/**
+ * Inject the zero-order input window into resolved engine parameters. Only an
+ * engine `iv_infusion` curve has one; every other input type gets `base` back
+ * untouched. Spread (don't mutate) so a memoized `base` stays a faithful cache
+ * entry.
+ *
+ * `requestedH` is the window the CALLER chose, and who chooses differs by
+ * clinical route: an IV infusion's is the user's, from the controls; a patch's is
+ * its WEAR PERIOD, read from the product data. The builders resolve that and pass
+ * it in — this only applies it, falling back to {@link DEFAULT_INFUSION_DURATION_H}.
+ */
+export function withInfusionWindow<T extends { infusionDuration?: number }>(
+  base: T,
+  engineRoute: Route,
+  requestedH: number | undefined,
+): T {
+  if (engineRoute !== 'iv_infusion') return base;
+  const infusionDuration =
+    requestedH !== undefined && requestedH > 0 ? requestedH : DEFAULT_INFUSION_DURATION_H;
+  return { ...base, infusionDuration };
 }
