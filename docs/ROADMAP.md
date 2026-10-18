@@ -124,7 +124,24 @@ What it would unblock, and what it would not:
   rescue is written out in the data guide.
 
 Gate: a compound whose SOURCE fitted parallel inputs and reports both paths'
-parameters. Sumatriptan oral is that compound today.
+parameters. **No compound clears it today** — re-gated 2026-10-18, and the line
+that stood here ("Sumatriptan oral is that compound today") was a recorded
+reason that was not a gate. It rested on Cosson 1999's _abstract_, which names
+the input shape and reports **no absorption parameter at all**. The full text is
+subscription-only (Springer; Europe PMC lists no open copy), so the split between
+the two paths has never been read by anyone working on this repo. The one open
+alternative, Lee 2015, does not substitute — see the data guide's sumatriptan
+entry for why. **What clears it:** Cosson's full text, read for each path's
+fraction, `ka`, lags, the zero-order duration, and the disposition fitted
+alongside them. Do not choose the missing fraction by fitting the label's oral
+Cmax/Tmax: that is a curve tuned to an observation and then presented as a
+model, the manufactured-number failure in its plainest form.
+
+Note the model's shape when it arrives: "first-order **followed by**
+zero-order" is usually implemented in NONMEM as two inputs running in PARALLEL
+with different lags (a fraction into a depot, the rest straight into the central
+compartment at a constant rate) — if Cosson's is, building it needs A3's lag
+too, not A2 alone. Read the paper's own code or equations before assuming.
 
 ### A3. Absorption lag (`tlag`) — NOT BUILT, small
 

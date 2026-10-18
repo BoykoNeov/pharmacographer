@@ -2228,6 +2228,28 @@ the line shows. The rule this generalises to: _a residual is tolerable when it i
 not tolerable when the wrong quantity is the teaching point._ The contrast survives in prose, cited,
 exactly as ketamine's ~64%/~17% does with no oral curve drawn.
 
+**RE-GATED 2026-10-18 for the two-input engine (roadmap A2) — still deferred, and the recorded
+reason was half wrong.** The roadmap named sumatriptan oral as the compound whose source "fitted
+parallel inputs and reports both paths' parameters". The first half is true; the second was never
+checked. Cosson 1999's **abstract** reports the shape (first-order followed by zero-order, ~5 h
+absorption) and nothing else about absorption; the full text is subscription-only (Springer DOI
+10.1023/A:1020601906027; Europe PMC: no open copy). The open paper that looks like a rescue is not
+one: **Lee 2015** (Transl Clin Pharmacol 23:66-74, open access, read in full) tested Cosson's shape
+as its model M1 on 26 Korean males after 50 mg, but
+(1) its PREFERRED model is a one-compartment **transit chain** (n ≈ 14) plus a lagged first-order
+path — a transit chain is the input-type screen's defer row, and it won by a wide objective-function
+margin; (2) M1's parameters appear only in its comparison prose (`ka` 4.05/h, zero-order lag 1.71 h,
+duration 1.59 h) with **no fraction split and no disposition**; (3) the study is oral-only, so every
+volume and clearance is apparent (÷F); and (4) the Cosson values it quotes secondhand (`ka`
+0.667/h, zero-order lag 0.48 h, duration 3.97 h) also lack the fraction, and Lee gives Cosson's
+first-order lag only as "similar". Lee is NOT added to the file's sources, since nothing from it is
+used. **Gate:** Cosson's full text, with the fraction on each path. When it opens, the falsifier is that
+its absorption was fitted jointly with ITS disposition (CL 68.7 L/h, Vss 109 L), not this file's
+label-derived one — so build a throwaway curve on the label disposition and check it against the
+label's 25 mg Cmax 18 ng/mL / Tmax ~2.0 h before writing JSON. Expect the 100 mg Cmax to miss
+(the label says ~25% under dose-proportional); ship one anchor and record the miss, as LSD and
+levofloxacin do. Do not tune the split to land both.
+
 **THE ROUTE-TERNARY FALLTHROUGH RECURRED FOR THE THIRD TIME, and was found by launching the app.**
 `PeakNote`'s route chain ended in the ORAL branch, so a subcutaneous curve printed _"An **oral** dose
 rises as it is absorbed…"_ directly under the chart — 602 green tests, typechecker happy. This is the
