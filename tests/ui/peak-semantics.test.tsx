@@ -128,15 +128,15 @@ describe('a route may not contradict its own kind', () => {
  * there; anything else turned over inside the window and has a real peak.
  *
  * Only the transdermal path can produce the former today, and structurally so:
- * `curveHorizon` gives an infusion `infusionDuration + 5·t½` of tail, so its peak
- * (at infusion end) is always well inside the window, while `buildCurve` truncates
+ * `curveHorizonLinear` gives an infusion `infusionDuration + 5·t½` of tail, so its peak
+ * (at infusion end) is always well inside the window, while every linear builder truncates
  * a patch's horizon at the wear duration exactly. That is a fact about the code,
  * not a coincidence of the current data — but it is the sort of fact that changes
  * quietly, which is why it is asserted over the whole set rather than argued.
  *
  * NOTE the fixed `infusionDuration: 1` below. It is NOT chosen as representative —
  * the UI's default is `DEFAULT_INFUSION_DURATION_H` and its control ranges past it.
- * The test does not need to sweep that space, because the tail `curveHorizon` adds
+ * The test does not need to sweep that space, because the tail `curveHorizonLinear` adds
  * is itself `infusionDuration + 5·t½`: the horizon grows with the infusion, so the
  * peak at infusion end stays strictly inside the window for ANY duration or dose.
  * The single value is enough only because of that structural fact; if the horizon

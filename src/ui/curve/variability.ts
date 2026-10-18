@@ -42,7 +42,7 @@ export interface BandPoint {
  * slider at nominal — no band edge combines two extremes.** A combined edge IS
  * reachable, by dragging one axis's slider to its own end and then reading
  * another axis's band, because bands are anchored to the plotted line rather than
- * to the compound's nominals (see {@link buildCurve}, where that trade is made
+ * to the compound's nominals (see `buildCurve1c` in oneCompartment.ts, where that trade is made
  * and why). The difference from a merged envelope is real but is one of agency,
  * not of arithmetic: the app never draws a doubly-extreme edge on its own, and
  * the second extreme is one the reader chose and can see selected on a slider —
@@ -136,7 +136,7 @@ export interface HalfLifeRange {
  * No longer the only parameter varied — {@link vdRangeL} is the second axis
  * (handoff §12). `F` is a candidate third; `ka` is deliberately NOT, because it
  * moves Tmax, which would invalidate the exact Bateman peak instant
- * {@link criticalTimes} pins and force each band edge to carry its own grid
+ * the 1-comp `criticalTimes` pins and force each band edge to carry its own grid
  * densification. That is a separate piece of work, not a slider.
  *
  * Always `null` for a Michaelis–Menten compound, which has no `disposition` block

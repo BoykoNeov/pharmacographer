@@ -51,7 +51,7 @@ Two rules, both learned the hard way and both recorded in `docs/HISTORY.md`:
 2. **A negative result is a result.** A well-argued deferral in the data guide's
    rejection log is a real contribution, and several of the most useful passages
    there are exactly that. Re-opening one is an audit of _the recorded reason_,
-   which has been wrong three times.
+   which has been wrong several times — most recently this file's own A2 gate.
 
 ---
 
@@ -129,8 +129,8 @@ that stood here ("Sumatriptan oral is that compound today") was a recorded
 reason that was not a gate. It rested on Cosson 1999's _abstract_, which names
 the input shape and reports **no absorption parameter at all**. The full text is
 subscription-only (Springer; Europe PMC lists no open copy), so the split between
-the two paths has never been read by anyone working on this repo. The one open
-alternative, Lee 2015, does not substitute — see the data guide's sumatriptan
+the two paths has never been read by anyone working on this repo. The open
+paper checked, Lee 2015, does not substitute — see the data guide's sumatriptan
 entry for why. **What clears it:** Cosson's full text, read for each path's
 fraction, `ka`, lags, the zero-order duration, and the disposition fitted
 alongside them. Do not choose the missing fraction by fitting the label's oral

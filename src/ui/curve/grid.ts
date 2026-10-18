@@ -13,7 +13,7 @@ export const DEFAULT_SAMPLES = 300;
  * The maximum-concentration point of a sampled curve — the model's predicted
  * Cmax (mg/L) and Tmax (h). Argmax over the grid; exact for IV bolus (peak at
  * the dose instant), infusion (peak at end-of-infusion) and a single oral dose
- * because {@link criticalTimes} samples each of those instants precisely. For a
+ * because each builder's `criticalTimes` samples each of those instants precisely. For a
  * multi-dose oral schedule the true peak has no closed form, so this is the
  * grid's best sample (still pinned near each dose's single-dose peak). Empty or
  * all-zero curves yield the first point (t = 0, c = 0).
@@ -41,7 +41,7 @@ export function sampleGrid(horizonH: number, samples: number): number[] {
 }
 
 /**
- * Merge the uniform grid with the {@link criticalTimes} marks into one ascending,
+ * Merge the uniform grid with a builder's `criticalTimes` marks into one ascending,
  * de-duplicated grid. Recharts draws points in array order, so the result MUST be
  * sorted (an unsorted merge zigzags the line) and free of duplicate x (a dose
  * time landing on a uniform point). The dedupe threshold only removes true

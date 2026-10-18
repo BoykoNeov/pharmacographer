@@ -54,7 +54,7 @@ export interface CurveResultBase {
   /**
    * One envelope per varied parameter that reports a range (one-compartment
    * only), each fixed at that parameter's reported extremes and independent of
-   * the sliders. Never merged — see {@link VariabilityAxis}. Which of them are
+   * the sliders. Never merged — see `VariabilityAxis` (variability.ts). Which of them are
    * DRAWN is a display choice the chart owns; they are all computed because the
    * cost is one engine pass each and the alternative is threading visibility
    * state down into the math layer.
@@ -200,7 +200,7 @@ export type CurveResult =
   | ThreeCompartmentCurveResult
   | MichaelisMentenCurveResult;
 
-/** Inputs to {@link buildCurve}. */
+/** Inputs to `buildCurve` (curve.ts) and every per-model builder. */
 export interface CurveInput {
   compound: Compound;
   route: DataRoute;
@@ -214,7 +214,7 @@ export interface CurveInput {
   infusionDuration?: number;
   /**
    * Main-curve half-life override, h — the half-life variability slider. When set,
-   * `ke` is scaled to this half-life (via {@link scaleKe}); unset, the compound's
+   * `ke` is scaled to this half-life (via `scaleKe`, variability.ts); unset, the compound's
    * derived `ke` is used. Does NOT move any band, which stay at the reported
    * extremes.
    */
@@ -245,12 +245,12 @@ export interface CurveInput {
    * Unlike {@link vdL} there is no "what is held constant" choice to make: F
    * scales only the mass that enters, so nothing else has to move. What it does
    * do — and Vd does not — is move the METABOLITE lines, because formation
-   * follows the absorbed dose. See {@link VariabilityAxis} for why that
+   * follows the absorbed dose. See `VariabilityAxis` (variability.ts) for why that
    * asymmetry is the only observable difference between these two axes.
    */
   F?: number;
   /** Reference-subject weight, kg, for scaling per-kg Vd (defaults to 70 kg). */
   weightKg?: number;
-  /** Grid resolution; defaults to {@link DEFAULT_SAMPLES}. */
+  /** Grid resolution; defaults to `DEFAULT_SAMPLES` (grid.ts). */
   samples?: number;
 }

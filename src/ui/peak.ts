@@ -58,9 +58,9 @@ import type { HalfLifeAxisRegime } from './curve.ts';
  * route and asserts `end_of_input` holds exactly of the curves still rising at the
  * right edge. So a route mis-assigned here is a test failure, not a paragraph
  * nobody reads. (Structurally, only `transdermal` can be `end_of_input` today:
- * `curveHorizon` gives an infusion `infusionDuration + 5·t½`, so its peak is always
+ * `curveHorizonLinear` gives an infusion `infusionDuration + 5·t½`, so its peak is always
  * well inside the window, and the patch path is the one place the horizon is
- * truncated at the input's end — see `buildCurve`.)
+ * truncated at the input's end — see the builders in `curve/`.)
  */
 export type PeakKind =
   /** The curve rises, turns over, and falls: "Cmax at Tmax" is a fact about the drug. */

@@ -46,7 +46,7 @@ function decayTimeMM(params: MichaelisMentenParams, fromC: number): number {
  * decay from `peakC` to a spent tail, extended for oral so absorption plays out
  * and for an infusion so it covers the infusion itself.
  *
- * The linear {@link curveHorizon} reads its tail straight off `ke`, because a
+ * The linear horizon (`curveHorizonLinear`, linear.ts) reads its tail straight off `ke`, because a
  * half-life does not care how much drug there is. Here it does — the tail is a
  * function of the concentration actually reached, which is why this takes `peakC`
  * as an argument and why {@link buildCurveMM} has to size the grid in two passes.
@@ -69,7 +69,7 @@ function curveHorizonMM(
 
 /**
  * Round a NONLINEAR horizon up to a readable axis bound, on a finer ladder than
- * {@link niceCeil}'s 1 / 2 / 5 / 10.
+ * `niceCeil`'s 1 / 2 / 5 / 10 (grid.ts).
  *
  * The coarse ladder is right for a linear curve, whose tail is a heuristic ("5
  * half-lives") and whose exponential keeps decaying visibly however far the axis
@@ -97,7 +97,7 @@ function niceCeilFine(x: number): number {
 }
 
 /**
- * {@link criticalTimes} for a nonlinear curve: the dose instants (and the hair
+ * The 1-comp `criticalTimes` (oneCompartment.ts), for a nonlinear curve: the dose instants (and the hair
  * before each, so an IV-bolus jump draws vertical) plus each infusion's end.
  *
  * There is deliberately no oral-peak mark. The linear version pins the Bateman
@@ -133,7 +133,7 @@ function criticalTimesMM(
  *
  * Structurally simpler than the linear builders in one way and harder in another.
  * Simpler: there is no variability band and no `ke` scaling, because there is no
- * half-life to vary — {@link halfLifeRangeH} returns null for these compounds, and
+ * half-life to vary — `halfLifeRangeH` returns null for these compounds, and
  * the slider has nothing to move. Harder: the whole schedule must be integrated at
  * once (`michaelisMentenCurve`, not `concentrationCurve`), since the doses
  * interact, and the horizon depends on the peak the curve reaches — which is only

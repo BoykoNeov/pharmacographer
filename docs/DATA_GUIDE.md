@@ -704,7 +704,7 @@ why no Tmax is quoted here as established.
 
 ### Flip-flop (ka < ke) — acamprosate SHIPPED (the judgment call was made)
 
-The engine gained a flip-flop-aware oral horizon (all three `curveHorizon*` size the oral
+The engine gained a flip-flop-aware oral horizon (the linear horizon — now one function, `curveHorizonLinear` — sizes the oral
 tail on `min(ka, terminal rate)`), but no shipped compound is flip-flop. A signature search
 (oral terminal t½ > IV terminal t½) surfaced **acamprosate** as the cleanest documented case:
 IV Vd ~1 L/kg and IV terminal t½ ~3 h (the true elimination rate), oral F ~11%, Tmax ~7 h,
@@ -2233,10 +2233,10 @@ reason was half wrong.** The roadmap named sumatriptan oral as the compound whos
 parallel inputs and reports both paths' parameters". The first half is true; the second was never
 checked. Cosson 1999's **abstract** reports the shape (first-order followed by zero-order, ~5 h
 absorption) and nothing else about absorption; the full text is subscription-only (Springer DOI
-10.1023/A:1020601906027; Europe PMC: no open copy). The open paper that looks like a rescue is not
-one: **Lee 2015** (Transl Clin Pharmacol 23:66-74, open access, read in full) tested Cosson's shape
+10.1023/A:1020601906027; Europe PMC: no open copy). The open paper checked, which looks like a rescue,
+is not one: **Lee 2015** (Transl Clin Pharmacol 23:66-74, open access, read in full) tested Cosson's shape
 as its model M1 on 26 Korean males after 50 mg, but
-(1) its PREFERRED model is a one-compartment **transit chain** (n ≈ 14) plus a lagged first-order
+(1) its PREFERRED model is a one-compartment **transit chain** (n = 11 transit compartments, Table 3) plus a lagged first-order
 path — a transit chain is the input-type screen's defer row, and it won by a wide objective-function
 margin; (2) M1's parameters appear only in its comparison prose (`ka` 4.05/h, zero-order lag 1.71 h,
 duration 1.59 h) with **no fraction split and no disposition**; (3) the study is oral-only, so every
