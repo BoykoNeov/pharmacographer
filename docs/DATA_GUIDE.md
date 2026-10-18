@@ -1057,9 +1057,11 @@ reasoning above is kept as the record of what was true before that engine existe
   2.5–3.5 h, PB 15–20%, linear — "plasma levels after multiple dosages are similar to those
   after single doses"); Vd 1.0–1.3 L/kg from the **Echizen & Ishizaki review** (label prints
   none), as tabulated in StatPearls. Ceiling test clears: `F·D/V = 0.43·40/80.5 ≈ 214 ng/mL`
-  above the reported oral Cmax; Vd 1.15 L/kg (mid-range) is the Cmax-consistent choice — engine
-  20 mg oral peak 67 ng/mL matches the reported ~67 ng/mL, 40 mg peak 135 ng/mL is
-  dose-proportional. Its ~43% F is a useful middle between metronidazole (~100%) and acamprosate
+  above the label's measured 73 ng/mL at 20 mg; Vd 1.15 L/kg is the midpoint of the cited
+  range — engine 20 mg oral peak 67 ng/mL (~8% under the label's 73, encoded in `validation`
+  2026-10-18), 40 mg peak 135 ng/mL is dose-proportional. (This entry used to say the 67
+  "matches the reported ~67 ng/mL"; no source in the file reports 67 — see "Validation
+  observations".) Its ~43% F is a useful middle between metronidazole (~100%) and acamprosate
   (~11%): oral Cmax sits well below the IV level (~497 ng/mL C0 for 40 mg) yet exposure is
   dose-stable (absorption incomplete-but-constant, not saturable). One-compartment collapse of a
   shallow biexponential IV profile (metronidazole/cefotaxime posture). The **S-oxide active
@@ -1842,10 +1844,13 @@ their own files. Opening the labels again showed:
   a claim that it has it.
 - **Glipizide's is genuinely unattributed.** Neither label prints a
   concentration. The sentence in `notes` now says so, and nothing is encoded.
-- **Famotidine's "a 20 mg oral study reported ~67 ng/mL" was worse than
-  untraced.** No source reports 67, and 67 is the model's own output to two
-  figures: a modelled number written up as a measured one, which is the
-  sumatriptan failure again. The label does report a 20 mg Cmax, **73 ng/mL**
+- **Famotidine's "a 20 mg oral study reported ~67 ng/mL" is untraced, and
+  suspicious.** No source in the file reports 67, and 67 is also the model's own
+  output to two figures. That fits a modelled number written up as a measured
+  one (the sumatriptan failure), but it is **not proven**. Only the file's own
+  sources were searched, and a published 20 mg study outside them could
+  genuinely report about 67. Either way it cannot be cited, so it is no longer
+  stated as reported. The label does report a 20 mg Cmax, **73 ng/mL**
   (the control arm of its probenecid interaction study, n = 8), so that is what
   is encoded. The model reads ~8% low against it. The sentence that claimed
   agreement has been rewritten, and so has the `vd` condition that called 1.15

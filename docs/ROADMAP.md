@@ -190,8 +190,9 @@ predate it and assert things a declarative entry cannot — a straight-line decl
 a superlinear steady state, a plateau reached on the label's timescale. The
 remaining ~27 are unchecked by machine, and most already state their magnitude
 check as a sentence in `notes`: a sentence that decays silently on every parameter
-edit. Two such sentences have turned out to be the model's own output presented
-as a measurement (sumatriptan, then famotidine).
+edit. One such sentence was the model's own output presented as a measurement
+(sumatriptan). A second, famotidine's, matches no source in its file and equals
+the model's output, which is suspicious but unproven.
 
 The recipe, per compound, is in `docs/DATA_GUIDE.md` ("Validation observations").
 To find the next candidate, **read the full label text, not the source's title**.
@@ -211,8 +212,9 @@ by a bespoke test).
 
 **The three attribution gaps recorded here were resolved 2026-10-18**, and the
 record was wrong about one of them. Lorazepam's "~20 ng/mL after 2 mg" was in its
-own FDA label all along, and is now encoded. Famotidine's "~67 ng/mL" matched no
-source because it was the model's own output. The label's real 20 mg value, 73
+own FDA label all along, and is now encoded. Famotidine's "~67 ng/mL" matches no
+source in its file and equals the model's own output. That is suspicious, but a
+study outside the file was never ruled out. The label's own 20 mg value, 73
 ng/mL, is now encoded, and the model reads ~8% low against it rather than the
 0.4% the old sentence implied. Glipizide's range really is unsourced, and its
 `notes` now say so. Details are in the data guide, "Validation observations".
