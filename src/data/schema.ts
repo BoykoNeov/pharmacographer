@@ -73,7 +73,7 @@ const ConcentrationUnit = z.enum(['mg/L', 'g/L', 'µg/mL', 'mcg/mL', 'ng/mL', 'm
 /**
  * Maximum elimination rate (Vmax), in EITHER of the two forms the literature uses:
  * a mass rate (phenytoin: mg/kg/day) or the zero-order concentration slope
- * `Vmax/Vd` (ethanol: mg/dL/h). `derive.ts` multiplies the latter by Vd; the
+ * `Vmax/Vd` (ethanol: mg/dL/h). `derive/michaelisMenten.ts` multiplies the latter by Vd; the
  * per-kg mass forms scale against the reference subject, like `L/kg`.
  */
 const MaxRateUnit = z.enum([
@@ -939,7 +939,7 @@ export const CompoundSchema = z
         if (overrides?.halfLife) {
           checkRef(overrides.halfLife.sourceRef, `${at}.overrides.halfLife`);
           // A stored clearance WINS over half-life when derivation resolves ke
-          // (see derive.ts resolveKe). So a half-life override on a compound that
+          // (see `resolveKe` in derive/oneCompartment.ts). So a half-life override on a compound that
           // also stores CL would be silently discarded — the curve would not move
           // and nothing would say so. Reject rather than mislead.
           if (compound.disposition?.clearance && compound.disposition.clearance.value !== null) {

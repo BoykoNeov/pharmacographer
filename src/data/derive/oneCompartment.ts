@@ -4,16 +4,17 @@
  */
 
 import type { PkParams } from '../../engine/types.ts';
-import {
-  REFERENCE_WEIGHT_KG,
-  absoluteVdFromPerKg,
-  clearance as clearanceConverter,
-  rateConstant,
-  time,
-} from '../../engine/units.ts';
+import { REFERENCE_WEIGHT_KG, clearance as clearanceConverter, time } from '../../engine/units.ts';
 import type { Compound, DataRoute } from '../schema.ts';
-import { absorptionRouteOf, bioavailabilityLabel, engineRouteOf } from './routes.ts';
-import { assertLinearModel, fmt, requireDisposition } from './shared.ts';
+import { resolveF, resolveKaLinear } from './absorption.ts';
+import { absorptionRouteOf, engineRouteOf } from './routes.ts';
+import {
+  assertLinearModel,
+  fmt,
+  requireDisposition,
+  resolveVolumeParam,
+  warnIfInferredRoute,
+} from './shared.ts';
 import { kaFromTmax } from './tmax.ts';
 import type { DeriveOptions, DeriveWarning, DerivedNote } from './types.ts';
 
@@ -33,20 +34,6 @@ export interface DerivedParams {
   derived: DerivedNote[];
   /** Cautions: inferred route, assumed F, ke disagreement, flip-flop, … */
   warnings: DeriveWarning[];
-}
-
-/** Resolve absolute Vd (L) from the disposition entry, noting any scaling. */
-function resolveVd(compound: Compound, weightKg: number, derived: DerivedNote[]): number {
-  const vd = requireDisposition(compound).vd;
-  if (vd.unit === 'L/kg') {
-    const absolute = absoluteVdFromPerKg(vd.value, weightKg);
-    derived.push({
-      parameter: 'vd',
-      note: `Vd ${fmt(vd.value)} L/kg scaled to ${fmt(absolute)} L using the ${weightKg} kg illustrative reference subject`,
-    });
-    return absolute;
-  }
-  return vd.value; // already absolute litres
 }
 
 /** Resolve ke (1/h): CL/Vd when clearance is present (cross-checked), else ln2/t½. */
@@ -116,58 +103,33 @@ export function deriveParams(
   const derived: DerivedNote[] = [];
   const warnings: DeriveWarning[] = [];
 
-  const vd = resolveVd(compound, weightKg, derived);
+  const vd = resolveVolumeParam(requireDisposition(compound).vd, 'Vd', 'vd', weightKg, derived);
   const ke = resolveKe(compound, vd, weightKg, derived, warnings);
 
   const params: PkParams = { vd, ke };
 
-  // ── Route availability ───────────────────────────────────────────────────
-  const routeData = compound.routes[route];
-  if (!routeData?.available) {
-    warnings.push({
-      parameter: 'route',
-      message: `route "${route}" is not marked available for "${compound.id}"; this curve is inferred, not based on route-specific data`,
-    });
-  }
+  warnIfInferredRoute(compound, route, warnings);
 
-  // ── Absorption (first-order routes: oral and IM) ─────────────────────────
+  // ── Absorption (first-order routes: oral, IM, SC, rectal) ────────────────
   if (engineRouteOf(route) === 'oral') {
-    const oral = absorptionRouteOf(compound, route);
-
-    // Bioavailable fraction F.
-    if (oral?.F && oral.F.value !== null) {
-      params.F = oral.F.unit === 'percent' ? oral.F.value / 100 : oral.F.value;
-    } else {
-      params.F = 1;
-      warnings.push({
-        parameter: 'F',
-        message: `${bioavailabilityLabel(route)} not provided; assuming F = 1, which overestimates exposure for an incompletely absorbed drug`,
-      });
-      derived.push({ parameter: 'F', note: 'F assumed 1 (no value provided)' });
-    }
-
-    // Absorption rate constant ka — measured, or inverted from a reported Tmax.
-    if (oral?.ka && oral.ka.value !== null) {
-      params.ka = rateConstant.toCanonical(oral.ka.value, oral.ka.unit);
-    } else if (oral?.tmax && oral.tmax.value !== null) {
-      const tmaxH = time.toCanonical(oral.tmax.value, oral.tmax.unit);
-      const ka = kaFromTmax(tmaxH, ke);
-      params.ka = ka;
-      derived.push({
-        parameter: 'ka',
-        note: `ka = ${fmt(ka)} 1/h estimated from Tmax ${fmt(oral.tmax.value)} ${oral.tmax.unit} and ke`,
-      });
-      if (tmaxH > 1 / ke) {
-        warnings.push({
-          parameter: 'ka',
-          message: `Tmax (${fmt(tmaxH)} h) exceeds 1/ke (${fmt(1 / ke)} h), implying ka < ke — flip-flop kinetics where absorption is slower than elimination`,
-        });
-      }
-    } else {
-      throw new Error(
-        `deriveParams: ${route} route for "${compound.id}" needs either ka or tmax to determine absorption`,
-      );
-    }
+    const absorption = absorptionRouteOf(compound, route);
+    params.F = resolveF(absorption, route, derived, warnings);
+    params.ka = resolveKaLinear(
+      absorption,
+      compound,
+      route,
+      'deriveParams',
+      {
+        invert: (tmaxH) => kaFromTmax(tmaxH, ke),
+        against: 'ke',
+        flipFlop: (_ka, tmaxH) =>
+          tmaxH > 1 / ke
+            ? `Tmax (${fmt(tmaxH)} h) exceeds 1/ke (${fmt(1 / ke)} h), implying ka < ke — flip-flop kinetics where absorption is slower than elimination`
+            : undefined,
+      },
+      derived,
+      warnings,
+    );
   }
 
   return { params, derived, warnings };

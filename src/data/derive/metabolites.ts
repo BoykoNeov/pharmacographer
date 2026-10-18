@@ -4,9 +4,9 @@
  */
 
 import type { MetaboliteDisposition, MetaboliteParams } from '../../engine/types.ts';
-import { REFERENCE_WEIGHT_KG, absoluteVdFromPerKg, time } from '../../engine/units.ts';
+import { REFERENCE_WEIGHT_KG, time } from '../../engine/units.ts';
 import type { Metabolite } from '../schema.ts';
-import { fmt } from './shared.ts';
+import { asFraction, fmt, resolveVolumeParam } from './shared.ts';
 import type { DeriveOptions, DeriveWarning, DerivedNote } from './types.ts';
 
 /**
@@ -58,14 +58,7 @@ export function deriveMetaboliteDisposition(
   const warnings: DeriveWarning[] = [];
 
   // Metabolite Vd — absolute litres (scale per-kg against the reference subject).
-  let vdM = metabolite.vd.value;
-  if (metabolite.vd.unit === 'L/kg') {
-    vdM = absoluteVdFromPerKg(metabolite.vd.value, weightKg);
-    derived.push({
-      parameter: 'vdM',
-      note: `metabolite Vd ${fmt(metabolite.vd.value)} L/kg scaled to ${fmt(vdM)} L using the ${weightKg} kg illustrative reference subject`,
-    });
-  }
+  const vdM = resolveVolumeParam(metabolite.vd, 'metabolite Vd', 'vdM', weightKg, derived);
 
   // Metabolite ke — always from its half-life (no clearance is stored for metabolites).
   const halfLifeMH = time.toCanonical(metabolite.halfLife.value, metabolite.halfLife.unit);
@@ -76,10 +69,7 @@ export function deriveMetaboliteDisposition(
   });
 
   // Formation fraction — normalise percent to a [0, 1] fraction; flag implausible values.
-  const fractionFormed =
-    metabolite.fractionFormed.unit === 'percent'
-      ? metabolite.fractionFormed.value / 100
-      : metabolite.fractionFormed.value;
+  const fractionFormed = asFraction(metabolite.fractionFormed);
   if (metabolite.fractionFormed.unit === 'percent') {
     derived.push({
       parameter: 'fractionFormed',
@@ -91,10 +81,7 @@ export function deriveMetaboliteDisposition(
   // percent to a fraction like fractionFormed; absent ⇒ undefined (no first-pass term).
   let firstPassFraction: number | undefined;
   if (metabolite.firstPassFraction) {
-    firstPassFraction =
-      metabolite.firstPassFraction.unit === 'percent'
-        ? metabolite.firstPassFraction.value / 100
-        : metabolite.firstPassFraction.value;
+    firstPassFraction = asFraction(metabolite.firstPassFraction);
     if (metabolite.firstPassFraction.unit === 'percent') {
       derived.push({
         parameter: 'firstPassFraction',

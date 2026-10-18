@@ -22,9 +22,10 @@
  *
  *   routes.ts            clinical route → engine input type, first pass, F labels, patches
  *   types.ts             the provenance notes, warnings and options every resolver shares
- *   shared.ts            the linearity gate and per-kg volume/clearance scaling
+ *   shared.ts            the linearity gate, per-kg scaling, the inferred-route warning
  *   phenotype.ts         phenotype presets, applied before any resolver
- *   tmax.ts              Tmax → ka inversion, one per linear model
+ *   tmax.ts              Tmax → ka inversion: closed form for 1-comp, one mode solve for 2-/3-comp
+ *   absorption.ts        F and ka for a first-order route — the step every resolver shares
  *   oneCompartment.ts    ┐
  *   twoCompartment.ts    │ one resolver per disposition model
  *   threeCompartment.ts  │

@@ -1,6 +1,7 @@
 /**
- * Helpers the linear resolvers share: number formatting for notes, the
- * model↔linearity gate, and per-kg scaling of volumes and clearances.
+ * Helpers the resolvers share: number formatting for notes, the model↔linearity
+ * gate, per-kg scaling of volumes and clearances, percent → fraction, and the
+ * "this route is inferred" warning.
  */
 
 import {
@@ -8,8 +9,8 @@ import {
   clearance as clearanceConverter,
   type ClearanceUnit,
 } from '../../engine/units.ts';
-import { NONLINEAR_MODELS, type Compound } from '../schema.ts';
-import type { DerivedNote } from './types.ts';
+import { NONLINEAR_MODELS, type Compound, type DataRoute } from '../schema.ts';
+import type { DeriveWarning, DerivedNote } from './types.ts';
 
 /** Trim a computed number to a readable precision for notes/messages. */
 export function fmt(x: number): string {
@@ -104,4 +105,27 @@ export function resolveClearanceParam(
   }
   // Every non-per-kg schema clearance unit is an engine ClearanceUnit.
   return clearanceConverter.toCanonical(param.value, param.unit as ClearanceUnit);
+}
+
+/** A fraction parameter stored either as a fraction or as a percent, as a fraction. */
+export function asFraction(param: { value: number; unit: string }): number {
+  return param.unit === 'percent' ? param.value / 100 : param.value;
+}
+
+/**
+ * Warn when the compound does not mark `route` available: the curve still plots,
+ * but from disposition alone, so it is inferred rather than based on route data
+ * (handoff §1, §10).
+ */
+export function warnIfInferredRoute(
+  compound: Compound,
+  route: DataRoute,
+  warnings: DeriveWarning[],
+): void {
+  if (!compound.routes[route]?.available) {
+    warnings.push({
+      parameter: 'route',
+      message: `route "${route}" is not marked available for "${compound.id}"; this curve is inferred, not based on route-specific data`,
+    });
+  }
 }

@@ -5,10 +5,17 @@
 
 import { threeCompRates } from '../../engine/models3c.ts';
 import type { ThreeCompParams } from '../../engine/types.ts';
-import { REFERENCE_WEIGHT_KG, rateConstant, time } from '../../engine/units.ts';
+import { REFERENCE_WEIGHT_KG } from '../../engine/units.ts';
 import type { Compound, DataRoute } from '../schema.ts';
-import { absorptionRouteOf, bioavailabilityLabel, engineRouteOf } from './routes.ts';
-import { assertLinearModel, fmt, resolveClearanceParam, resolveVolumeParam } from './shared.ts';
+import { resolveF, resolveKaLinear } from './absorption.ts';
+import { absorptionRouteOf, engineRouteOf } from './routes.ts';
+import {
+  assertLinearModel,
+  fmt,
+  resolveClearanceParam,
+  resolveVolumeParam,
+  warnIfInferredRoute,
+} from './shared.ts';
 import { kaFromTmax3c } from './tmax.ts';
 import type { DeriveOptions, DeriveWarning, DerivedNote } from './types.ts';
 
@@ -76,60 +83,35 @@ export function deriveParams3c(
     derived,
   );
 
-  const routeData = compound.routes[route];
-  if (!routeData?.available) {
-    warnings.push({
-      parameter: 'route',
-      message: `route "${route}" is not marked available for "${compound.id}"; this curve is inferred, not based on route-specific data`,
-    });
-  }
+  warnIfInferredRoute(compound, route, warnings);
 
   const params: ThreeCompParams = { vc, cl, q2, vp2, q3, vp3 };
 
-  // ── Absorption (oral or IM) — a four-exponential parent (α, β, γ, ka) ──────
+  // ── Absorption (oral, IM, SC, rectal) — a four-exponential parent (α, β, γ, ka) ──
   if (engineRouteOf(route) === 'oral') {
-    const oral = absorptionRouteOf(compound, route);
-
-    // Bioavailable fraction F.
-    if (oral?.F && oral.F.value !== null) {
-      params.F = oral.F.unit === 'percent' ? oral.F.value / 100 : oral.F.value;
-    } else {
-      params.F = 1;
-      warnings.push({
-        parameter: 'F',
-        message: `${bioavailabilityLabel(route)} not provided; assuming F = 1, which overestimates exposure for an incompletely absorbed drug`,
-      });
-      derived.push({ parameter: 'F', note: 'F assumed 1 (no value provided)' });
-    }
-
-    // Absorption rate constant ka — measured, or inverted from a reported Tmax
-    // through the three-compartment peak solve (no closed form).
-    if (oral?.ka && oral.ka.value !== null) {
-      params.ka = rateConstant.toCanonical(oral.ka.value, oral.ka.unit);
-    } else if (oral?.tmax && oral.tmax.value !== null) {
-      const tmaxH = time.toCanonical(oral.tmax.value, oral.tmax.unit);
-      const ka = kaFromTmax3c(tmaxH, params);
-      params.ka = ka;
-      derived.push({
-        parameter: 'ka',
-        note: `ka = ${fmt(ka)} 1/h estimated from Tmax ${fmt(oral.tmax.value)} ${oral.tmax.unit} and the α/β/γ disposition`,
-      });
-      // Flip-flop: absorption slower than the terminal disposition (ka < γ) — the
-      // 3-comp analogue of the 2-comp ka < β check; γ is the smallest eigenvalue,
-      // so the oral terminal slope is −min(ka, γ) and ka < γ is exactly when
-      // absorption, not elimination, governs the terminal decline.
-      const { gamma } = threeCompRates(params);
-      if (ka < gamma) {
-        warnings.push({
-          parameter: 'ka',
-          message: `estimated ka (${fmt(ka)}/h) is below the terminal rate γ (${fmt(gamma)}/h) — flip-flop kinetics where absorption, not elimination, is rate-limiting`,
-        });
-      }
-    } else {
-      throw new Error(
-        `deriveParams3c: ${route} route for "${compound.id}" needs either ka or tmax to determine absorption`,
-      );
-    }
+    const absorption = absorptionRouteOf(compound, route);
+    params.F = resolveF(absorption, route, derived, warnings);
+    params.ka = resolveKaLinear(
+      absorption,
+      compound,
+      route,
+      'deriveParams3c',
+      {
+        invert: (tmaxH) => kaFromTmax3c(tmaxH, params),
+        against: 'the α/β/γ disposition',
+        // The 3-comp analogue of the 2-comp ka < β check; γ is the smallest
+        // eigenvalue, so the oral terminal slope is −min(ka, γ) and ka < γ is exactly
+        // when absorption, not elimination, governs the terminal decline.
+        flipFlop: (ka) => {
+          const { gamma } = threeCompRates(params);
+          return ka < gamma
+            ? `estimated ka (${fmt(ka)}/h) is below the terminal rate γ (${fmt(gamma)}/h) — flip-flop kinetics where absorption, not elimination, is rate-limiting`
+            : undefined;
+        },
+      },
+      derived,
+      warnings,
+    );
   }
 
   return { params, derived, warnings };

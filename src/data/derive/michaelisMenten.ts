@@ -9,14 +9,14 @@ import {
   concentration as concentrationConverter,
   concentrationRate,
   massRate,
-  rateConstant,
   type ConcentrationRateUnit,
   type ConcentrationUnit,
   type MassRateUnit,
 } from '../../engine/units.ts';
 import type { Compound, DataRoute } from '../schema.ts';
-import { absorptionRouteOf, bioavailabilityLabel, engineRouteOf } from './routes.ts';
-import { fmt, resolveVolumeParam } from './shared.ts';
+import { resolveF, statedKa } from './absorption.ts';
+import { absorptionRouteOf, engineRouteOf } from './routes.ts';
+import { fmt, resolveVolumeParam, warnIfInferredRoute } from './shared.ts';
 import type { DeriveOptions, DeriveWarning, DerivedNote } from './types.ts';
 
 /** Resolved Michaelis–Menten engine parameters plus the provenance of what was derived. */
@@ -131,37 +131,19 @@ export function deriveParamsMM(
 
   const params: MichaelisMentenParams = { vd, vmax, km };
 
-  // ── Route availability ───────────────────────────────────────────────────
-  const routeData = compound.routes[route];
-  if (!routeData?.available) {
-    warnings.push({
-      parameter: 'route',
-      message: `route "${route}" is not marked available for "${compound.id}"; this curve is inferred, not based on route-specific data`,
-    });
-  }
+  warnIfInferredRoute(compound, route, warnings);
 
-  // ── Absorption (first-order routes: oral and IM) ─────────────────────────
+  // ── Absorption (first-order routes: oral, IM, SC, rectal) ────────────────
   if (engineRouteOf(route) === 'oral') {
-    const oral = absorptionRouteOf(compound, route);
-
-    if (oral?.F && oral.F.value !== null) {
-      params.F = oral.F.unit === 'percent' ? oral.F.value / 100 : oral.F.value;
-    } else {
-      params.F = 1;
-      warnings.push({
-        parameter: 'F',
-        message: `${bioavailabilityLabel(route)} not provided; assuming F = 1, which overestimates exposure for an incompletely absorbed drug`,
-      });
-      derived.push({ parameter: 'F', note: 'F assumed 1 (no value provided)' });
-    }
-
-    if (oral?.ka && oral.ka.value !== null) {
-      params.ka = rateConstant.toCanonical(oral.ka.value, oral.ka.unit);
-    } else {
+    const absorption = absorptionRouteOf(compound, route);
+    params.F = resolveF(absorption, route, derived, warnings);
+    const ka = statedKa(absorption);
+    if (ka === undefined) {
       throw new Error(
         `deriveParamsMM: ${route} route for "${compound.id}" needs an explicit ka. A reported Tmax cannot be inverted for a saturable drug — there is no ke to invert against, and Tmax shifts with dose, so it is not a property of the compound alone.`,
       );
     }
+    params.ka = ka;
   }
 
   return { params, derived, warnings };

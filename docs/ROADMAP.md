@@ -249,7 +249,7 @@ deferral audits the recorded reason.
 
 ## C. Structure and tooling
 
-### C1. Split the curve builders — DONE for `src/ui/`, open for `derive.ts`
+### C1. Split the curve builders and the resolvers — DONE
 
 `src/ui/curve.ts` was 1,800 lines holding four curve builders plus route options,
 variability ranges, formatting and display units. It is now `src/ui/curve/`, one
@@ -268,9 +268,29 @@ metabolite). Proven behaviour-preserving by building all 577 compound × route �
 schedule × slider cases with the old and new code and comparing the JSON byte for
 byte, not only by the suite.
 
-**Still open:** `src/data/derive.ts` (1,200 lines, five resolvers) has the same
-shape and the same argument, one layer down. Same recipe: split mechanically in
-one commit, dedupe in a second, and diff every derivation before and after.
+`src/data/derive.ts` (1,200 lines, five resolvers) got the same recipe one layer
+down: it is now `src/data/derive/`, behind the unchanged path. The four parent
+resolvers share one inferred-route warning, one `F` resolution and one
+`ka`-from-data step (`absorption.ts`), and the two- and three-compartment Tmax
+inversions are one solve over the disposition's modes. Three things that LOOK
+duplicated were left apart on purpose, and should stay apart:
+
+- the one-compartment `kaFromTmax` — a closed-form Tmax with its own bisection
+  and stopping rule, so folding it into the mode solve would move `ka` in the
+  last bits;
+- the flip-flop tests — `Tmax > 1/ke` for one compartment, `ka` below the
+  terminal rate (β, γ) for two and three. Each model passes its own, because
+  they test different things and say so differently;
+- the per-kg clearance inside `resolveKe`, which records no note, unlike
+  `resolveClearanceParam`. Merging them would add a provenance row to every
+  one-compartment compound with a per-kg clearance: a behaviour change, so if it
+  is wanted it is its own commit.
+
+Proven the same way: every resolver against every compound × route × phenotype
+(wrong-model resolvers included, so the error text is pinned), every metabolite,
+a Tmax sweep through all three inverters and 892 built curves serialise to
+identical JSON before and after — and a deliberately broken warning string and a
+loosened solver tolerance were each confirmed to make that comparison fail.
 
 ### C2. What stays absent
 

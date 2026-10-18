@@ -1,13 +1,13 @@
 /**
- * Invert a reported Tmax for the absorption constant `ka`, once per linear
- * disposition model.
+ * Invert a reported Tmax for the absorption constant `ka`: in closed form for one
+ * compartment, and by one mode-based solve shared by two and three.
  */
 
 import { FLIP_FLOP_REL_TOL } from '../../engine/models.ts';
 import { batemanModeDerivative } from '../../engine/modes.ts';
 import { twoCompModes } from '../../engine/models2c.ts';
 import { threeCompModes } from '../../engine/models3c.ts';
-import type { ThreeCompParams, TwoCompParams } from '../../engine/types.ts';
+import type { ExpMode, ThreeCompParams, TwoCompParams } from '../../engine/types.ts';
 
 /**
  * Invert the oral Tmax relationship `Tmax = ln(ka/ke) / (ka − ke)` for `ka`,
@@ -63,10 +63,11 @@ export function kaFromTmax(tmax: number, ke: number): number {
 }
 
 /**
- * Invert the oral Tmax relationship for the TWO-COMPARTMENT model — find the
- * absorption constant `ka` whose tri-exponential oral curve peaks at `tmax`
- * (canonical h), given the disposition `params` (CL/Vc/Q/Vp fix α, β and the
- * per-unit-dose modes `g_λ`, all independent of `ka`).
+ * Invert the oral Tmax relationship for a MULTI-EXPONENTIAL disposition — find
+ * the absorption constant `ka` whose oral curve peaks at `tmax` (canonical h),
+ * given the disposition's per-unit-dose modes `g_λ` (fixed by the compartment
+ * parameters alone, so independent of `ka`). The two- and three-compartment
+ * inversions are this one function over two and three modes.
  *
  * There is no closed form (unlike the one-compartment `kaFromTmax`), but the peak
  * condition `C′(tmax; ka) = 0` is a SINGLE equation in `ka` — no nested inner
@@ -75,12 +76,12 @@ export function kaFromTmax(tmax: number, ke: number): number {
  * out of the root) and is strictly decreasing in `ka`: a larger `ka` peaks earlier,
  * so at the fixed instant `tmax` the curve is already past its peak (slope < 0),
  * while a smaller `ka` peaks later (slope > 0 at `tmax`). We bracket that sign
- * change and bisect. This is the exact inverse of `models2c.ts`'s
- * {@link oralPeakTime2c}, so a `ka` recovered here round-trips back to `tmax`.
+ * change and bisect.
+ *
+ * `name` is the public inverter's, so a thrown message names the function the
+ * caller actually called.
  */
-export function kaFromTmax2c(tmax: number, params: TwoCompParams): number {
-  if (!(tmax > 0)) throw new Error('kaFromTmax2c: Tmax must be positive');
-  const unitModes = twoCompModes(params, 1); // g_λ — independent of ka
+function kaFromTmaxModes(tmax: number, unitModes: ExpMode[], name: string): number {
   // Slope of the oral curve at `tmax` for a candidate `ka` (up to the positive
   // F·D scale, which cannot move the root); monotone decreasing in `ka`.
   const slopeAtTmax = (ka: number): number =>
@@ -94,12 +95,12 @@ export function kaFromTmax2c(tmax: number, params: TwoCompParams): number {
   let lo = 1;
   while (slopeAtTmax(lo) <= 0) {
     lo /= 2;
-    if (lo < 1e-12) throw new Error('kaFromTmax2c: failed to bracket (ka too small)');
+    if (lo < 1e-12) throw new Error(`${name}: failed to bracket (ka too small)`);
   }
   let hi = lo;
   while (slopeAtTmax(hi) >= 0) {
     hi *= 2;
-    if (hi > 1e12) throw new Error('kaFromTmax2c: failed to bracket (ka too large)');
+    if (hi > 1e12) throw new Error(`${name}: failed to bracket (ka too large)`);
   }
 
   for (let i = 0; i < 200; i++) {
@@ -113,49 +114,21 @@ export function kaFromTmax2c(tmax: number, params: TwoCompParams): number {
 }
 
 /**
- * Invert the oral Tmax relationship for the THREE-COMPARTMENT model — find the
- * absorption constant `ka` whose four-exponential oral curve peaks at `tmax`
- * (canonical h), given the disposition `params` (CL/Vc/Q2/Vp2/Q3/Vp3 fix α, β, γ
- * and the per-unit-dose modes `g_λ`, all independent of `ka`). The three-compartment
- * analogue of {@link kaFromTmax2c} — structurally identical, only the mode set grows
- * from two to three: the peak condition `C′(tmax; ka) = 0` is a SINGLE equation in
- * `ka`, `C′(tmax; ka)` is the sum over the disposition modes of
- * {@link batemanModeDerivative} (amplitude `ka·g_λ`; the `F·D` scale drops out), and
- * it is strictly decreasing in `ka` (a larger `ka` peaks earlier, so at the fixed
- * instant `tmax` the slope is already negative). We bracket that sign change and
- * bisect. This is the exact inverse of `models3c.ts`'s {@link oralPeakTime3c}, so a
+ * The TWO-COMPARTMENT Tmax inversion: {@link kaFromTmaxModes} over the α/β modes
+ * that CL/Vc/Q/Vp fix. The exact inverse of `models2c.ts`'s `oralPeakTime2c`, so a
  * `ka` recovered here round-trips back to `tmax`.
+ */
+export function kaFromTmax2c(tmax: number, params: TwoCompParams): number {
+  if (!(tmax > 0)) throw new Error('kaFromTmax2c: Tmax must be positive');
+  return kaFromTmaxModes(tmax, twoCompModes(params, 1), 'kaFromTmax2c');
+}
+
+/**
+ * The THREE-COMPARTMENT Tmax inversion: {@link kaFromTmaxModes} over the α/β/γ
+ * modes that CL/Vc/Q2/Vp2/Q3/Vp3 fix. The exact inverse of `models3c.ts`'s
+ * `oralPeakTime3c`, so a `ka` recovered here round-trips back to `tmax`.
  */
 export function kaFromTmax3c(tmax: number, params: ThreeCompParams): number {
   if (!(tmax > 0)) throw new Error('kaFromTmax3c: Tmax must be positive');
-  const unitModes = threeCompModes(params, 1); // g_λ — independent of ka
-  // Slope of the oral curve at `tmax` for a candidate `ka` (up to the positive
-  // F·D scale, which cannot move the root); monotone decreasing in `ka`.
-  const slopeAtTmax = (ka: number): number =>
-    unitModes.reduce(
-      (s, { coef: g, rate }) => s + batemanModeDerivative(ka * g, ka, rate, tmax),
-      0,
-    );
-
-  // Bracket [lo, hi] so slopeAtTmax(lo) > 0 (ka too small) and slopeAtTmax(hi) < 0
-  // (ka too large). Expand outward from a unit seed until both signs hold.
-  let lo = 1;
-  while (slopeAtTmax(lo) <= 0) {
-    lo /= 2;
-    if (lo < 1e-12) throw new Error('kaFromTmax3c: failed to bracket (ka too small)');
-  }
-  let hi = lo;
-  while (slopeAtTmax(hi) >= 0) {
-    hi *= 2;
-    if (hi > 1e12) throw new Error('kaFromTmax3c: failed to bracket (ka too large)');
-  }
-
-  for (let i = 0; i < 200; i++) {
-    const mid = 0.5 * (lo + hi);
-    // Decreasing: slope still positive ⇒ ka too small ⇒ raise the floor.
-    if (slopeAtTmax(mid) > 0) lo = mid;
-    else hi = mid;
-    if (hi - lo <= 1e-12 * hi) break;
-  }
-  return 0.5 * (lo + hi);
+  return kaFromTmaxModes(tmax, threeCompModes(params, 1), 'kaFromTmax3c');
 }

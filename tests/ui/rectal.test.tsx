@@ -55,7 +55,7 @@ describe('engineRouteOf — the clinical→input-type mapping', () => {
 
 describe('appliesFirstPass — the one place the partition is an approximation', () => {
   it('is false for rectal, which is a modelling choice and not a claim of no bypass', () => {
-    // Documented in derive.ts: rectal drainage is split, so part of a rectal dose
+    // Documented in derive/routes.ts: rectal drainage is split, so part of a rectal dose
     // genuinely does form metabolite pre-systemically. `false` is chosen because
     // `ffp` needs a FRACTION and no source quantifies the split — and it is harmless
     // today only because no shipped compound pairs `rectal` with `ffp`.

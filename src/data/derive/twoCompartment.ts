@@ -5,10 +5,17 @@
 
 import { twoCompRates } from '../../engine/models2c.ts';
 import type { TwoCompParams } from '../../engine/types.ts';
-import { REFERENCE_WEIGHT_KG, rateConstant, time } from '../../engine/units.ts';
+import { REFERENCE_WEIGHT_KG } from '../../engine/units.ts';
 import type { Compound, DataRoute } from '../schema.ts';
-import { absorptionRouteOf, bioavailabilityLabel, engineRouteOf } from './routes.ts';
-import { assertLinearModel, fmt, resolveClearanceParam, resolveVolumeParam } from './shared.ts';
+import { resolveF, resolveKaLinear } from './absorption.ts';
+import { absorptionRouteOf, engineRouteOf } from './routes.ts';
+import {
+  assertLinearModel,
+  fmt,
+  resolveClearanceParam,
+  resolveVolumeParam,
+  warnIfInferredRoute,
+} from './shared.ts';
 import { kaFromTmax2c } from './tmax.ts';
 import type { DeriveOptions, DeriveWarning, DerivedNote } from './types.ts';
 
@@ -65,57 +72,32 @@ export function deriveParams2c(
     derived,
   );
 
-  const routeData = compound.routes[route];
-  if (!routeData?.available) {
-    warnings.push({
-      parameter: 'route',
-      message: `route "${route}" is not marked available for "${compound.id}"; this curve is inferred, not based on route-specific data`,
-    });
-  }
+  warnIfInferredRoute(compound, route, warnings);
 
   const params: TwoCompParams = { vc, cl, q, vp };
 
-  // ── Absorption (oral or IM) — a tri-exponential parent (α, β, ka) ─────────
+  // ── Absorption (oral, IM, SC, rectal) — a tri-exponential parent (α, β, ka) ──
   if (engineRouteOf(route) === 'oral') {
-    const oral = absorptionRouteOf(compound, route);
-
-    // Bioavailable fraction F.
-    if (oral?.F && oral.F.value !== null) {
-      params.F = oral.F.unit === 'percent' ? oral.F.value / 100 : oral.F.value;
-    } else {
-      params.F = 1;
-      warnings.push({
-        parameter: 'F',
-        message: `${bioavailabilityLabel(route)} not provided; assuming F = 1, which overestimates exposure for an incompletely absorbed drug`,
-      });
-      derived.push({ parameter: 'F', note: 'F assumed 1 (no value provided)' });
-    }
-
-    // Absorption rate constant ka — measured, or inverted from a reported Tmax
-    // through the two-compartment peak solve (no closed form).
-    if (oral?.ka && oral.ka.value !== null) {
-      params.ka = rateConstant.toCanonical(oral.ka.value, oral.ka.unit);
-    } else if (oral?.tmax && oral.tmax.value !== null) {
-      const tmaxH = time.toCanonical(oral.tmax.value, oral.tmax.unit);
-      const ka = kaFromTmax2c(tmaxH, params);
-      params.ka = ka;
-      derived.push({
-        parameter: 'ka',
-        note: `ka = ${fmt(ka)} 1/h estimated from Tmax ${fmt(oral.tmax.value)} ${oral.tmax.unit} and the α/β disposition`,
-      });
-      // Flip-flop: absorption slower than the terminal disposition (ka < β).
-      const { beta } = twoCompRates(params);
-      if (ka < beta) {
-        warnings.push({
-          parameter: 'ka',
-          message: `estimated ka (${fmt(ka)}/h) is below the terminal rate β (${fmt(beta)}/h) — flip-flop kinetics where absorption, not elimination, is rate-limiting`,
-        });
-      }
-    } else {
-      throw new Error(
-        `deriveParams2c: ${route} route for "${compound.id}" needs either ka or tmax to determine absorption`,
-      );
-    }
+    const absorption = absorptionRouteOf(compound, route);
+    params.F = resolveF(absorption, route, derived, warnings);
+    params.ka = resolveKaLinear(
+      absorption,
+      compound,
+      route,
+      'deriveParams2c',
+      {
+        invert: (tmaxH) => kaFromTmax2c(tmaxH, params),
+        against: 'the α/β disposition',
+        flipFlop: (ka) => {
+          const { beta } = twoCompRates(params);
+          return ka < beta
+            ? `estimated ka (${fmt(ka)}/h) is below the terminal rate β (${fmt(beta)}/h) — flip-flop kinetics where absorption, not elimination, is rate-limiting`
+            : undefined;
+        },
+      },
+      derived,
+      warnings,
+    );
   }
 
   return { params, derived, warnings };
