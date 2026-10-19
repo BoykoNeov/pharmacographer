@@ -8,6 +8,18 @@ must-follow instruction file — `CLAUDE.md` holds the working conventions and
 
 Newest first; test counts and commit hashes are as-of that milestone.
 
+**THE OPEN VALIDATION KIND HAD NO CANDIDATE — ITS ONE CASE WAS A FITTED TROUGH (2026-10-19,
+advisor-reviewed, 683 → 684 tests, 20 → 21 carrying `validation`).** Roadmap B2 left one kind open,
+"an observation at a stated time into a course", recorded for digitoxin and gated on a second compound
+needing it. The gate was checked before anything was built, and both halves fell. Ochs 1982's methods,
+read in a browser because a script gets a proof-of-work page, show its 15.4 ng/mL is the `Css` of a
+curve fitted to PRE-DOSE samples: a steady-state trough, which `trough_ss` already checks. And none of
+nine long-half-life labels reports a value partway up an accumulation. The digitoxin entry reads 0.1%
+high. The advisor's catch was to call that luck in writing rather than precision: the studies'
+clearances differ by ~40%, and Ochs's radioimmunoassay reads high where the file's `F` comes from a
+specific assay. It also caught the file's old magnitude paragraph validating Vd against a therapeutic
+range, the target-band argument the guide had already rejected for ethosuximide.
+
 **STEADY STATE BECAME CHECKABLE, AND TWO OF FOUR LISTED ANCHORS WERE NOT ANCHORS (2026-10-19,
 advisor-reviewed, 675 → 683 tests, 48 compounds, 17 → 20 carrying `validation`).** Roadmap B2 asked for
 steady-state observations, and the design note it carried held up: every `kind` is its own strict

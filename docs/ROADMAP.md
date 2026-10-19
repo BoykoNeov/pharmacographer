@@ -184,11 +184,11 @@ Recorded so they are not proposed as oversights:
 ### B1. Back-fill `validation` observations — the biggest cheap win
 
 `tests/data/magnitude.test.ts` checks a built curve against a measured
-concentration for the **20 compounds** that carry a `validation` block. Three
+concentration for the **21 compounds** that carry a `validation` block. Three
 others (phenytoin, ethanol, ketamine) are covered only by bespoke tests that
 predate it and assert things a declarative entry cannot — a straight-line decline,
 a superlinear steady state, a dose range; clonidine has both. The
-remaining 25 are unchecked by machine, and most already state their magnitude
+remaining 24 are unchecked by machine, and most already state their magnitude
 check as a sentence in `notes`: a sentence that decays silently on every parameter
 edit. One such sentence was the model's own output presented as a measurement
 (sumatriptan). A second, famotidine's, matches no source in its file and equals
@@ -206,8 +206,9 @@ encoded, see B2), glipizide, lamotrigine, levetiracetam, metformin
 (extended-release only) and metoprolol. Ibuprofen, IV acetaminophen and warfarin
 have values that were deliberately not encoded; the data guide says why. Anchors
 still waiting on a schema extension include allopurinol's metabolite peak (the
-check is of a metabolite line, not the parent), digitoxin's 28-day value (B2
-below), and ketamine's dose-range check (already covered by a bespoke test).
+check is of a metabolite line, not the parent) and ketamine's dose-range check
+(already covered by a bespoke test). Digitoxin's 28-day value turned out to need
+no extension (B2 below).
 
 **The three attribution gaps recorded here were resolved 2026-10-18**, and the
 record was wrong about one of them. Lorazepam's "~20 ng/mL after 2 mg" was in its
@@ -218,7 +219,7 @@ ng/mL, is now encoded, and the model reads ~8% low against it rather than the
 0.4% the old sentence implied. Glipizide's range really is unsourced, and its
 `notes` now say so. Details are in the data guide, "Validation observations".
 
-### B2. Harness v2 — steady-state observations — DONE 2026-10-19; one kind still open
+### B2. Harness v2 — steady-state observations — DONE 2026-10-19; one kind parked
 
 Three kinds were added beside `cmax`/`tmax`: a regimen's steady-state peak
 (`cmax_ss`) and pre-dose trough (`trough_ss`), and a patch's plateau (`plateau`).
@@ -237,11 +238,29 @@ first steady-state entries").
 
 Two of the four listed candidates did not hold up. **Ethosuximide** never had a
 steady-state anchor: the label sentence its notes cited is about children, and
-"within the therapeutic range" is a target band. **Digitoxin** (not on the old
-list) waits on Ochs 1982's methods, because its 15.4 ng/mL was sampled after 28
-days, ~91% of the way to plateau. That is the open kind: **an observation at a
-stated time into a course** (dose count plus sampling time), rather than at
-steady state. Build it when a second compound needs it, not for digitoxin alone.
+"within the therapeutic range" is a target band.
+
+**The kind that was left open — an observation at a stated time into a course —
+now has no candidate at all, so it is parked.** It was recorded for digitoxin,
+with "build it when a second compound needs it". Both halves fell on 2026-10-19:
+
+- **Digitoxin never needed it.** Ochs 1982's methods (read in a browser; scripts
+  get a challenge page) show its 15.4 ng/mL is the plateau of a curve fitted to
+  pre-dose samples, i.e. a steady-state trough. It is now an ordinary
+  `trough_ss` entry. See the data guide, "The first steady-state entries".
+- **No second compound turned up.** The DailyMed labels of the long-half-life
+  compounds that carry a `setid` (fluconazole, lamotrigine, both diazepam
+  labels, warfarin, lithium, levetiracetam, both phenytoin labels) were searched
+  for "day N", "Nth dose", "first dose", "loading dose", "after N days/doses",
+  "week N" near a concentration unit, and every concentration sentence in the
+  six likeliest was read. They hold single-dose peaks, steady-state values,
+  target bands ("will usually produce ... between 10 and 20 mcg/mL") and an
+  in-vitro binding range — nothing measured partway up an accumulation.
+  **Not searched:** digoxin and phenobarbital, whose files cite papers rather
+  than a label with a `setid`.
+
+Build the kind when a compound actually reports such a value, and first check
+whether the source fitted a plateau to its accumulation samples, as Ochs did.
 
 The bespoke tests stay. What they assert beyond a number (a decline that is
 straight to 2%, a Css ratio that is 2.7× for a 2× dose rate, 90% of plateau by

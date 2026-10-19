@@ -93,6 +93,7 @@ const VALIDATED_IDS = [
   'clonidine',
   'dextroamphetamine',
   'diazepam',
+  'digitoxin',
   'diphenhydramine',
   'famotidine',
   'fluconazole',
@@ -171,6 +172,21 @@ const STEADY_STATE_REL_TOL = 1e-4;
 const MAX_DOSES = 1024;
 /** Grid points per dosing interval, so the sampled peak does not depend on how many doses were given. */
 const SAMPLES_PER_INTERVAL = 1000;
+/**
+ * The grid for a course read only at its trough. The trough is a dose instant,
+ * which every builder samples exactly whatever the grid, so density buys it
+ * nothing (the ODE path sizes its own steps from `maxStep`, not from the grid).
+ * It costs a great deal: building is superlinear in points, and a long-half-life
+ * drug needs a long course to converge — digitoxin's takes 128 daily doses, and
+ * the peak grid made that one case ~110 s, past every test timeout.
+ */
+const TROUGH_SAMPLES_PER_INTERVAL = 10;
+
+/** What a steady-state kind reads off the interval. A `Record`, so a new kind must say. */
+const STEADY_STATE_READS: { [K in 'cmax_ss' | 'trough_ss']: 'peak' | 'trough' } = {
+  cmax_ss: 'peak',
+  trough_ss: 'trough',
+};
 
 const relChange = (a: number, b: number) => Math.abs(a - b) / Math.abs(b);
 
@@ -219,19 +235,23 @@ function intervalAt(
 
 /**
  * The steady-state interval, PROVEN reached rather than assumed: the course is
- * doubled until neither the peak nor the trough moves, then re-read on a grid
- * twice as fine to show the peak is the curve's and not the grid's (the oral
- * critical-time mark sits at the SINGLE-dose Tmax, which is not where a
- * steady-state peak falls).
+ * doubled until the trough stops moving — and, for a peak observation, the peak
+ * too — then a peak is re-read on a grid twice as fine to show it is the curve's
+ * and not the grid's (the oral critical-time mark sits at the SINGLE-dose Tmax,
+ * which is not where a steady-state peak falls). A trough observation never
+ * reads the peak, so it neither waits on it nor pays for its grid.
  */
 function steadyState(compound: Compound, o: ObservationOf<'cmax_ss' | 'trough_ss'>) {
-  let previous = intervalAt(compound, o, 2, SAMPLES_PER_INTERVAL);
+  const readsPeak = STEADY_STATE_READS[o.kind] === 'peak';
+  const samples = readsPeak ? SAMPLES_PER_INTERVAL : TROUGH_SAMPLES_PER_INTERVAL;
+  let previous = intervalAt(compound, o, 2, samples);
   for (let n = 4; n <= MAX_DOSES; n *= 2) {
-    const current = intervalAt(compound, o, n, SAMPLES_PER_INTERVAL);
+    const current = intervalAt(compound, o, n, samples);
     if (
-      relChange(current.peak, previous.peak) < STEADY_STATE_REL_TOL &&
+      (!readsPeak || relChange(current.peak, previous.peak) < STEADY_STATE_REL_TOL) &&
       relChange(current.trough, previous.trough) < STEADY_STATE_REL_TOL
     ) {
+      if (!readsPeak) return current;
       const finer = intervalAt(compound, o, n, 2 * SAMPLES_PER_INTERVAL);
       if (relChange(finer.peak, current.peak) >= STEADY_STATE_REL_TOL) {
         throw new Error(`${compound.id}: the steady-state peak still moves with the grid`);

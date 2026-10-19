@@ -1858,7 +1858,9 @@ A `validation` entry is the same claim in a typed field, so
   the source sampled**. "10 mg daily for 10 days" is a steady-state observation
   for cetirizine only because ten days is ~29 of its half-lives. Check that, and
   write it in `conditions`. A value drawn part-way up the accumulation is not a
-  `_ss` kind, and no kind exists for it yet.
+  `_ss` kind, and no kind exists for it yet — but check whether the source
+  FITTED a plateau to its accumulation samples before concluding that is what
+  you have: digitoxin's 28-day course looked like one and was not.
 - **A trough is the level at the instant of the next dose**, which is what a
   drawn trough is. On an oral curve the true minimum comes slightly after the
   dose; that is not what sources report, so it is not what is checked.
@@ -1971,14 +1973,21 @@ again gave:
   sources. And "within a therapeutic range" is a target band, not a measured
   mean. The notes said "the label's own anchor confirms this"; they now say what
   is left, which is arithmetic, not a check.
-- **Digitoxin: deferred, pending the full text.** Ochs 1982 (PMC1427752) reports a
-  "mean observed steady-state serum concentration" of 15.4 ng/mL on 0.07 mg daily.
-  Only the abstract opened; the scanned full text would not download. After 28
-  days at a 7.9-day accumulation half-life the course is only ~91% of the way to
-  its plateau. So 15.4 could be a fitted plateau or a late measured mean, and
-  could be a trough or an average. The daily swing alone is ~9%. Read the methods
-  before encoding it, and note that a value measured part-way up the
-  accumulation has no kind yet.
+- **Digitoxin: deferred here, encoded 2026-10-19 as a `trough_ss`.** This entry
+  used to say Ochs 1982's 15.4 ng/mL might be a late measured mean partway up the
+  accumulation, and that such a value has no kind. The methods (scanned pages
+  225–226 of PMC1427752, read in a browser; a script gets a challenge page)
+  answer it. Blood was drawn **just before the day's dose**, every 24–48 h. And
+  15.4 is the `Css` of `C = Css(1 − e^−kt)` fitted to those pre-dose levels, the
+  paper's "steady-state concentration after 'infinite' time". So it is a fitted
+  steady-state TROUGH, which the existing kind already checks, and the 28-day
+  course needed no new kind. A 4-month washout separated it from the IV dose.
+  The model reads 0.1% high. Treat that as **luck**, and the entry's
+  `conditions` say why: the studies' clearances differ by ~40%, and Ochs used
+  the non-specific radioimmunoassay that MacFarland showed reads high, against
+  this file's specific-assay `F`. The check is independent (no parameter is
+  sourced from Ochs) and mostly tests `F/CL`. The per-subject table was not
+  read; the page fell behind a CAPTCHA.
 
 ## Adding a compound — checklist
 
