@@ -77,11 +77,11 @@ Four compounds have BESPOKE tests, because what they assert is not a single numb
 (`curve.mm.test.ts`: phenytoin's Css cliff, ethanol's straight-line slope;
 `transdermal.test.tsx`: clonidine's plateau and its approach; `intramuscular.test.tsx`:
 ketamine across a 12-fold dose range). Any compound may also carry `validation`
-observations — the concentration a source measured at a stated dose and route —
-which `tests/data/magnitude.test.ts` checks by building the curve (see
-`docs/DATA_GUIDE.md` "Validation observations"). That is the option a data-only
-contribution actually has; 17 of 48 compounds carry one so far, and absence means
-unchecked, never fine. The analytic oracles: e.g. IV bolus `C(0)=D/Vd`, `C(t½)=C(0)/2`; numeric AUC ≈ `D/(Vd·ke)`;
+observations — the concentration a source measured at a stated dose (or regimen,
+or patch strength) and route — which `tests/data/magnitude.test.ts` checks by
+building the curve (see `docs/DATA_GUIDE.md` "Validation observations"). That is
+the option a data-only contribution actually has; 20 of 48 compounds carry one so
+far, and absence means unchecked, never fine. The analytic oracles: e.g. IV bolus `C(0)=D/Vd`, `C(t½)=C(0)/2`; numeric AUC ≈ `D/(Vd·ke)`;
 flip-flop `ka≈ke` branch returns finite values; superposition of one dose equals
 the single-dose curve. Numeric AUC via trapezoid on a fine grid, assert within a
 small relative tolerance. Write the test before/with the math and make it pass.
@@ -300,14 +300,16 @@ never "select your genotype" — `tests/ui/phenotype-picker.test.tsx` asserts it
 
 - `npm test` proves _structure + derivation_; it proves _numeric correctness_ only
   for the four compounds with bespoke magnitude tests and for those carrying
-  `validation` observations (17 of 48 — check the file).
+  `validation` observations (20 of 48 — check the file).
   Magnitude-check a new compound by hand as before — build the engine curve and
   compare its peak to a reported Cmax; for a zero-order input use `Css = R0/CL`,
   which depends on clearance ALONE and is therefore a free check on the data, and
   check the _approach_ too via `ke = CL/Vd` against a reported time-to-steady-state
   — and then **write the anchor into `validation` so the next edit cannot break it
-  silently**. Single-dose Cmax/Tmax only so far; steady-state observations need the
-  schema extension in `docs/ROADMAP.md` B2. A magnitude number that lives only in
+  silently**. Single-dose Cmax/Tmax, a regimen's steady-state peak and trough, and
+  a patch's plateau can all be entries; the checker doses until the curve stops
+  moving rather than assuming steady state. A value sampled PART-way up the
+  accumulation has no kind yet. A magnitude number that lives only in
   `notes` decays on every parameter change, and has been found fabricated once.
 - **Tests are blind to on-screen prose, and a route ternary silently inherits its
   last branch.** Adding `transdermal` left `PeakNote` explaining a patch with the

@@ -8,6 +8,31 @@ must-follow instruction file — `CLAUDE.md` holds the working conventions and
 
 Newest first; test counts and commit hashes are as-of that milestone.
 
+**STEADY STATE BECAME CHECKABLE, AND TWO OF FOUR LISTED ANCHORS WERE NOT ANCHORS (2026-10-19,
+advisor-reviewed, 675 → 683 tests, 48 compounds, 17 → 20 carrying `validation`).** Roadmap B2 asked for
+steady-state observations, and the design note it carried held up: every `kind` is its own strict
+object, so a regimen entry has an `intervalH`, a patch entry a `deliveryRate`, and a field the
+checker would not read is a parse error. That rejected the obvious alternative, optional schedule
+fields on one shape, which is exactly the half-built field the old single-dose comment warned about.
+
+**The checker had to PROVE steady state, and the first version could not.** It doubles the course
+until peak and trough stop moving. Its first trough was read from the sample the builders place "a
+hair before" each dose, and that hair is a fixed fraction of the horizon, so it slid as the course
+grew. Acyclovir's trough drifted 0.3% between 8 and 64 doses and never met the 0.01% bound. The fix is
+a zero-amount dose at the trough instant. It adds no drug, but every builder samples a dose instant
+exactly. Three deliberate faults were each confirmed to fail: a wrong value, a stray field, and a
+phenytoin regimen above `Vmax` ("has not reached steady state after 1024 doses"). The same regimen
+below `Vmax` converged, so the nonlinear path works too.
+
+**What the sources said, once opened.** Acyclovir's label Table 1 gave peaks and troughs. The troughs
+read 83% and 35% HIGH, a structural miss of the one-compartment collapse. The label's own fall implies
+an effective half-life of ~1.8 h against its stated 2–3 h. It is pinned, not tuned. Clonidine's three
+plateaus and cetirizine's multiple-dose peak landed within 10%. **The advisor's catch:**
+ethosuximide's "label anchor" was a sentence about CHILDREN, from a label not in the file's sources,
+naming a target band rather than a measured mean. The notes had said "the label's own anchor confirms
+this" since July. Digitoxin's 15.4 ng/mL was deferred: it was measured ~91% of the way to plateau, and
+only the abstract opened.
+
 **THE CAPACITY BECAME A STATE, AND CI LEARNED TO SEE MAGNITUDE (2026-09-02, 628 → 663 tests, 48
 compounds, no compound added).** Two hurdles this project had named and declared out of reach were
 taken in one pass, and in both cases what changed is the SHAPE of the remaining blocker rather than

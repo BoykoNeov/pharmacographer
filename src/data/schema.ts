@@ -65,9 +65,13 @@ const RateConstantUnit = z.enum(['1/h', '1/min', '1/day', '1/d']);
 const FractionUnit = z.enum(['fraction', 'percent']);
 /**
  * Dose amounts, as a source reports them (a validation observation's `dose`).
- * Subset of the engine `mass` converter's units — no `kg`, which is never a dose.
+ * The absolute forms are a subset of the engine `mass` converter's units — no
+ * `kg`, which is never a dose. `mg/kg` is the per-weight form an IV regimen is
+ * usually printed in (acyclovir's "5 mg/kg q8h"); like a per-kg Vd it is a
+ * DATA-layer unit, scaled against the reference subject before the engine sees
+ * it, so the entry can keep the number the source printed.
  */
-const MassUnit = z.enum(['mg', 'g', 'µg', 'mcg', 'ng']);
+const MassUnit = z.enum(['mg', 'g', 'µg', 'mcg', 'ng', 'mg/kg']);
 /** Concentration (the Michaelis constant Km). Subset the engine converter accepts. */
 const ConcentrationUnit = z.enum(['mg/L', 'g/L', 'µg/mL', 'mcg/mL', 'ng/mL', 'mg/mL']);
 /**
@@ -411,22 +415,24 @@ const RoutesSchema = z.strictObject({
  *    the miss (0.10 = the curve must land within 10%), applied to `value` or,
  *    when the source reports a spread rather than a point, outside the `range`.
  *
- * Deliberately SINGLE-DOSE only for now: a steady-state or multi-dose
- * observation (acyclovir's 5 mg/kg q8h peak, clonidine's `Css = R0/CL`) needs a
- * schedule field this does not have, and a half-built one would invite entries
- * whose conditions the checker silently ignores.
+ * **Each `kind` declares the inputs it needs, and nothing else.** A single-dose
+ * peak needs a dose; a steady-state peak needs a dose AND an interval; a patch
+ * plateau needs a delivery rate and no dose at all. Every kind is its own strict
+ * object rather than one shape with optional fields, because the failure this
+ * prevents is the one a half-built schedule field invites: a curator writes down
+ * a condition (an interval, a rate) and the checker silently builds a curve that
+ * ignores it. Here an unknown field is a parse error, so a condition the checker
+ * does not read cannot be written.
+ *
+ * The steady-state kinds assert what the regimen converges to — the checker
+ * doses until the curve stops moving and fails if it never does. They do NOT
+ * know when the source drew its samples, so "after 10 days of 10 mg daily" is a
+ * steady-state observation only because 10 days is ~29 half-lives of that drug;
+ * the curator checks that, and says so in `conditions`. A source that sampled
+ * part-way up the accumulation (digitoxin after 28 days, ~3.5 half-lives) is not
+ * one of these, and this schema has no kind for it yet.
  */
 const ObservationBase = {
-  /**
-   * Which route the observation was made on. Must be a route the compound
-   * declares and marks `available` — an inferred route has no measurement to
-   * check against, by definition.
-   */
-  route: z.enum(Object.keys(RoutesSchema.shape) as [keyof typeof RoutesSchema.shape]),
-  /** The single dose given, in the unit the source reports it in. */
-  dose: z.strictObject({ value: z.number().positive(), unit: MassUnit }),
-  /** Infusion duration, h — required for (and only for) an `iv_infusion` observation. */
-  infusionDurationH: z.number().positive().optional(),
   /** The reported point value, when the source gives one. */
   value: z.number().positive().optional(),
   /** The reported spread, when the source gives a range or a mean ± SD band instead. */
@@ -439,18 +445,83 @@ const ObservationBase = {
   conditions: z.string().min(1),
 };
 
+/** Every route an observation can name. */
+const ObservedRoute = z.enum(Object.keys(RoutesSchema.shape) as [keyof typeof RoutesSchema.shape]);
+
+/** What a dose-driven observation was given: the route, the dose, and an infusion's length. */
+const DoseInput = {
+  /**
+   * Which route the observation was made on. Must be a route the compound
+   * declares and marks `available` — an inferred route has no measurement to
+   * check against, by definition.
+   */
+  route: ObservedRoute,
+  /** Each dose given, in the unit the source reports it in. */
+  dose: z.strictObject({ value: z.number().positive(), unit: MassUnit }),
+  /** Infusion duration, h — required for (and only for) an `iv_infusion` observation. */
+  infusionDurationH: z.number().positive().optional(),
+};
+
+/**
+ * A REGULAR regimen: `dose` every `intervalH`, repeated until steady state. Not
+ * offered on `transdermal`, where a "dose" is ambiguous (the total over a wear
+ * period, or the rate?) and a patch worn continuously has no peak or trough to
+ * report — that observation is a `plateau`.
+ */
+const RegimenInput = {
+  ...DoseInput,
+  route: ObservedRoute.exclude(['transdermal']),
+  /** Dosing interval τ, h ("q8h" is 8). */
+  intervalH: z.number().positive(),
+};
+
 const ObservationSchema = z
   .discriminatedUnion('kind', [
     z.strictObject({
       /** Peak concentration after the single dose. */
       kind: z.literal('cmax'),
       unit: ConcentrationUnit,
+      ...DoseInput,
       ...ObservationBase,
     }),
     z.strictObject({
       /** Time of that peak. Meaningful only on a route whose curve HAS a peak. */
       kind: z.literal('tmax'),
       unit: TimeUnit,
+      ...DoseInput,
+      ...ObservationBase,
+    }),
+    z.strictObject({
+      /** Peak concentration within one dosing interval, once the regimen is at steady state. */
+      kind: z.literal('cmax_ss'),
+      unit: ConcentrationUnit,
+      ...RegimenInput,
+      ...ObservationBase,
+    }),
+    z.strictObject({
+      /**
+       * Trough at steady state: the concentration IMMEDIATELY BEFORE the next
+       * dose, which is what a drawn trough is. On an oral curve the true minimum
+       * falls a little after the dose (absorption has not overtaken elimination
+       * yet); that is not what a source reports, so it is not what is checked.
+       */
+      kind: z.literal('trough_ss'),
+      unit: ConcentrationUnit,
+      ...RegimenInput,
+      ...ObservationBase,
+    }),
+    z.strictObject({
+      /**
+       * The steady-state concentration of a patch worn continuously — the
+       * `Css = R0/CL` plateau. A label states one per patch STRENGTH, so the
+       * entry carries its own `deliveryRate` rather than reusing the one the
+       * file stores (clonidine stores the 0.1 mg/day system; its label reports
+       * plateaus for three). The wear period is the compound's own.
+       */
+      kind: z.literal('plateau'),
+      unit: ConcentrationUnit,
+      route: z.literal('transdermal'),
+      deliveryRate: z.strictObject({ value: z.number().positive(), unit: MassRateUnit }),
       ...ObservationBase,
     }),
   ])
@@ -462,11 +533,28 @@ const ObservationSchema = z
     message: 'range must be [low, high] with low <= high',
     path: ['range'],
   })
-  .refine((o) => (o.route === 'iv_infusion') === (o.infusionDurationH !== undefined), {
-    message:
-      'infusionDurationH is required for an iv_infusion observation and meaningless for any other route',
-    path: ['infusionDurationH'],
-  });
+  .refine(
+    (o) =>
+      o.kind === 'plateau' || (o.route === 'iv_infusion') === (o.infusionDurationH !== undefined),
+    {
+      message:
+        'infusionDurationH is required for an iv_infusion observation and meaningless for any other route',
+      path: ['infusionDurationH'],
+    },
+  )
+  .refine(
+    (o) =>
+      (o.kind !== 'cmax_ss' && o.kind !== 'trough_ss') ||
+      o.infusionDurationH === undefined ||
+      o.infusionDurationH < o.intervalH,
+    {
+      // An infusion still running when the next one starts is not the regimen a
+      // "peak and trough" table describes, and its trough would be no trough.
+      message:
+        'infusionDurationH must be shorter than intervalH — each infusion ends before the next',
+      path: ['infusionDurationH'],
+    },
+  );
 
 /**
  * A metabolite formed from the parent (handoff §12; metabolites spike). The

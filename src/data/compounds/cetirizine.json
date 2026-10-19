@@ -40,6 +40,19 @@
       }
     }
   },
+  "validation": [
+    {
+      "kind": "cmax_ss",
+      "route": "oral",
+      "dose": { "value": 10, "unit": "mg" },
+      "intervalH": 24,
+      "value": 311,
+      "unit": "ng/mL",
+      "tolerance": 0.11,
+      "sourceRef": "fda_label",
+      "conditions": "label: 'When healthy volunteers were administered multiple doses of cetirizine (10 mg tablets once daily for 10 days), a mean peak plasma concentration (Cmax) of 311 ng/mL was observed.' Ten days is ~29 half-lives at 8.3 h, so this is a steady-state peak. The study used tablets; the label reports comparable bioavailability between tablets and the oral solution this file cites. The model reads ~10% low (280 ng/mL). The label prints no single-dose Cmax, so 'no accumulation was observed' is not turned into one"
+    }
+  ],
   "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
   "sources": {
     "fda_label": {

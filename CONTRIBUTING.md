@@ -73,8 +73,9 @@ a rejection-log entry and no file at all.
   not guessed**.
 - **The magnitude check — as a `validation` entry, not just a sentence.** Say what
   you compared and what you got (peak concentration against a reported Cmax, or
-  `Css = R0/CL` for a zero-order input), and then encode the single-dose half of
-  it in the compound's `validation` block so the suite re-runs it forever. See
+  `Css = R0/CL` for a zero-order input), and then encode it in the compound's
+  `validation` block (single-dose peak, steady-state peak or trough, or patch
+  plateau) so the suite re-runs it forever. See
   "Validation observations" in the data guide for the rules — the source must be
   real, the reported number goes in even when the model misses it, and the
   tolerance must be as tight as the truth allows. `npm test` proves magnitude for
@@ -105,7 +106,7 @@ Note what none of these can see: a citation that does not exist, a wrong number
 in `notes`, and any sentence rendered on screen. Those are the reviewer's job and
 yours, not CI's. A curve of the wrong magnitude is only partly on that list now:
 it is caught for the four compounds with bespoke magnitude tests and for any
-compound carrying `validation` observations (17 of 48), so treat the rest as
+compound carrying `validation` observations (20 of 48), so treat the rest as
 unchecked rather than fine.
 
 ## How a change is judged

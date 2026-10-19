@@ -184,11 +184,11 @@ Recorded so they are not proposed as oversights:
 ### B1. Back-fill `validation` observations — the biggest cheap win
 
 `tests/data/magnitude.test.ts` checks a built curve against a measured
-concentration for the **17 compounds** that carry a `validation` block. Four others
-(phenytoin, ethanol, clonidine, ketamine) are covered by bespoke tests that
+concentration for the **20 compounds** that carry a `validation` block. Three
+others (phenytoin, ethanol, ketamine) are covered only by bespoke tests that
 predate it and assert things a declarative entry cannot — a straight-line decline,
-a superlinear steady state, a plateau reached on the label's timescale. The
-remaining ~27 are unchecked by machine, and most already state their magnitude
+a superlinear steady state, a dose range; clonidine has both. The
+remaining 25 are unchecked by machine, and most already state their magnitude
 check as a sentence in `notes`: a sentence that decays silently on every parameter
 edit. One such sentence was the model's own output presented as a measurement
 (sumatriptan). A second, famotidine's, matches no source in its file and equals
@@ -201,14 +201,13 @@ The 2026-10-18 pass downloaded each DailyMed label (the SPL by its `setid`:
 searched it for `Cmax` / `ng/mL` / `mcg/mL`. That turned up four anchors (amoxicillin,
 famotidine, fluconazole, lorazepam) whose numbers no title mentioned. The same
 search came up empty, or found only multi-dose or special-population values, for
-atenolol (the label page resolves, but its SPL download does not, and the label gives Tmax only), cetirizine (steady-state only, so B2),
-glipizide, lamotrigine, levetiracetam, metformin (extended-release only) and
-metoprolol. Ibuprofen, IV acetaminophen and warfarin have values that were
-deliberately not encoded; the data guide says why. Anchors still
-waiting on a schema extension include allopurinol's metabolite peak (the check is
-of a metabolite line, not the parent), acyclovir's and ethosuximide's
-steady-state values (B2 below), and ketamine's dose-range check (already covered
-by a bespoke test).
+atenolol (the label page resolves, but its SPL download does not, and the label gives Tmax only), cetirizine (steady-state only; now
+encoded, see B2), glipizide, lamotrigine, levetiracetam, metformin
+(extended-release only) and metoprolol. Ibuprofen, IV acetaminophen and warfarin
+have values that were deliberately not encoded; the data guide says why. Anchors
+still waiting on a schema extension include allopurinol's metabolite peak (the
+check is of a metabolite line, not the parent), digitoxin's 28-day value (B2
+below), and ketamine's dose-range check (already covered by a bespoke test).
 
 **The three attribution gaps recorded here were resolved 2026-10-18**, and the
 record was wrong about one of them. Lorazepam's "~20 ng/mL after 2 mg" was in its
@@ -219,24 +218,36 @@ ng/mL, is now encoded, and the model reads ~8% low against it rather than the
 0.4% the old sentence implied. Glipizide's range really is unsourced, and its
 `notes` now say so. Details are in the data guide, "Validation observations".
 
-### B2. Harness v2 — steady-state and multi-dose observations
+### B2. Harness v2 — steady-state observations — DONE 2026-10-19; one kind still open
 
-The current schema is single-dose only, deliberately: a steady-state entry needs
-a schedule field, and a half-built one would silently ignore conditions a curator
-wrote down. Adding it unlocks the checks several compounds already document in
-prose: acyclovir's 5 mg/kg q8h steady-state peak, ethosuximide's accumulation, and
-the two clonidine plateau values its bespoke test does not cover (the label reports
-three; the test checks one).
+Three kinds were added beside `cmax`/`tmax`: a regimen's steady-state peak
+(`cmax_ss`) and pre-dose trough (`trough_ss`), and a patch's plateau (`plateau`).
+Each is its own strict object, so a field the checker does not read cannot be
+written. The checker proves steady state by dosing until the curve stops moving,
+and fails when it never does. That was confirmed by an entry dosing phenytoin
+above its `Vmax`; two other deliberate faults (a wrong value, a stray field)
+were each confirmed to fail too.
+Per-kg doses (`mg/kg`) are stored as printed.
 
-It would also let the two nonlinear compounds and clonidine express the numeric
-part of their bespoke tests as data. **Do not delete those tests when it does** —
-what they assert beyond a number (a decline that is straight to 2%, a Css ratio
-that is 2.7× for a 2× dose rate, 90% of plateau by two days) is the teaching point,
-and no declarative entry says it.
+What it encoded: acyclovir's four Table 1 values, all three clonidine plateaus,
+and cetirizine's multiple-dose peak. Acyclovir's troughs read 83% and 35% high.
+That is a structural miss of the one-compartment collapse, pinned rather than
+tuned; the fix is a cited two-compartment parameterisation (data guide, "The
+first steady-state entries").
 
-Design note for whoever builds it: keep `kind` a closed union and let each kind
-declare the fields it needs, rather than adding optional fields to one shape. The
-checker must never silently ignore a field an entry supplied.
+Two of the four listed candidates did not hold up. **Ethosuximide** never had a
+steady-state anchor: the label sentence its notes cited is about children, and
+"within the therapeutic range" is a target band. **Digitoxin** (not on the old
+list) waits on Ochs 1982's methods, because its 15.4 ng/mL was sampled after 28
+days, ~91% of the way to plateau. That is the open kind: **an observation at a
+stated time into a course** (dose count plus sampling time), rather than at
+steady state. Build it when a second compound needs it, not for digitoxin alone.
+
+The bespoke tests stay. What they assert beyond a number (a decline that is
+straight to 2%, a Css ratio that is 2.7× for a 2× dose rate, 90% of plateau by
+two days) is the teaching point, and no declarative entry says it. The nonlinear
+compounds' steady-state numbers could now be entries too; none was moved in this
+pass, and their sources were not re-opened for it.
 
 ### B3. Compounds
 

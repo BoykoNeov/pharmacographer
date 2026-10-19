@@ -49,6 +49,38 @@
       }
     }
   },
+  "validation": [
+    {
+      "kind": "plateau",
+      "route": "transdermal",
+      "deliveryRate": { "value": 0.1, "unit": "mg/day" },
+      "value": 0.4,
+      "unit": "ng/mL",
+      "tolerance": 0.05,
+      "sourceRef": "catapres_tts_label",
+      "conditions": "label: 'Mean steady-state plasma concentrations with the 3.5 cm2, 7.0 cm2 and 10.5 cm2 systems are approximately 0.4 ng/mL, 0.8 ng/mL, and 1.1 ng/mL, respectively'; the 3.5 cm2 system delivers 0.1 mg/day. The model reads ~2% low (0.392). Also checked, with the approach to it, by tests/ui/transdermal.test.tsx"
+    },
+    {
+      "kind": "plateau",
+      "route": "transdermal",
+      "deliveryRate": { "value": 0.2, "unit": "mg/day" },
+      "value": 0.8,
+      "unit": "ng/mL",
+      "tolerance": 0.05,
+      "sourceRef": "catapres_tts_label",
+      "conditions": "same label sentence: ~0.8 ng/mL for the 7.0 cm2 system, which delivers 0.2 mg/day. The model reads ~2% low (0.785)"
+    },
+    {
+      "kind": "plateau",
+      "route": "transdermal",
+      "deliveryRate": { "value": 0.3, "unit": "mg/day" },
+      "value": 1.1,
+      "unit": "ng/mL",
+      "tolerance": 0.08,
+      "sourceRef": "catapres_tts_label",
+      "conditions": "same label sentence: ~1.1 ng/mL for the 10.5 cm2 system, which delivers 0.3 mg/day. The model reads ~7% high (1.18): Css = R0/CL is exactly proportional to the rate, and the label's three values are not quite (1.1 is 2.75 times 0.4, not 3)"
+    }
+  ],
   "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
   "displayNote": "This is a patch worn continuously for its full 7-day wear period, so the curve is the approach to a plateau. Taking the patch OFF is deliberately not drawn: clonidine keeps being absorbed from a depot in the skin afterwards, so the real post-removal decline runs on that absorption rate (~20 h apparent) rather than on clonidine's own 12–16 h half-life.",
   "sources": {

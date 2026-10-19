@@ -1823,9 +1823,51 @@ A `validation` entry is the same claim in a typed field, so
   37–83 ng/mL has not claimed 60; the checker scores 0 anywhere inside and
   measures from the nearest edge outside. Where a source gives a mean AND a
   spread, the mean is what it asserts, so the point value is used.
-- **Single-dose only, for now.** A steady-state or multi-dose observation needs a
-  schedule field the schema does not have yet (`docs/ROADMAP.md` B2); a
-  half-built one would silently ignore conditions a curator wrote down.
+- **Each `kind` takes exactly the inputs it needs.** Five kinds exist, and each
+  is its own strict object, so a field the checker would not read is a parse
+  error rather than a condition silently ignored:
+
+  | `kind`      | what the source reported                       | inputs                                    |
+  | ----------- | ---------------------------------------------- | ----------------------------------------- |
+  | `cmax`      | peak after one dose                            | `route`, `dose` (+ `infusionDurationH`)   |
+  | `tmax`      | time of that peak                              | same                                      |
+  | `cmax_ss`   | peak within a dosing interval, at steady state | `route`, `dose`, `intervalH` (+ infusion) |
+  | `trough_ss` | the pre-dose level at steady state             | same                                      |
+  | `plateau`   | a patch's steady state, worn continuously      | `route: "transdermal"`, `deliveryRate`    |
+
+  `dose` takes `mg/kg` as well as absolute units, so a per-weight IV regimen is
+  stored as printed (acyclovir's "5 mg/kg q8h") and scaled to the 70 kg
+  reference subject by the checker. A `plateau` carries its own `deliveryRate`
+  because a label reports one plateau per patch strength, while the file stores
+  one strength.
+
+- **Steady state is proven, not assumed.** The checker doubles the course until
+  neither peak nor trough moves by 0.01%, and fails if 1,024 doses are not
+  enough. That is the right answer for a regimen with no steady state, such as a
+  Michaelis–Menten drug dosed faster than its `Vmax`. A plateau must move less
+  than 0.1% over the last day of wear. What the checker cannot know is **when
+  the source sampled**. "10 mg daily for 10 days" is a steady-state observation
+  for cetirizine only because ten days is ~29 of its half-lives. Check that, and
+  write it in `conditions`. A value drawn part-way up the accumulation is not a
+  `_ss` kind, and no kind exists for it yet.
+- **A trough is the level at the instant of the next dose**, which is what a
+  drawn trough is. On an oral curve the true minimum comes slightly after the
+  dose; that is not what sources report, so it is not what is checked.
+
+```jsonc
+{
+  "kind": "trough_ss",
+  "route": "iv_infusion",
+  "dose": { "value": 5, "unit": "mg/kg" },
+  "intervalH": 8, // q8h
+  "infusionDurationH": 1, // must be shorter than intervalH
+  "value": 0.7,
+  "unit": "mcg/mL",
+  "tolerance": 0.85,
+  "sourceRef": "fda_label",
+  "conditions": "label Table 1 … A KNOWN, LARGE MISS, pinned at its size …",
+}
+```
 
 **When you add one, add the compound to `VALIDATED_IDS`** in the harness — the
 coverage assertion is a listed set rather than a count, because a count floor
@@ -1881,6 +1923,50 @@ the label's 875 mg tablet study (a different study, formulation and dose) as the
 independent check. When you encode an anchor that a parameter was tuned to, say
 so in `conditions`, and look for a second one that wasn't.
 
+**The first steady-state entries, 2026-10-19 — four compounds were listed, and
+two of them did not hold up.** The roadmap named acyclovir, ethosuximide,
+clonidine and cetirizine as waiting for steady-state kinds. Opening each source
+again gave:
+
+- **Acyclovir: encoded, with a large miss pinned on purpose.** The label's Table 1
+  gives steady-state peaks AND troughs for 5 and 10 mg/kg q8h. The peaks read 9%
+  and 22% low. The 22% is mostly the label: its 10 mg/kg peak is 2.34 times the 5
+  mg/kg one, from a different group of patients, so no linear model can match
+  both. The troughs read **83% and 35% high**, and that is the model. Falling from
+  9.8 to 0.7 mcg/mL in 7 h takes an effective half-life of ~1.8 h, and the label
+  states 2–3 h. A real curve drops faster than its terminal rate just after an
+  infusion. A one-compartment curve cannot, so it reaches the next dose too high.
+  This looks like the IV acetaminophen case above, which was NOT encoded, but it
+  differs in what the entry can still catch. The trough is the number most
+  sensitive to the half-life, and it is pinned from both sides. Lengthen the
+  half-life and the miss grows past 85% and fails. Shorten it and the miss drops
+  below a third of the tolerance, and the slack check fails, forcing the
+  `conditions` to be rewritten. The acetaminophen entry would have been spread
+  first and model second. Do not shorten acyclovir's half-life to hit 0.7: that
+  fits one number, calls it a parameter, and contradicts the label's 2–3 h. The
+  fix is a cited two-compartment parameterisation.
+- **Clonidine: encoded, all three plateaus** (0.4, 0.8 and 1.1 ng/mL; the model
+  reads −2%, −2% and +7%). The bespoke test still checks the approach, which no
+  entry can say.
+- **Cetirizine: encoded,** the label's 311 ng/mL after 10 mg daily for 10 days,
+  which reads 10% low. The label prints no single-dose Cmax, and "no
+  accumulation was observed" is not one.
+- **Ethosuximide: not a candidate, and its notes were wrong.** The "20 mg/kg/day
+  gives average levels within 40 to 100 mcg/mL" sentence is about CHILDREN in
+  both the Zarontin label and the SmPC, and the file models adults (half-life
+  40–60 h against ~30 h). It came from a label that is not among the file's
+  sources. And "within a therapeutic range" is a target band, not a measured
+  mean. The notes said "the label's own anchor confirms this"; they now say what
+  is left, which is arithmetic, not a check.
+- **Digitoxin: deferred, pending the full text.** Ochs 1982 (PMC1427752) reports a
+  "mean observed steady-state serum concentration" of 15.4 ng/mL on 0.07 mg daily.
+  Only the abstract opened; the scanned full text would not download. After 28
+  days at a 7.9-day accumulation half-life the course is only ~91% of the way to
+  its plateau. So 15.4 could be a fitted plateau or a late measured mean, and
+  could be a trough or an average. The daily swing alone is ~9%. Read the methods
+  before encoding it, and note that a value measured part-way up the
+  accumulation has no kind yet.
+
 ## Adding a compound — checklist
 
 The order matters: the gates are all **before** the JSON, because the cheapest
@@ -1916,9 +2002,10 @@ outcome of a bad candidate is a rejection-log entry and no file.
    the curve and compare its peak to a reported Cmax. For a zero-order input use
    `Css = R0/CL` (independent of Vd, so it is a free check on the data) and check
    the _approach_ too, via `ke = CL/Vd` against a reported time to steady state.
-   The single-dose Cmax/Tmax half of that goes straight into `validation` (see
-   "Validation observations" above) so the check survives the next edit; the
-   steady-state half still lives in `notes` until the schema grows a schedule.
+   Both halves go straight into `validation` (see "Validation observations"
+   above) so the check survives the next edit: a single-dose Cmax/Tmax, a
+   regimen's steady-state peak or trough, a patch's plateau. Only the _approach_
+   (how fast the plateau is reached) still has no kind, and lives in `notes`.
 9. **Launch the app and look at it** — `npm run build && npm run preview` — for
    anything route-, phenotype- or copy-keyed. On-screen prose is invisible to the
    test suite, and route copy has silently described the wrong organ three times.

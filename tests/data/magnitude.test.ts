@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { loadAllCompounds } from '../../src/data/loader.ts';
 import type { Compound } from '../../src/data/schema.ts';
+import { resolveTransdermalInput } from '../../src/data/derive.ts';
 import { buildCurve, type DoseSchedule } from '../../src/ui/curve.ts';
-import { concentration, mass, time } from '../../src/engine/units.ts';
+import {
+  REFERENCE_WEIGHT_KG,
+  concentration,
+  mass,
+  massRate,
+  time,
+} from '../../src/engine/units.ts';
 import type { ConcentrationUnit, MassUnit, TimeUnit } from '../../src/engine/units.ts';
 
 /**
@@ -34,18 +41,19 @@ import type { ConcentrationUnit, MassUnit, TimeUnit } from '../../src/engine/uni
  * silently: every parameter edit invalidates it, and nothing says so.
  *
  * What this file does is mechanical, and that is the point. For each
- * `validation` entry on each compound: build the curve at the dose the source
- * used, on the route the source used, and require the peak to land where the
- * source said it did.
+ * `validation` entry on each compound: build the curve the source's conditions
+ * describe — the single dose, the regimen, or the patch — on the route the source
+ * used, and require it to land where the source said it did. A steady state is
+ * not assumed after some fixed number of doses: the checker keeps dosing until
+ * the curve stops moving, and fails if it never does.
  *
  * Three things it deliberately does NOT do.
  *
  * - **It does not replace the four bespoke tests**, and should not absorb them as
- *   they stand: they assert things a single-dose Cmax/Tmax entry cannot say (a
- *   decline that is straight, a steady state that is superlinear in dose rate, a
- *   plateau reached on the label's timescale). The overlap worth removing is
- *   listed in `docs/ROADMAP.md` B2 — steady-state observations — not the tests
- *   themselves.
+ *   they stand: they assert things a declarative entry cannot say (a decline that
+ *   is straight, a steady state that is superlinear in dose rate, a plateau
+ *   reached on the label's timescale). Clonidine's plateaus are now entries here
+ *   AND its test still checks the approach; that overlap is on purpose.
  *
  * - **It does not check the compounds that carry no entries**, and it must not be
  *   read as if it did. Coverage is asserted below (as a listed set, never a
@@ -78,8 +86,11 @@ const validated = compounds.filter((c) => c.validation && c.validation.length > 
  * entries to a compound.
  */
 const VALIDATED_IDS = [
+  'acyclovir',
   'allopurinol',
   'amoxicillin',
+  'cetirizine',
+  'clonidine',
   'dextroamphetamine',
   'diazepam',
   'diphenhydramine',
@@ -111,46 +122,208 @@ describe('coverage', () => {
   });
 });
 
+type Observation = NonNullable<Compound['validation']>[number];
+type Kind = Observation['kind'];
+type ObservationOf<K extends Kind> = Extract<Observation, { kind: K }>;
+
 interface Case {
   compound: Compound;
-  observation: NonNullable<Compound['validation']>[number];
+  observation: Observation;
   label: string;
 }
+
+/** The dose, in canonical mg; a per-kg dose is scaled against the reference subject. */
+function doseMg(dose: ObservationOf<'cmax'>['dose']): number {
+  return dose.unit === 'mg/kg'
+    ? dose.value * REFERENCE_WEIGHT_KG
+    : mass.toCanonical(dose.value, dose.unit as MassUnit);
+}
+
+/** What each kind was given, for the test name. A `Record` so a new kind must say. */
+const DESCRIBE: { [K in Kind]: (o: ObservationOf<K>) => string } = {
+  cmax: (o) => `${o.dose.value} ${o.dose.unit}`,
+  tmax: (o) => `${o.dose.value} ${o.dose.unit}`,
+  cmax_ss: (o) => `${o.dose.value} ${o.dose.unit} q${o.intervalH}h`,
+  trough_ss: (o) => `${o.dose.value} ${o.dose.unit} q${o.intervalH}h`,
+  plateau: (o) => `${o.deliveryRate.value} ${o.deliveryRate.unit}`,
+};
 
 const cases: Case[] = validated.flatMap((compound) =>
   (compound.validation ?? []).map((observation) => ({
     compound,
     observation,
-    label: `${compound.id} ${observation.kind} on ${observation.route} at ${observation.dose.value} ${observation.dose.unit}`,
+    label: `${compound.id} ${observation.kind} on ${observation.route} at ${(DESCRIBE[observation.kind] as (o: Observation) => string)(observation)}`,
   })),
 );
 
-/** What the model says: the peak of the single-dose curve, in canonical units. */
-function modelled(c: Case): { value: number; unit: 'mg/L' | 'h' } {
-  const { compound, observation } = c;
-  const doseMg = mass.toCanonical(observation.dose.value, observation.dose.unit as MassUnit);
+/**
+ * How close two successive estimates of a steady state must be before the checker
+ * calls it reached: 0.01%, far inside any tolerance an entry states, so the
+ * convergence error can never be what decides a pass.
+ */
+const STEADY_STATE_REL_TOL = 1e-4;
+/**
+ * Doses the checker will give before declaring that a regimen never settles. A
+ * linear drug converges geometrically, so this is only reached by a regimen that
+ * genuinely has no steady state — a Michaelis–Menten drug dosed faster than its
+ * `Vmax` — and failing there is the correct answer, not a limit to raise.
+ */
+const MAX_DOSES = 1024;
+/** Grid points per dosing interval, so the sampled peak does not depend on how many doses were given. */
+const SAMPLES_PER_INTERVAL = 1000;
+
+const relChange = (a: number, b: number) => Math.abs(a - b) / Math.abs(b);
+
+/**
+ * Peak and pre-dose trough of the `n`th (last) interval of a regular course, read
+ * off the built curve.
+ *
+ * The trough is the concentration AT the instant the next dose would be given.
+ * Reading it from the sample "a hair before" a real next dose does not work: the
+ * builders place that sample at a fixed fraction of the horizon, so it slides
+ * earlier as the course lengthens, and the trough never converges (it drifted
+ * 0.3% between 8 and 64 doses of acyclovir, 30 times the convergence bound). So
+ * the course ends at dose `n`, and a ZERO-amount dose is added at `n·τ`. It puts
+ * no drug in (every model sums or integrates dose amounts, and 0 adds nothing),
+ * but every builder samples a dose instant exactly. Its value there is the
+ * left-hand limit even on an IV bolus, whose jump at that instant is a jump of 0.
+ */
+function intervalAt(
+  compound: Compound,
+  o: ObservationOf<'cmax_ss' | 'trough_ss'>,
+  n: number,
+  samplesPerInterval: number,
+) {
+  const tau = o.intervalH;
+  const start = (n - 1) * tau;
+  const end = n * tau;
   const curve = buildCurve({
     compound,
-    route: observation.route,
-    schedule: singleDose(doseMg),
-    infusionDuration: observation.infusionDurationH,
+    route: o.route,
+    schedule: {
+      amount: doseMg(o.dose),
+      count: n,
+      interval: tau,
+      adHoc: [{ time: end, amount: 0 }],
+    },
+    infusionDuration: o.infusionDurationH,
+    samples: samplesPerInterval * (n + 2),
+  });
+  const inside = curve.points.filter((p) => p.t >= start && p.t <= end);
+  const atEnd = inside.at(-1);
+  if (!atEnd || Math.abs(atEnd.t - end) > 1e-9) {
+    throw new Error(`${compound.id}: no sample at the trough instant ${end} h`);
+  }
+  return { peak: Math.max(...inside.map((p) => p.c)), trough: atEnd.c };
+}
+
+/**
+ * The steady-state interval, PROVEN reached rather than assumed: the course is
+ * doubled until neither the peak nor the trough moves, then re-read on a grid
+ * twice as fine to show the peak is the curve's and not the grid's (the oral
+ * critical-time mark sits at the SINGLE-dose Tmax, which is not where a
+ * steady-state peak falls).
+ */
+function steadyState(compound: Compound, o: ObservationOf<'cmax_ss' | 'trough_ss'>) {
+  let previous = intervalAt(compound, o, 2, SAMPLES_PER_INTERVAL);
+  for (let n = 4; n <= MAX_DOSES; n *= 2) {
+    const current = intervalAt(compound, o, n, SAMPLES_PER_INTERVAL);
+    if (
+      relChange(current.peak, previous.peak) < STEADY_STATE_REL_TOL &&
+      relChange(current.trough, previous.trough) < STEADY_STATE_REL_TOL
+    ) {
+      const finer = intervalAt(compound, o, n, 2 * SAMPLES_PER_INTERVAL);
+      if (relChange(finer.peak, current.peak) >= STEADY_STATE_REL_TOL) {
+        throw new Error(`${compound.id}: the steady-state peak still moves with the grid`);
+      }
+      return current;
+    }
+    previous = current;
+  }
+  throw new Error(
+    `${compound.id}: ${o.dose.value} ${o.dose.unit} every ${o.intervalH} h has not reached steady state after ${MAX_DOSES} doses`,
+  );
+}
+
+/**
+ * A patch's plateau: the concentration at the end of one continuous wear, and
+ * proof that it IS a plateau — the last day of wear may move it by no more than
+ * 0.1%. A patch whose curve is still climbing at removal has no steady state to
+ * compare, however close its last point happens to land.
+ */
+function plateau(compound: Compound, o: ObservationOf<'plateau'>) {
+  const patch = resolveTransdermalInput(compound);
+  if (!patch) throw new Error(`${compound.id}: a plateau observation needs a transdermal route`);
+  const rateMgPerH = massRate.toCanonical(o.deliveryRate.value, o.deliveryRate.unit);
+  const curve = buildCurve({
+    compound,
+    route: 'transdermal',
+    schedule: singleDose(rateMgPerH * patch.wearDurationH),
+    samples: 4000,
+  });
+  const end = curve.points.at(-1)!;
+  const dayBefore = curve.points.find((p) => p.t >= end.t - 24)!;
+  if (relChange(dayBefore.c, end.c) >= 1e-3) {
+    throw new Error(
+      `${compound.id}: still ${dayBefore.c < end.c ? 'rising' : 'falling'} on the last day of wear — not a plateau`,
+    );
+  }
+  return end.c;
+}
+
+/** A single-dose curve, for the two single-dose kinds. */
+function singleDoseCurve(compound: Compound, o: ObservationOf<'cmax' | 'tmax'>) {
+  return buildCurve({
+    compound,
+    route: o.route,
+    schedule: singleDose(doseMg(o.dose)),
+    infusionDuration: o.infusionDurationH,
     // A fine grid so the sampled peak is the curve's peak, not the grid's best
     // guess at it. (`criticalTimes` pins the analytic peak instant for a single
     // dose anyway; this removes the question.)
     samples: 4000,
   });
-  return observation.kind === 'cmax'
-    ? { value: curve.peak.c, unit: 'mg/L' }
-    : { value: curve.peak.t, unit: 'h' };
+}
+
+/**
+ * What the model says, per kind, in canonical units. An exhaustive `Record`, not a
+ * ternary: a sixth kind must say what it measures or fail to compile, rather than
+ * being scored — confidently — as whichever kind the last branch handled.
+ */
+const MODELLED: {
+  [K in Kind]: (compound: Compound, o: ObservationOf<K>) => { value: number; unit: 'mg/L' | 'h' };
+} = {
+  cmax: (compound, o) => ({ value: singleDoseCurve(compound, o).peak.c, unit: 'mg/L' }),
+  tmax: (compound, o) => ({ value: singleDoseCurve(compound, o).peak.t, unit: 'h' }),
+  cmax_ss: (compound, o) => ({ value: steadyState(compound, o).peak, unit: 'mg/L' }),
+  trough_ss: (compound, o) => ({ value: steadyState(compound, o).trough, unit: 'mg/L' }),
+  plateau: (compound, o) => ({ value: plateau(compound, o), unit: 'mg/L' }),
+};
+
+/** Built once per case: the steady-state cases are the expensive ones, and two tests read them. */
+const modelledCache = new Map<Case, { value: number; unit: 'mg/L' | 'h' }>();
+function modelled(c: Case): { value: number; unit: 'mg/L' | 'h' } {
+  let result = modelledCache.get(c);
+  if (!result) {
+    const build = MODELLED[c.observation.kind] as (
+      compound: Compound,
+      o: Observation,
+    ) => { value: number; unit: 'mg/L' | 'h' };
+    result = build(c.compound, c.observation);
+    modelledCache.set(c, result);
+  }
+  return result;
 }
 
 /** What the source says, in the same canonical units. */
 function reported(c: Case): { value?: number; range?: [number, number] } {
   const { observation } = c;
+  // Converted in whatever quantity the model answered in, so the two sides of the
+  // comparison cannot disagree about whether a kind is a time or a concentration.
   const toCanonical = (x: number) =>
-    observation.kind === 'cmax'
-      ? concentration.toCanonical(x, observation.unit as ConcentrationUnit)
-      : time.toCanonical(x, observation.unit as TimeUnit);
+    modelled(c).unit === 'h'
+      ? time.toCanonical(x, observation.unit as TimeUnit)
+      : concentration.toCanonical(x, observation.unit as ConcentrationUnit);
   return {
     value: observation.value === undefined ? undefined : toCanonical(observation.value),
     range:

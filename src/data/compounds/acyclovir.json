@@ -33,6 +33,60 @@
       "F": { "value": 1.0, "unit": "fraction", "derived": false, "sourceRef": "definition" }
     }
   },
+  "validation": [
+    {
+      "kind": "cmax_ss",
+      "route": "iv_infusion",
+      "dose": { "value": 5, "unit": "mg/kg" },
+      "intervalH": 8,
+      "infusionDurationH": 1,
+      "value": 9.8,
+      "range": [5.5, 13.8],
+      "unit": "mcg/mL",
+      "tolerance": 0.1,
+      "sourceRef": "fda_label",
+      "conditions": "label Table 1, 'Acyclovir Peak and Trough Concentrations at Steady-State': 5 mg/kg q8h as 1-hour infusions (n=8), Css max 9.8 mcg/mL (range 5.5 to 13.8), adults with normal renal function. The mean is scored; the per-kg dose is scaled to the 70 kg reference subject. The model reads ~9% low, the cost of taking Vd at 0.55 L/kg rather than the ~0.5 that would land the peak exactly (see notes)"
+    },
+    {
+      "kind": "trough_ss",
+      "route": "iv_infusion",
+      "dose": { "value": 5, "unit": "mg/kg" },
+      "intervalH": 8,
+      "infusionDurationH": 1,
+      "value": 0.7,
+      "range": [0.2, 1],
+      "unit": "mcg/mL",
+      "tolerance": 0.85,
+      "sourceRef": "fda_label",
+      "conditions": "same Table 1 row: Css trough 0.7 mcg/mL (range 0.2 to 1) for 5 mg/kg q8h. A KNOWN, LARGE MISS, pinned at its size rather than tuned away: the model reads ~83% high (1.28 mcg/mL), above even the highest individual trough the label reports. It is structural. The label's own fall from 9.8 to 0.7 over the 7 h between infusion end and the next dose implies an effective half-life of ~1.8 h, shorter than the label's stated 2-3 h, which is the distribution phase a one-compartment collapse cannot draw (see notes, TROUGH). Fixing it is a sourced two-compartment parameterisation, not a shorter half-life fitted to this number"
+    },
+    {
+      "kind": "cmax_ss",
+      "route": "iv_infusion",
+      "dose": { "value": 10, "unit": "mg/kg" },
+      "intervalH": 8,
+      "infusionDurationH": 1,
+      "value": 22.9,
+      "range": [14.1, 44.1],
+      "unit": "mcg/mL",
+      "tolerance": 0.25,
+      "sourceRef": "fda_label",
+      "conditions": "label Table 1: 10 mg/kg q8h as 1-hour infusions (n=7), Css max 22.9 mcg/mL (range 14.1 to 44.1). The model reads ~22% low. Most of that is the label's own numbers, not the model: 22.9 is 2.34 times the 5 mg/kg peak for twice the dose, from a different group of patients, so no linear model can match both rows (the levofloxacin 750 mg posture). The rest is the ~9% of the 5 mg/kg row"
+    },
+    {
+      "kind": "trough_ss",
+      "route": "iv_infusion",
+      "dose": { "value": 10, "unit": "mg/kg" },
+      "intervalH": 8,
+      "infusionDurationH": 1,
+      "value": 1.9,
+      "range": [0.5, 2.9],
+      "unit": "mcg/mL",
+      "tolerance": 0.37,
+      "sourceRef": "fda_label",
+      "conditions": "label Table 1: Css trough 1.9 mcg/mL (range 0.5 to 2.9) for 10 mg/kg q8h. The model reads ~35% high (2.56 mcg/mL), inside the label's individual range here, but for the same structural reason as the 5 mg/kg trough: a one-compartment curve falls too slowly after an infusion"
+    }
+  ],
   "flags": { "nonlinear": false, "narrowTherapeuticIndex": false },
   "sources": {
     "fda_label": {
@@ -48,5 +102,5 @@
       "accessed": "2026-07-10"
     }
   },
-  "notes": "A clean LINEAR one-compartment antiviral (acyclic guanosine nucleoside analogue), curated as an INTRAVENOUS compound from the FDA acyclovir injection label (half-life, steady-state concentrations, dose-proportionality, protein binding, renal excretion) with the volume of distribution from the Acyclovir clinical pharmacology review (the label prints no numeric Vd). Reported PK: half-life ~2.5 h with normal renal function, Vss ~0.7 L/kg, 9-33% protein binding, and elimination essentially unchanged by the kidney (62-91% of dose in urine; glomerular filtration + tubular secretion).\n\nWHY ACYCLOVIR - an antiviral (a class not previously in the set) and a renally-cleared IV drug whose half-life is strongly renal-function-dependent, reinforcing the atenolol/vancomycin/gentamicin renal-elimination teaching thread. It is deliberately shipped IV-only (see ORAL below), which also makes it the cleanest example of a drug whose IV bolus is offered as INFERRED because a rapid bolus is contraindicated.\n\nLINEARITY. The label states 'proportionality between dose and plasma levels is seen after single doses or at steady-state after multiple dosing'; renal elimination (filtration + secretion) is first-order and non-saturable at therapeutic plasma levels. A single half-life is meaningful and superposition of identical repeated infusions is valid. linear: true.\n\nVOLUME / MAGNITUDE CHECK (ceiling test). Acyclovir is mildly two-compartment (a distribution/beta-phase structure), so its steady-state peak constrains the effective (plasma) volume below the tissue Vss. Against the built engine curve, a one-compartment 5 mg/kg (350 mg) 1-hour infusion every 8 hours reaches a steady-state peak of 8.9 mcg/mL at 0.55 L/kg (~9% below the labeled 9.8 mcg/mL); at 0.5 L/kg it lands ~9.8 mcg/mL (matching), and at the full 0.7 L/kg tissue Vss it would under-predict to ~7 mcg/mL. Point 0.55 L/kg is the documented Cmax-consistent choice: within ~10% of the labeled steady-state peak, near the ~0.5 L/kg plasma volume and below the ~0.7 L/kg tissue Vss. Clearance is deliberately NOT stored: with a fixed Vd and half-life, storing the reported CL (~327 mL/min/1.73 m^2) would create a circular ke = CL/Vd cross-check that disagrees with ln2/t-half (the cetirizine rule).\n\nORAL ROUTE OMITTED (deliberate). Oral acyclovir has SATURABLE absorption - bioavailability falls with dose (only ~10-20%, and lower at higher doses), which is exactly the pharmacokinetic problem the prodrug valacyclovir was designed to solve. A single dose-stable F would misrepresent it, and superposition across different oral doses would be invalid on the ABSORPTION side (the disposition stays linear). Rather than ship a plainly-linear oral line that is quietly wrong, the oral route is omitted and this note records why. (IV disposition is unaffected and fully linear.)\n\nIV BOLUS INFERRED. iv_infusion is the real clinical route: acyclovir MUST be infused slowly (over at least 1 hour) - a rapid IV bolus produces high transient concentrations that can crystallise in the renal tubules and cause acute kidney injury. iv_bolus is therefore marked available: false and its curve is labeled inferred/idealised (the instantaneous-input limit), not a route the drug is actually given by.\n\nEDUCATIONAL ILLUSTRATION ONLY - not for dosing."
+  "notes": "A clean LINEAR one-compartment antiviral (acyclic guanosine nucleoside analogue), curated as an INTRAVENOUS compound from the FDA acyclovir injection label (half-life, steady-state concentrations, dose-proportionality, protein binding, renal excretion) with the volume of distribution from the Acyclovir clinical pharmacology review (the label prints no numeric Vd). Reported PK: half-life ~2.5 h with normal renal function, Vss ~0.7 L/kg, 9-33% protein binding, and elimination essentially unchanged by the kidney (62-91% of dose in urine; glomerular filtration + tubular secretion).\n\nWHY ACYCLOVIR - an antiviral (a class not previously in the set) and a renally-cleared IV drug whose half-life is strongly renal-function-dependent, reinforcing the atenolol/vancomycin/gentamicin renal-elimination teaching thread. It is deliberately shipped IV-only (see ORAL below), which also makes it the cleanest example of a drug whose IV bolus is offered as INFERRED because a rapid bolus is contraindicated.\n\nLINEARITY. The label states 'proportionality between dose and plasma levels is seen after single doses or at steady-state after multiple dosing'; renal elimination (filtration + secretion) is first-order and non-saturable at therapeutic plasma levels. A single half-life is meaningful and superposition of identical repeated infusions is valid. linear: true.\n\nVOLUME / MAGNITUDE CHECK (ceiling test). Acyclovir is mildly two-compartment (a distribution/beta-phase structure), so its steady-state peak constrains the effective (plasma) volume below the tissue Vss. Against the built engine curve, a one-compartment 5 mg/kg (350 mg) 1-hour infusion every 8 hours reaches a steady-state peak of 8.9 mcg/mL at 0.55 L/kg (~9% below the labeled 9.8 mcg/mL); at 0.5 L/kg it lands ~9.8 mcg/mL (matching), and at the full 0.7 L/kg tissue Vss it would under-predict to ~7 mcg/mL. Point 0.55 L/kg is the documented Cmax-consistent choice: within ~10% of the labeled steady-state peak, near the ~0.5 L/kg plasma volume and below the ~0.7 L/kg tissue Vss. Clearance is deliberately NOT stored: with a fixed Vd and half-life, storing the reported CL (~327 mL/min/1.73 m^2) would create a circular ke = CL/Vd cross-check that disagrees with ln2/t-half (the cetirizine rule).\n\nTROUGH - WHERE THE ONE-COMPARTMENT COLLAPSE SHOWS. The label's Table 1 also reports steady-state TROUGHS, and the model misses them badly: 1.28 mcg/mL against 0.7 for 5 mg/kg q8h (~83% high, above the label's highest individual trough of 1.0), and 2.56 against 1.9 for 10 mg/kg (~35% high). The cause is in the label's own numbers. Falling from 9.8 to 0.7 mcg/mL over the 7 h between the end of one infusion and the next dose takes an effective half-life of ~1.8 h, while the label states 2-3 h. A real acyclovir curve drops faster than its terminal half-life just after an infusion, because drug is still spreading into tissue; a one-compartment curve falls at the terminal rate from the start, so it arrives at the next dose too high. Both troughs and both peaks are encoded as `validation` entries with these misses pinned at their size. Shortening the half-life to hit 0.7 would be fitting one number and calling it a parameter, and it would contradict the label's 2-3 h. The honest fix is a cited two-compartment parameterisation, which this file does not have.\n\nORAL ROUTE OMITTED (deliberate). Oral acyclovir has SATURABLE absorption - bioavailability falls with dose (only ~10-20%, and lower at higher doses), which is exactly the pharmacokinetic problem the prodrug valacyclovir was designed to solve. A single dose-stable F would misrepresent it, and superposition across different oral doses would be invalid on the ABSORPTION side (the disposition stays linear). Rather than ship a plainly-linear oral line that is quietly wrong, the oral route is omitted and this note records why. (IV disposition is unaffected and fully linear.)\n\nIV BOLUS INFERRED. iv_infusion is the real clinical route: acyclovir MUST be infused slowly (over at least 1 hour) - a rapid IV bolus produces high transient concentrations that can crystallise in the renal tubules and cause acute kidney injury. iv_bolus is therefore marked available: false and its curve is labeled inferred/idealised (the instantaneous-input limit), not a route the drug is actually given by.\n\nEDUCATIONAL ILLUSTRATION ONLY - not for dosing."
 }
