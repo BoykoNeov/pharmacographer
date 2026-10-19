@@ -1851,9 +1851,12 @@ A `validation` entry is the same claim in a typed field, so
   one strength.
 
 - **Steady state is proven, not assumed.** The checker doubles the course until
-  neither peak nor trough moves by 0.01%, and fails if 1,024 doses are not
-  enough. That is the right answer for a regimen with no steady state, such as a
-  Michaelis–Menten drug dosed faster than its `Vmax`. A plateau must move less
+  what the entry reads stops moving by 0.01% (the trough, and for a `cmax_ss`
+  the peak too), and fails if 1,024 doses are not enough. That is the right
+  answer for a regimen with no steady state, such as a Michaelis–Menten drug
+  dosed faster than its `Vmax`. A `trough_ss` is read on a coarse grid: a trough
+  is a dose instant, which every builder samples exactly, and the fine peak grid
+  made digitoxin's 128-dose course take ~110 s. A plateau must move less
   than 0.1% over the last day of wear. What the checker cannot know is **when
   the source sampled**. "10 mg daily for 10 days" is a steady-state observation
   for cetirizine only because ten days is ~29 of its half-lives. Check that, and

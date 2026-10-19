@@ -248,9 +248,10 @@ with "build it when a second compound needs it". Both halves fell on 2026-10-19:
   get a challenge page) show its 15.4 ng/mL is the plateau of a curve fitted to
   pre-dose samples, i.e. a steady-state trough. It is now an ordinary
   `trough_ss` entry. See the data guide, "The first steady-state entries".
-- **No second compound turned up.** The DailyMed labels of the long-half-life
-  compounds that carry a `setid` (fluconazole, lamotrigine, both diazepam
-  labels, warfarin, lithium, levetiracetam, both phenytoin labels) were searched
+- **No second compound turned up.** Nine DailyMed labels, mostly of
+  long-half-life compounds that carry a `setid` (fluconazole, lamotrigine, both
+  diazepam labels, warfarin, lithium, both phenytoin labels, plus levetiracetam,
+  whose 7 h half-life makes it the weakest candidate), were searched
   for "day N", "Nth dose", "first dose", "loading dose", "after N days/doses",
   "week N" near a concentration unit, and every concentration sentence in the
   six likeliest was read. They hold single-dose peaks, steady-state values,

@@ -14,11 +14,18 @@ advisor-reviewed, 683 → 684 tests, 20 → 21 carrying `validation`).** Roadmap
 needing it. The gate was checked before anything was built, and both halves fell. Ochs 1982's methods,
 read in a browser because a script gets a proof-of-work page, show its 15.4 ng/mL is the `Css` of a
 curve fitted to PRE-DOSE samples: a steady-state trough, which `trough_ss` already checks. And none of
-nine long-half-life labels reports a value partway up an accumulation. The digitoxin entry reads 0.1%
-high. The advisor's catch was to call that luck in writing rather than precision: the studies'
-clearances differ by ~40%, and Ochs's radioimmunoassay reads high where the file's `F` comes from a
-specific assay. It also caught the file's old magnitude paragraph validating Vd against a therapeutic
-range, the target-band argument the guide had already rejected for ethosuximide.
+nine labels, mostly of long-half-life compounds, reports a value partway up an accumulation. The
+digitoxin entry reads 0.1% high. The advisor's catch was to call that luck in writing rather than
+precision: the studies' clearances differ by ~40%, and Ochs's radioimmunoassay reads high where the
+file's `F` comes from a specific assay. It also caught the file's old magnitude paragraph validating Vd
+against a therapeutic range, the target-band argument the guide had already rejected for ethosuximide.
+
+**The one real cost was time, and raising the timeout was not the fix.** Digitoxin's course needs 128
+daily doses to converge, and on the 1,000-points-per-interval peak grid that one case took ~110 s,
+starving the suite into timeouts. A trough is a dose instant that every builder samples exactly, so a
+`trough_ss` now converges on the trough alone on a 10-point grid: troughs identical on both grids
+(acyclovir, digitoxin exact; a phenytoin regimen to 3e-10), 0.4 s instead of 19.5 s per build. The
+never-settles guard was re-confirmed on that path with a phenytoin trough dosed above `Vmax`.
 
 **STEADY STATE BECAME CHECKABLE, AND TWO OF FOUR LISTED ANCHORS WERE NOT ANCHORS (2026-10-19,
 advisor-reviewed, 675 → 683 tests, 48 compounds, 17 → 20 carrying `validation`).** Roadmap B2 asked for
