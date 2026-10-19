@@ -1944,7 +1944,11 @@ again gave:
   `conditions` to be rewritten. The acetaminophen entry would have been spread
   first and model second. Do not shorten acyclovir's half-life to hit 0.7: that
   fits one number, calls it a parameter, and contradicts the label's 2–3 h. The
-  fix is a cited two-compartment parameterisation.
+  fix is a cited two-compartment parameterisation. Note which entries are
+  evidence: the 5 mg/kg peak is a **guard**, because Vd was chosen against it.
+  The troughs are the independent check. In a one-compartment curve the fall from
+  peak to trough is set by `ke` alone, so they measure the decline, not the
+  volume.
 - **Clonidine: encoded, all three plateaus** (0.4, 0.8 and 1.1 ng/mL; the model
   reads −2%, −2% and +7%). The bespoke test still checks the approach, which no
   entry can say.

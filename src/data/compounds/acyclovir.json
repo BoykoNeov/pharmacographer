@@ -45,7 +45,7 @@
       "unit": "mcg/mL",
       "tolerance": 0.1,
       "sourceRef": "fda_label",
-      "conditions": "label Table 1, 'Acyclovir Peak and Trough Concentrations at Steady-State': 5 mg/kg q8h as 1-hour infusions (n=8), Css max 9.8 mcg/mL (range 5.5 to 13.8), adults with normal renal function. The mean is scored; the per-kg dose is scaled to the 70 kg reference subject. The model reads ~9% low, the cost of taking Vd at 0.55 L/kg rather than the ~0.5 that would land the peak exactly (see notes)"
+      "conditions": "label Table 1, 'Acyclovir Peak and Trough Concentrations at Steady-State': 5 mg/kg q8h as 1-hour infusions (n=8), Css max 9.8 mcg/mL (range 5.5 to 13.8), adults with normal renal function. The mean is scored; the per-kg dose is scaled to the 70 kg reference subject. The model reads ~9% low, the cost of taking Vd at 0.55 L/kg rather than the ~0.5 that would land the peak exactly (see notes). THIS ENTRY IS A GUARD, NOT EVIDENCE: Vd was chosen against this same 9.8 mcg/mL (the amoxicillin posture), so it can only catch a later edit. The independent checks are the 10 mg/kg row (a different group of patients) and the two troughs. In a one-compartment curve the fall from peak to trough is set by ke alone, so once Vd roughly lands the peak, the trough miss measures the decline, not the volume"
     },
     {
       "kind": "trough_ss",

@@ -27,10 +27,12 @@ below `Vmax` converged, so the nonlinear path works too.
 **What the sources said, once opened.** Acyclovir's label Table 1 gave peaks and troughs. The troughs
 read 83% and 35% HIGH, a structural miss of the one-compartment collapse. The label's own fall implies
 an effective half-life of ~1.8 h against its stated 2–3 h. It is pinned, not tuned. Clonidine's three
-plateaus and cetirizine's multiple-dose peak landed within 10%. **The advisor's catch:**
-ethosuximide's "label anchor" was a sentence about CHILDREN, from a label not in the file's sources,
-naming a target band rather than a measured mean. The notes had said "the label's own anchor confirms
-this" since July. Digitoxin's 15.4 ng/mL was deferred: it was measured ~91% of the way to plateau, and
+plateaus and cetirizine's multiple-dose peak landed within 10%. Ethosuximide's "label anchor" turned
+out, on opening the label, to be a sentence about CHILDREN. The advisor added that the label is not
+among the file's sources, and that "within 40 to 100 mcg/mL" is a target band rather than a measured
+mean. The notes had said "the label's own anchor confirms this" since the file was added (`957d964`,
+2026-07-10). The advisor also caught that acyclovir's 5 mg/kg peak is a guard, not evidence: its Vd
+was chosen against that very number. The troughs are the independent part. Digitoxin's 15.4 ng/mL was deferred: it was measured ~91% of the way to plateau, and
 only the abstract opened.
 
 **THE CAPACITY BECAME A STATE, AND CI LEARNED TO SEE MAGNITUDE (2026-09-02, 628 → 663 tests, 48
