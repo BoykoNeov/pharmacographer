@@ -2746,8 +2746,10 @@ are below, from the abstracts actually opened (none of the papers is open access
   as saturable metabolism." The engine plots the TOTAL concentration, which is what laboratories
   report. In that quantity, across the therapeutic range, Furst saw roughly linear behaviour. Shen
   1991 independently found the data "best described with a model that included both saturable
-  protein binding and saturable metabolism". Bochner's two `Km`s say the same thing in numbers:
-  14.3 mg/L total against 0.75 mg/L unbound, about 19-fold apart.
+  protein binding and saturable metabolism". (Bochner's two `Km`s, 14.3 mg/L total against 0.75
+  mg/L unbound, show only that salicylate is heavily bound, about 95% near `Km`. A constant bound
+  fraction would give the same ratio, so they do not show the binding SATURATES. That rests on
+  Furst and Shen alone.)
 - **One pathway also speeds up over a course.** Needs & Brooks: "There is also evidence that enzyme
   induction of salicyluric acid formation occurs." That is the other direction of the
   enzyme-turnover state in `modelsEnzyme.ts`, and is a third, separate departure from a fixed
@@ -2758,9 +2760,10 @@ are below, from the abstracts actually opened (none of the papers is open access
 A single Michaelis–Menten term on total concentration would do two wrong things, both where this
 compound would exist to teach. In the therapeutic range it would bend the dose–level curve, which
 is what Furst's total clearance says does not happen there. In overdose it would cap elimination at
-`Vmax`, with apparent half-life rising without limit. The unsaturable routes, renal excretion of
-unchanged drug among them, keep running, which is why a more alkaline urine speeds removal. A
-model with no first-order term beside the saturable one has no lever for that at all. _A residual is
+`Vmax`, with apparent half-life rising without limit. The unsaturable routes keep running,
+renal excretion of unchanged drug among them, at a rate Needs & Brooks call "influenced by urinary
+pH". A model with no first-order term beside the saturable one cannot represent that route at
+all. _A residual is
 tolerable, but not when the wrong quantity IS the teaching point_ (the sumatriptan-oral rule).
 
 #### Pre-registered gate, so this is not re-litigated
@@ -2768,10 +2771,14 @@ tolerable, but not when the wrong quantity IS the teaching point_ (the sumatript
 Two ways in, and they are not equal.
 
 1. **A source that fitted a lumped `Vmax`/`Km` to TOTAL plasma salicylate across doses.** This is
-   the theophylline route, and it is pure data. Its pre-check is Furst: compute the steady state at
-   0.66 and 4.0 mg/kg/hr (`Css = R0·Km/(Vmax − R0)`, no `Vd` needed). If the total clearance
-   implied at the two ends differs much more than Furst's "unchanged", the fit contradicts the
-   better-designed study and does not clear the gate. Even a fit that passes still misses the
+   the theophylline route, and it is pure data. Its pre-check is Furst. Furst's rates are mg/kg/hr
+   of ASPIRIN, so first convert each to salicylic-acid mass for the 70 kg reference subject:
+   `R0 = rate × 70 × 138.12/180.16` (≈ ×0.767), assuming the whole aspirin dose reaches the
+   circulation as salicylic acid, and say so. The total clearance the fit implies at steady state
+   is `R0/Css = (Vmax − R0)/Km`, so compare `(Vmax − R0,high)/(Vmax − R0,low)` at 4.0 and 0.66
+   mg/kg/hr against 1. Furst reports a ±14% coefficient of variation from prediction among
+   subjects. A fit whose implied clearance falls by more than that across the range contradicts
+   Furst's "unchanged" and does not clear the gate. Even a fit that passes still misses the
    overdose regime. Ship it only with that miss stated in `notes` and on screen.
 2. **The mechanistic shape.** Elimination acting on UNBOUND concentration, with an unbound fraction
    that rises with concentration (so the volume for total drug moves too), plus a first-order term
