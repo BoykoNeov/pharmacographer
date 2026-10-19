@@ -139,7 +139,11 @@ principle — they are _un-curated nonlinear compounds_, and each is now a
 candidate for the MM engine if a source gives Vmax and Km. Note that omeprazole
 (auto-INHIBITION) and naproxen (concentration-dependent protein binding) are
 **not** Michaelis–Menten in shape, so they would need a further model, not just
-parameters; **salicylate** is now the plausible next MM ship.
+parameters. **Salicylate was gated 2026-10-19 and turned out to belong with them,
+not with theophylline**: its protein binding saturates too, and in the one
+steady-state study opened, that offsets saturating metabolism so that _total_
+clearance hardly moves across the therapeutic range. See "Salicylate gated" at the
+end of this guide.
 
 **Theophylline shipped 2026-07-17** — it was on that list, and it is the worked
 example of what taking a compound off it costs. Wagner 1985's pooled Vmax/Km was
@@ -152,7 +156,12 @@ generalise:
   MM term, so its stored Km (24.1) is a weighted composite that measures no
   enzyme. That is legitimate — Wagner fitted it to observed clearances as an
   empirical whole-body model — but it is a real limit of the curve and belongs in
-  `notes`, not in the gap between them. Salicylate has the same shape.
+  `notes`, not in the gap between them. Salicylate shares the parallel-pathways part
+  of this shape but not the rest: nobody fitted it a lumped pair (in the sources
+  opened), and it adds saturable binding, plus a first-order route whose share grows
+  as the saturable ones fill, which is the high-dose regime it would teach. Parallel
+  saturable pathways were never the blocker, as theophylline proves. See "Salicylate
+  gated".
 - **Shipping a compound can FALSIFY prose in files you are not touching.**
   `caffeine.json` and `theobromine.json` both asserted theophylline was excluded;
   both had to flip in the same commit. **Nothing in CI sees this** — `loader.test`
@@ -2708,3 +2717,89 @@ containing the EM-versus-PM finding. That summary was not used. The abstracts ab
 through the Europe PMC REST API and the two sentences quoted in this entry came back verbatim from
 it — the theophylline rule ("a search-summary number is not a source") applied before writing, not
 after.
+
+### Salicylate gated — NOT ADDED (2026-10-19), because the plotted concentration hides the saturation
+
+This guide and the roadmap both named salicylate "the plausible next MM ship", needing only a
+citable `Vmax` and `Km`. That recorded reason was incomplete, so once again the gate audited the note
+rather than the compound. The verdict is a deferral. The reasons
+are below, from the abstracts actually opened (none of the papers is open access).
+
+#### What was found, and why none of it is a whole-body pair
+
+- **The only `Vmax`/`Km` printed is for ONE pathway.** Bochner 1981 gives `Vm` 43.4 ± 10.1 mg SA/hr
+  and `Km` 14.3 ± 3.4 mg SA/l plasma, for the conversion of salicylic acid to salicyluric acid
+  alone. Storing it as `dispositionMM` would draw the whole drug from one route's constants. That is
+  the manufactured-number failure. So is combining it with another pathway's constants, or fitting
+  a pair to label or textbook curves.
+- **Elimination is several pathways, and not all of them saturate.** Needs & Brooks 1985: "The rate
+  of formation of salicyl phenolic glucuronide and salicyluric acid are easily saturated at low
+  salicylic acid concentrations and their formation is described by Michaelis-Menten kinetics. The
+  other metabolic products follow first-order kinetics." Salicylic acid is also "renally excreted
+  in part unchanged", at a rate "influenced by urinary pH". Theophylline has this structure too, and
+  shipped, because Wagner 1985 fitted one lumped pair to observed clearances. **No such lumped fit
+  for salicylate was found** in the sources opened. That does not prove none exists.
+- **Protein binding saturates, and it cancels the saturation the engine would draw.** Furst, Tozer &
+  Melmon 1979, nine normal subjects dosed to steady state at 0.66–4.0 mg/kg/hr of aspirin: "Although
+  unbound clearance decreased over the therapeutic range, total clearance was unchanged. The former
+  is a consequence of saturable metabolism; the latter, of saturable plasma protein binding as well
+  as saturable metabolism." The engine plots the TOTAL concentration, which is what laboratories
+  report. In that quantity, across the therapeutic range, Furst saw roughly linear behaviour. Shen
+  1991 independently found the data "best described with a model that included both saturable
+  protein binding and saturable metabolism". Bochner's two `Km`s say the same thing in numbers:
+  14.3 mg/L total against 0.75 mg/L unbound, about 19-fold apart.
+- **One pathway also speeds up over a course.** Needs & Brooks: "There is also evidence that enzyme
+  induction of salicyluric acid formation occurs." That is the other direction of the
+  enzyme-turnover state in `modelsEnzyme.ts`, and is a third, separate departure from a fixed
+  `Vmax`.
+
+#### Why this is not a residual to tolerate
+
+A single Michaelis–Menten term on total concentration would do two wrong things, both where this
+compound would exist to teach. In the therapeutic range it would bend the dose–level curve, which
+is what Furst's total clearance says does not happen there. In overdose it would cap elimination at
+`Vmax`, with apparent half-life rising without limit. The unsaturable routes, renal excretion of
+unchanged drug among them, keep running, which is why a more alkaline urine speeds removal. A
+model with no first-order term beside the saturable one has no lever for that at all. _A residual is
+tolerable, but not when the wrong quantity IS the teaching point_ (the sumatriptan-oral rule).
+
+#### Pre-registered gate, so this is not re-litigated
+
+Two ways in, and they are not equal.
+
+1. **A source that fitted a lumped `Vmax`/`Km` to TOTAL plasma salicylate across doses.** This is
+   the theophylline route, and it is pure data. Its pre-check is Furst: compute the steady state at
+   0.66 and 4.0 mg/kg/hr (`Css = R0·Km/(Vmax − R0)`, no `Vd` needed). If the total clearance
+   implied at the two ends differs much more than Furst's "unchanged", the fit contradicts the
+   better-designed study and does not clear the gate. Even a fit that passes still misses the
+   overdose regime. Ship it only with that miss stated in `notes` and on screen.
+2. **The mechanistic shape.** Elimination acting on UNBOUND concentration, with an unbound fraction
+   that rises with concentration (so the volume for total drug moves too), plus a first-order term
+   beside the saturable ones. That is an engine capability, not a parameter, and it would also be
+   the model naproxen waits on. Its source is Shen 1991, whose fitted parameters nobody working on
+   this repo has read (the full text is subscription-only). Do not build the engine before that
+   paper is read.
+
+Searching that does NOT clear it: more per-pathway constants (of the kind Bochner reports),
+clinical target ranges, and textbook worked examples whose `Vmax`/`Km` are not
+traced to a study.
+
+#### Sources opened
+
+All read as abstracts through the Europe PMC REST API. The quotations above came back verbatim from
+it. None is open access.
+
+- **Bochner F, Graham GG, Cham BE, Imhoff DM, Haavisto TM.** Salicylate metabolite kinetics after
+  several salicylates. _Clin Pharmacol Ther._ 1981;30(2):266–275. doi:10.1038/clpt.1981.158. PMID 7249509.
+- **Furst DE, Tozer TN, Melmon KL.** Salicylate clearance, the resultant of protein binding and
+  metabolism. _Clin Pharmacol Ther._ 1979;26(3):380–389. doi:10.1002/cpt1979263380. PMID 466931.
+- **Needs CJ, Brooks PM.** Clinical pharmacokinetics of the salicylates. _Clin Pharmacokinet._
+  1985;10(2):164–177. doi:10.2165/00003088-198510020-00004. PMID 3888490 (abstract truncated by the index at 400 words).
+- **Shen J, Wanwimolruk S, Purves RD, McQueen EG, Roberts MS.** Model representation of salicylate
+  pharmacokinetics using unbound plasma salicylate concentrations and metabolite urinary excretion
+  rates following a single oral dose. _J Pharmacokinet Biopharm._ 1991;19(5):575–595.
+  doi:10.1007/bf01062964. PMID 1783992.
+
+Looked up and **not** opened, so nothing above rests on them: Levy 1965 (_J Pharm Sci_ 54:959, PMID 5862532) and Levy & Tsuchiya 1972 (_N Engl J Med_ 287:430, PMID 5044917). Neither has an abstract in
+the index. A web-search summary described Levy 1965 as fitting "parallel zero and first-order
+processes". That matches Needs & Brooks, but it is a summary, so the argument above does not use it.

@@ -254,8 +254,13 @@ pass, and their sources were not re-opened for it.
 The rejection log in `docs/DATA_GUIDE.md` is the authority, and it is long. The
 live pointers:
 
-- **Salicylate** is the plausible next Michaelis–Menten ship, if a source gives
-  `Vmax` and `Km` from one design.
+- **Salicylate** was gated 2026-10-19 and does **not** clear. This line used to
+  call it "the plausible next Michaelis–Menten ship". The only `Vmax`/`Km` found
+  is for one of its pathways. Its protein binding also saturates, and in the one
+  steady-state study opened that cancels the curvature in the TOTAL concentration
+  this app plots. Two gates are pre-registered in the data guide ("Salicylate
+  gated"): a lumped total-concentration fit that agrees with that study, or an
+  unbound-concentration engine model plus a paper (Shen 1991) nobody here has read.
 - **Ciprofloxacin** and **sildenafil** wait on a citable single-population
   two-compartment parameterisation.
 - **Loxapine (inhaled)** waits on one number — a distribution half-life.

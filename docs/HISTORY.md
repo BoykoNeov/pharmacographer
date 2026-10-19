@@ -736,7 +736,13 @@ feature and its first data point shipped without opening a new citation.
 - **Advisor corrected, on evidence.** The advisor characterised salicylate as needing an engine
   extension (parallel capacity-limited pathways); `docs/DATA_GUIDE.md` says the opposite in the
   project's own voice — theophylline and salicylate are "the plausible next MM ships", and it is
-  omeprazole/naproxen that need a further model. Went with the repo. Separately, the advisor's
+  omeprazole/naproxen that need a further model. Went with the repo. **That call was half wrong,
+  and the half that was wrong was the repo** (gated 2026-10-19; `docs/DATA_GUIDE.md`, "Salicylate
+  gated"). Parallel saturable pathways really were not the blocker, since theophylline shipped
+  with them. But the "plausible next MM ship" line rested on no source anyone had opened. Once the
+  abstracts were read, salicylate also had saturable protein binding (naproxen's problem), no
+  lumped fit, and a first-order route a single MM term cannot carry. "Corrected, on evidence"
+  was really corrected on the repo's own unsourced prose. Separately, the advisor's
   suggestion to mine the rejection log for engine-blocked compounds paid off but **inverted**: the
   2-comp cluster (ciprofloxacin, escitalopram, sildenafil) is parked on _sourcing_, not on the
   engine — "the engine unblocked N compounds" would have been a false claim to build on.
